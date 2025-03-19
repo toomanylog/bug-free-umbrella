@@ -9,14 +9,36 @@
     <meta name="keywords" content="formation, cybersécurité, fraude, outils spécialisés, misa linux, email, spam, protection" />
     <meta name="author" content="Misa Linux" />
     
-    <!-- Polices - Préchargement pour améliorer les performances -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <!-- Préchargement des ressources critiques -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <link rel="preconnect" href="https://apis.google.com" crossorigin />
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    
+    <!-- Préchargement DNS pour améliorer la vitesse de résolution -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://apis.google.com" />
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+    
+    <!-- Préchargement des scripts critiques -->
+    <link rel="preload" href="https://apis.google.com/js/api.js" as="script" />
+    
+    <!-- Polices optimisées -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     </noscript>
+    
+    <!-- Préchargement asynchrone des dépendances Google APIs -->
+    <script async>
+      (function() {
+        var gapi = document.createElement('script');
+        gapi.src = 'https://apis.google.com/js/api.js';
+        gapi.async = true;
+        gapi.defer = true;
+        document.head.appendChild(gapi);
+      })();
+    </script>
     
     <!-- Favicon et icônes -->
     <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/img/logo.svg" sizes="any" />

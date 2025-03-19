@@ -1,36 +1,69 @@
 # Activer la compression Gzip
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json application/xml application/vnd.ms-fontobject application/x-font-ttf font/opentype font/ttf font/eot font/otf image/svg+xml
 </IfModule>
 
 # Configurer les en-têtes HTTP pour une mise en cache optimale
 <IfModule mod_expires.c>
   ExpiresActive On
   
-  # Images
+  # Images et médias
   ExpiresByType image/jpeg "access plus 1 year"
   ExpiresByType image/png "access plus 1 year"
   ExpiresByType image/gif "access plus 1 year"
   ExpiresByType image/svg+xml "access plus 1 year"
   ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType video/mp4 "access plus 1 year"
+  ExpiresByType video/webm "access plus 1 year"
   
   # CSS, JavaScript
-  ExpiresByType text/css "access plus 1 month"
-  ExpiresByType text/javascript "access plus 1 month"
-  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
   
   # Polices
   ExpiresByType application/font-woff "access plus 1 year"
   ExpiresByType application/font-woff2 "access plus 1 year"
   ExpiresByType font/woff "access plus 1 year"
   ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/vnd.ms-fontobject "access plus 1 year"
+  ExpiresByType application/x-font-ttf "access plus 1 year"
+  ExpiresByType font/opentype "access plus 1 year"
+  
+  # HTML (court délai pour s'assurer que le contenu est à jour)
+  ExpiresByType text/html "access plus 1 hour"
+  
+  # JSON et XML de données
+  ExpiresByType application/json "access plus 1 day"
+  ExpiresByType application/xml "access plus 1 day"
+  
+  # Par défaut
+  ExpiresDefault "access plus 1 month"
 </IfModule>
 
-# Headers de sécurité
+# Headers de sécurité et performance
 <IfModule mod_headers.c>
   # Cache-Control
   <FilesMatch "\.(ico|pdf|jpg|jpeg|png|gif|svg|js|css|woff|woff2)$">
-    Header set Cache-Control "max-age=31536000, public"
+    Header set Cache-Control "max-age=31536000, public, immutable"
+  </FilesMatch>
+  
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "max-age=3600, public"
+  </FilesMatch>
+  
+  # Priorisations pour HTTP/2
+  <FilesMatch "\.js$">
+    Header add Priority "u=1, i"
+  </FilesMatch>
+  <FilesMatch "\.css$">
+    Header add Priority "u=1, i"
+  </FilesMatch>
+  <FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+    Header add Priority "u=0, i"
+  </FilesMatch>
+  <FilesMatch "\.(woff|woff2)$">
+    Header add Priority "u=0, i"
   </FilesMatch>
   
   # Sécurité
@@ -38,6 +71,10 @@
   Header always set X-XSS-Protection "1; mode=block"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  
+  # Supprimer les en-têtes ETag pour éviter la validation inutile
+  Header unset ETag
+  FileETag None
 </IfModule>
 
 # SPA redirect - Pour React Router
@@ -49,4 +86,15 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{REQUEST_FILENAME} !-l
   RewriteRule . /index.html [L]
-</IfModule> 
+</IfModule>
+
+# Performance supplémentaire - Encoder en Brotli si disponible
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json application/xml application/vnd.ms-fontobject application/x-font-ttf font/opentype font/ttf font/eot font/otf image/svg+xml
+</IfModule>
+
+# Désactiver ETags (pour éviter les validations inutiles)
+<IfModule mod_headers.c>
+  Header unset ETag
+</IfModule>
+FileETag None 
