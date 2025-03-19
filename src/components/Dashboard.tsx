@@ -201,6 +201,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     { id: 3, message: 'Mise à jour des outils de PACKID disponible', date: '19/03/2025', isRead: true }
   ];
 
+  // Outils disponibles
+  const tools = [
+    {
+      id: 1,
+      name: "Vérificateur de Leads",
+      description: "Analysez vos listes d'emails et de numéros pour déterminer le taux de bounce, les leads détectés comme leaks, spam traps ou à risque.",
+      icon: <Wrench className="text-blue-400" size={24} />,
+      status: "active",
+      features: ["Détection de bounce", "Identification de spam traps", "Analyse de risques", "Statistiques détaillées", "Export de rapports"]
+    },
+    {
+      id: 2,
+      name: "Email Sender Pro",
+      description: "Système d'envoi d'emails rotatif avancé avec rotation de sujets, noms d'expéditeur, adresses, templates HTML et variables personnalisées.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>,
+      status: "active",
+      features: ["Rotation de SMTP", "Templates HTML dynamiques", "Variables personnalisables", "Gestion de bouncing", "Limitation de débit"]
+    },
+    {
+      id: 3,
+      name: "Credential Cracker",
+      description: "Détectez les identifiants de connexion exposés dans des listes d'IP ou de domaines pour identifier les SMTP vulnérables et les clés API.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <rect x="8" y="16" width="8" height="6" rx="1"></rect>
+            </svg>,
+      status: "soon",
+      features: ["Scan d'IP et domaines", "Détection de SMTP", "Recherche de clés API", "Analyse de vulnérabilités", "Export de résultats"]
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
@@ -469,55 +504,58 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             <h1 className="text-3xl font-bold">Outils spécialisés</h1>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Tool 1 */}
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-blue-900/20 rounded-lg">
-                    <Wrench className="text-blue-400" size={24} />
+              {tools.map(tool => (
+                <div key={tool.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-3 bg-blue-900/20 rounded-lg">
+                      {tool.icon}
+                    </div>
+                    {tool.status === "active" ? (
+                      <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
+                    )}
                   </div>
-                  <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
-                </div>
-                <h3 className="text-xl font-bold mb-2">Générateur de Coldmail</h3>
-                <p className="text-gray-400 mb-4">Créez rapidement des coldmails efficaces et personnalisés grâce à notre outil d'IA.</p>
-                <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
-                  Utiliser l'outil
-                </button>
-              </div>
-              
-              {/* Tool 2 */}
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-purple-900/20 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400">
-                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                    </svg>
+                  <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
+                  <p className="text-gray-400 mb-4">{tool.description}</p>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-300 mb-2">Fonctionnalités:</p>
+                    <ul className="text-sm text-gray-400 list-disc pl-5 space-y-1">
+                      {tool.features.map((feature, index) => (
+                        <li key={index}>{feature}</li>
+                      ))}
+                    </ul>
                   </div>
-                  <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
+                  {tool.status === "active" ? (
+                    <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
+                      Utiliser l'outil
+                    </button>
+                  ) : (
+                    <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
+                      Disponible prochainement
+                    </button>
+                  )}
                 </div>
-                <h3 className="text-xl font-bold mb-2">Vérificateur PACKID</h3>
-                <p className="text-gray-400 mb-4">Vérifiez rapidement l'état et la validité de vos PACKID avec notre outil de diagnostic.</p>
-                <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
-                  Utiliser l'outil
-                </button>
-              </div>
-              
-              {/* Tool 3 */}
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-indigo-900/20 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
-                      <rect width="20" height="14" x="2" y="5" rx="2" />
-                      <line x1="2" x2="22" y1="10" y2="10" />
-                    </svg>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeSection === 'settings' && (
+          <div className="space-y-8">
+            <h1 className="text-3xl font-bold">Paramètres</h1>
+            
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="bg-blue-900/20 p-4 rounded-full inline-block mb-4">
+                    <Settings className="text-blue-400 h-12 w-12" />
                   </div>
-                  <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
+                  <h2 className="text-2xl font-bold mb-2">Fonctionnalité à venir</h2>
+                  <p className="text-gray-400 max-w-md mx-auto">
+                    Les paramètres de l'application seront bientôt disponibles. Vous pourrez personnaliser votre expérience, gérer vos notifications et configurer vos préférences.
+                  </p>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Simulateur de Crédit</h3>
-                <p className="text-gray-400 mb-4">Simulez vos chances d'obtention de crédit avec notre outil d'analyse prédictive.</p>
-                <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
-                  Disponible prochainement
-                </button>
               </div>
             </div>
           </div>
