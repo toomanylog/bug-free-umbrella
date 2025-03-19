@@ -3,6 +3,7 @@ import { X, Menu, Check } from 'lucide-react';
 import { LoginForm, RegisterForm, ForgotPasswordForm } from './AuthForms';
 import { logoutUser } from '../firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
+import Dashboard from './Dashboard';
 
 interface AnimatedElements {
   [key: string]: boolean;
@@ -14,6 +15,7 @@ const MisaLinuxHomepage = () => {
   const [activeForm, setActiveForm] = useState('login'); // 'login', 'register', 'forgot'
   const [scrollPosition, setScrollPosition] = useState(0);
   const [animatedElements, setAnimatedElements] = useState<AnimatedElements>({});
+  const [showDashboard, setShowDashboard] = useState(false);
   const { currentUser } = useAuth();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -51,6 +53,14 @@ const MisaLinuxHomepage = () => {
       elements.forEach(el => observer.unobserve(el));
     };
   }, []);
+
+  // Quand l'utilisateur est connecté, afficher le dashboard
+  useEffect(() => {
+    if (currentUser) {
+      setShowDashboard(true);
+      setIsLoginModalOpen(false);
+    }
+  }, [currentUser]);
 
   // Services data
   const services = [
@@ -125,11 +135,16 @@ const MisaLinuxHomepage = () => {
   const handleLogout = async () => {
     try {
       await logoutUser();
-      // Optional: Afficher un message de déconnexion réussie
+      setShowDashboard(false);
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     }
   };
+
+  // Si le dashboard est affiché, retourner le composant dashboard
+  if (showDashboard && currentUser) {
+    return <Dashboard onClose={() => setShowDashboard(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
@@ -581,6 +596,7 @@ const MisaLinuxHomepage = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 z-0"></div>
           
           <button 
+            type="button"
             onClick={toggleLoginModal}
             className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
           >
@@ -620,9 +636,7 @@ const MisaLinuxHomepage = () => {
             )}
             
             {activeForm === 'register' && (
-              <RegisterForm onSuccess={() => {
-                setActiveForm('login');
-              }} />
+              <RegisterForm onSuccess={() => setIsLoginModalOpen(false)} />
             )}
             
             {activeForm === 'forgot' && (
