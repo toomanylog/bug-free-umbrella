@@ -229,15 +229,20 @@ const MisaLinuxHomepage = () => {
               onClick={toggleMenu} 
               className="md:hidden relative z-20 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-menu"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
           
           {/* Mobile Menu */}
-          <div className={`fixed inset-0 bg-gray-900/95 backdrop-blur-md z-10 flex items-center justify-center transition-all duration-500 md:hidden ${
-            isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
-          }`}>
+          <div 
+            id="mobile-menu"
+            className={`fixed inset-0 bg-gray-900/95 backdrop-blur-md z-10 flex items-center justify-center transition-all duration-500 md:hidden ${
+              isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+            }`}
+          >
             <nav className="flex flex-col items-center space-y-8 text-center">
               <a 
                 href="#services" 
@@ -604,6 +609,7 @@ const MisaLinuxHomepage = () => {
             type="button"
             onClick={toggleLoginModal}
             className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-[200]"
+            aria-label="Fermer la fenêtre de connexion"
           >
             <X size={24} />
           </button>

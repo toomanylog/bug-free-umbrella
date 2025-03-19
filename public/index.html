@@ -9,9 +9,18 @@
     <meta name="keywords" content="formation, cybersécurité, fraude, outils spécialisés, misa linux, email, spam, protection" />
     <meta name="author" content="Misa Linux" />
     
-    <!-- Favicon et icônes Apple -->
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!-- Polices - Préchargement pour améliorer les performances -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    </noscript>
+    
+    <!-- Favicon et icônes -->
     <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/img/logo.svg" sizes="any" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     
     <!-- Manifest pour PWA -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
@@ -36,11 +45,6 @@
     
     <!-- Canonical URL -->
     <link rel="canonical" href="https://misalinux.ru/" />
-    
-    <!-- Polices -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     
     <title>Misa Linux - Formation et Outils Spécialisés</title>
   </head>

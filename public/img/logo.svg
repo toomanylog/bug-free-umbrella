@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#6366F1"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="100" ry="100" fill="url(#grad)" />
-  <text x="256" y="300" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="white">ML</text>
+  <rect width="512" height="512" rx="100" ry="100" fill="url(#grad)"/>
+  <path d="M149 300V150h20v120l80-120h27l-80 120 80 30h-37l-70-28v28h-20zm132 0l35-150h31l35 150h-22l-8-35h-42l-8 35h-21zm42-55h32l-15-68-17 68z" fill="#fff"/>
 </svg> 
