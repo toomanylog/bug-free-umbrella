@@ -191,15 +191,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   };
 
   const formations = [
-    { id: 1, title: 'Masterclass Obtention de Crédit', progress: 45, totalModules: 12, completedModules: 5 },
-    { id: 2, title: 'PACKID Professionnel', progress: 20, totalModules: 8, completedModules: 2 },
-    { id: 3, title: 'Coldmail Expert', progress: 10, totalModules: 10, completedModules: 1 }
+    { id: 1, title: 'Formation Obtention de Crédit', progress: 45, totalModules: 12, completedModules: 5 },
+    { id: 2, title: 'Formation PACKID Professionnel', progress: 20, totalModules: 8, completedModules: 2 },
+    { id: 3, title: 'Formation Spam Expert', progress: 10, totalModules: 10, completedModules: 1 }
   ];
 
   const notifications = [
-    { id: 1, message: 'Nouvelle formation disponible : "Techniques avancées de Coldmail"', date: '21/03/2025', isRead: false },
-    { id: 2, message: 'Votre certification pour "PACKID Professionnel" est en cours de validation', date: '20/03/2025', isRead: true },
-    { id: 3, message: 'Mise à jour des outils de PACKID disponible', date: '19/03/2025', isRead: true }
+    { id: 1, message: 'Nouvelle formation disponible : "Formation Spam Expert"', date: '21/03/2025', isRead: false },
+    { id: 2, message: 'Votre certification pour "Formation PACKID Professionnel" est en cours de validation', date: '20/03/2025', isRead: true },
+    { id: 3, message: 'Mise à jour des outils "Vérificateur de Leads" disponible', date: '19/03/2025', isRead: true }
   ];
 
   // Outils disponibles
