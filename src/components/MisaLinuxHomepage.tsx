@@ -4,6 +4,7 @@ import { LoginForm, RegisterForm, ForgotPasswordForm } from './AuthForms';
 import { logoutUser } from '../firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import Dashboard from './Dashboard';
+import { Link } from 'react-router-dom';
 
 interface AnimatedElements {
   [key: string]: boolean;
@@ -663,9 +664,9 @@ const MisaLinuxHomepage = () => {
             </div>
             
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <a href="/cgu" className="hover:text-blue-400 transition-colors">Conditions générales d'utilisation</a>
-              <a href="/cgv" className="hover:text-blue-400 transition-colors">Conditions générales de vente</a>
-              <a href="/privacy" className="hover:text-blue-400 transition-colors">Politique de confidentialité</a>
+              <Link to="/cgu" className="hover:text-blue-400 transition-colors">Conditions générales d'utilisation</Link>
+              <Link to="/cgv" className="hover:text-blue-400 transition-colors">Conditions générales de vente</Link>
+              <Link to="/privacy" className="hover:text-blue-400 transition-colors">Politique de confidentialité</Link>
             </div>
             
             <div className="text-gray-400 text-sm">

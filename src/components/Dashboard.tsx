@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Menu, ChevronDown, LogOut, User, Settings, BarChart2, Book, FileText, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData } from '../firebase/auth';
+import { Link } from 'react-router-dom';
 
 interface DashboardProps {
   onClose: () => void;
@@ -765,9 +766,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             </div>
             
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <a href="/cgu" className="hover:text-blue-400 transition-colors text-sm">Conditions générales d'utilisation</a>
-              <a href="/cgv" className="hover:text-blue-400 transition-colors text-sm">Conditions générales de vente</a>
-              <a href="/privacy" className="hover:text-blue-400 transition-colors text-sm">Politique de confidentialité</a>
+              <Link to="/cgu" className="hover:text-blue-400 transition-colors text-sm">Conditions générales d'utilisation</Link>
+              <Link to="/cgv" className="hover:text-blue-400 transition-colors text-sm">Conditions générales de vente</Link>
+              <Link to="/privacy" className="hover:text-blue-400 transition-colors text-sm">Politique de confidentialité</Link>
             </div>
             
             <div className="text-gray-400 text-xs">
