@@ -41,7 +41,7 @@
   ExpiresDefault "access plus 1 month"
 </IfModule>
 
-# Headers de sécurité et performance
+# Headers de performance
 <IfModule mod_headers.c>
   # Cache-Control
   <FilesMatch "\.(ico|pdf|jpg|jpeg|png|gif|svg|js|css|woff|woff2)$">
@@ -52,25 +52,10 @@
     Header set Cache-Control "max-age=3600, public"
   </FilesMatch>
   
-  # Priorisations pour HTTP/2
-  <FilesMatch "\.js$">
-    Header add Priority "u=1, i"
-  </FilesMatch>
-  <FilesMatch "\.css$">
-    Header add Priority "u=1, i"
-  </FilesMatch>
-  <FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
-    Header add Priority "u=0, i"
-  </FilesMatch>
-  <FilesMatch "\.(woff|woff2)$">
-    Header add Priority "u=0, i"
-  </FilesMatch>
-  
-  # Sécurité
-  Header always set X-Content-Type-Options "nosniff"
-  Header always set X-XSS-Protection "1; mode=block"
-  Header always set X-Frame-Options "SAMEORIGIN"
-  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # Désactiver les restrictions CORS
+  Header always set Access-Control-Allow-Origin "*"
+  Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+  Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
   
   # Supprimer les en-têtes ETag pour éviter la validation inutile
   Header unset ETag

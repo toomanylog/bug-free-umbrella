@@ -14,31 +14,23 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://apis.google.com" crossorigin />
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://www.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://firebaseapp.com" crossorigin />
+    <link rel="preconnect" href="https://firebasedatabase.app" crossorigin />
+    <link rel="preconnect" href="https://firebaseio.com" crossorigin />
     
     <!-- Préchargement DNS pour améliorer la vitesse de résolution -->
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://apis.google.com" />
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
-    
-    <!-- Préchargement des scripts critiques -->
-    <link rel="preload" href="https://apis.google.com/js/api.js" as="script" />
+    <link rel="dns-prefetch" href="https://www.googleapis.com" />
+    <link rel="dns-prefetch" href="https://firebaseapp.com" />
+    <link rel="dns-prefetch" href="https://firebasedatabase.app" />
+    <link rel="dns-prefetch" href="https://firebaseio.com" />
     
     <!-- Polices optimisées -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-    <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    </noscript>
-    
-    <!-- Préchargement asynchrone des dépendances Google APIs -->
-    <script async>
-      (function() {
-        var gapi = document.createElement('script');
-        gapi.src = 'https://apis.google.com/js/api.js';
-        gapi.async = true;
-        gapi.defer = true;
-        document.head.appendChild(gapi);
-      })();
-    </script>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" as="style" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
     
     <!-- Favicon et icônes -->
     <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/img/logo.svg" sizes="any" />
