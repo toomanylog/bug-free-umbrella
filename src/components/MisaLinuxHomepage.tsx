@@ -612,18 +612,21 @@ const MisaLinuxHomepage = () => {
             
             <div className="flex border-b border-gray-700 mb-6">
               <button 
+                type="button"
                 className={`py-2 px-4 font-medium transition-colors ${activeForm === 'login' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
                 onClick={() => setActiveForm('login')}
               >
                 Connexion
               </button>
               <button 
+                type="button"
                 className={`py-2 px-4 font-medium transition-colors ${activeForm === 'register' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
                 onClick={() => setActiveForm('register')}
               >
                 Inscription
               </button>
               <button 
+                type="button"
                 className={`py-2 px-4 font-medium transition-colors ${activeForm === 'forgot' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-gray-200'}`}
                 onClick={() => setActiveForm('forgot')}
               >

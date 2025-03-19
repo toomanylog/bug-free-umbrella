@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Menu, ChevronDown, LogOut, User, Settings, BarChart2, Book, FileText, Tool } from 'lucide-react';
+import { X, Menu, ChevronDown, LogOut, User, Settings, BarChart2, Book, FileText, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser } from '../firebase/auth';
 
@@ -343,7 +343,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-blue-900/20 rounded-lg">
-                    <Tool className="text-blue-400" size={24} />
+                    <Wrench className="text-blue-400" size={24} />
                   </div>
                   <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
                 </div>
