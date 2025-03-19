@@ -4,10 +4,14 @@ import {
   sendPasswordResetEmail, 
   signOut, 
   updateProfile,
-  User 
+  User,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword
 } from 'firebase/auth';
 import { ref, set } from 'firebase/database';
-import { auth, database } from './config';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, database, firestore } from './config';
 
 // Type pour les informations utilisateur
 export interface UserData {
@@ -15,6 +19,7 @@ export interface UserData {
   displayName: string;
   email: string;
   createdAt: string;
+  telegram?: string;
 }
 
 // Fonction pour créer un compte utilisateur
@@ -36,6 +41,9 @@ export const registerUser = async (email: string, password: string, displayName:
     };
     
     await set(ref(database, `users/${user.uid}`), userData);
+    
+    // Créer aussi un document dans Firestore
+    await setDoc(doc(firestore, 'users', user.uid), userData);
     
     return user;
   } catch (error) {
@@ -68,6 +76,73 @@ export const logoutUser = async (): Promise<void> => {
     await signOut(auth);
   } catch (error) {
     throw error;
+  }
+};
+
+// Fonction pour mettre à jour le profil utilisateur
+export const updateUserProfile = async (user: User, displayName: string, telegramUsername: string): Promise<void> => {
+  try {
+    // Mettre à jour le nom d'affichage directement dans Auth
+    await updateProfile(user, { displayName });
+    
+    // Récupérer d'abord les données utilisateur existantes
+    const userRef = ref(database, `users/${user.uid}`);
+    const userSnapshot = await new Promise<any>((resolve, reject) => {
+      import('firebase/database').then(({ get }) => {
+        get(userRef).then(resolve).catch(reject);
+      });
+    });
+    
+    // Mettre à jour uniquement les champs nécessaires sans créer de sous-objet
+    await set(userRef, {
+      ...(userSnapshot.exists() ? userSnapshot.val() : {}),
+      displayName,
+      telegram: telegramUsername,
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log('Profil mis à jour avec succès');
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du profil:', error);
+    throw error;
+  }
+};
+
+// Fonction pour changer le mot de passe
+export const changeUserPassword = async (user: User, currentPassword: string, newPassword: string): Promise<void> => {
+  try {
+    const credential = EmailAuthProvider.credential(
+      user.email || '',
+      currentPassword
+    );
+    
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, newPassword);
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Fonction pour obtenir les données utilisateur depuis la Realtime Database
+export const getUserData = async (userId: string): Promise<UserData | null> => {
+  try {
+    // Utiliser Realtime Database au lieu de Firestore
+    const userSnapshot = await new Promise<any>((resolve, reject) => {
+      const userRef = ref(database, `users/${userId}`);
+      // Créer un gestionnaire d'événements pour lire une fois les données
+      import('firebase/database').then(({ get, child }) => {
+        get(userRef).then(resolve).catch(reject);
+      });
+    });
+    
+    if (userSnapshot.exists()) {
+      return userSnapshot.val() as UserData;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération des données utilisateur:', error);
+    return null;
   }
 };
 

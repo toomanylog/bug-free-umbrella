@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Menu, ChevronDown, LogOut, User, Settings, BarChart2, Book, FileText, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { logoutUser } from '../firebase/auth';
+import { logoutUser, updateUserProfile, changeUserPassword, getUserData } from '../firebase/auth';
 
 interface DashboardProps {
   onClose: () => void;
@@ -11,8 +12,73 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const { currentUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [userProfile, setUserProfile] = useState({
+    displayName: currentUser?.displayName || '',
+    telegram: ''
+  });
+  const [password, setPassword] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [buttonPosition, setButtonPosition] = useState({ top: 0, right: 0 });
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  // Charger les données de l'utilisateur depuis Firestore
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (currentUser) {
+        try {
+          const userData = await getUserData(currentUser.uid);
+          if (userData) {
+            setUserProfile({
+              displayName: currentUser.displayName || userData.displayName || '',
+              telegram: userData.telegram || ''
+            });
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des données utilisateur:', error);
+        }
+      }
+    };
+    
+    loadUserData();
+  }, [currentUser]);
+
+  // Fermer le menu quand on clique en dehors
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    
+    // Ajouter l'événement quand le menu est ouvert
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    // Nettoyer l'événement quand le composant est démonté
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
+  const handleMenuToggle = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setButtonPosition({
+        top: rect.bottom + window.scrollY,
+        right: window.innerWidth - rect.right
+      });
+    }
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   const handleLogout = async () => {
     try {
@@ -20,6 +86,98 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
       onClose();
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
+    }
+  };
+
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setUserProfile(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPassword(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const saveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentUser) {
+      alert('Vous devez être connecté pour modifier votre profil.');
+      return;
+    }
+    
+    setIsLoading(true);
+    setSuccessMessage('');
+    
+    try {
+      await updateUserProfile(
+        currentUser,
+        userProfile.displayName,
+        userProfile.telegram
+      );
+      
+      setSuccessMessage('Profil mis à jour avec succès!');
+      setTimeout(() => {
+        setIsEditingProfile(false);
+        setSuccessMessage('');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du profil:', error);
+      alert('Une erreur est survenue lors de la mise à jour du profil.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const changePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentUser) {
+      alert('Vous devez être connecté pour changer votre mot de passe.');
+      return;
+    }
+    
+    // Vérifier que les mots de passe correspondent
+    if (password.new !== password.confirm) {
+      alert('Les nouveaux mots de passe ne correspondent pas.');
+      return;
+    }
+    
+    setIsLoading(true);
+    setSuccessMessage('');
+    
+    try {
+      await changeUserPassword(
+        currentUser,
+        password.current,
+        password.new
+      );
+      
+      setSuccessMessage('Mot de passe changé avec succès!');
+      setTimeout(() => {
+        setIsChangingPassword(false);
+        setSuccessMessage('');
+        setPassword({ current: '', new: '', confirm: '' });
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Erreur lors du changement de mot de passe:', error);
+      
+      if (error.code === 'auth/wrong-password') {
+        alert('Le mot de passe actuel est incorrect.');
+      } else {
+        alert('Une erreur est survenue lors du changement de mot de passe.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,46 +243,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             <div className="hidden md:flex items-center space-x-4">
               <div className="relative">
                 <button 
-                  onClick={toggleMenu}
+                  ref={buttonRef}
+                  onClick={handleMenuToggle}
                   className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 rounded-lg px-4 py-2 transition-colors"
                 >
                   <span>{currentUser?.displayName || currentUser?.email}</span>
                   <ChevronDown size={16} className={`transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
-                {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50">
-                    <div className="p-2">
-                      <button 
-                        className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                        onClick={() => setActiveSection('profile')}
-                      >
-                        <User size={16} />
-                        <span>Mon profil</span>
-                      </button>
-                      <button 
-                        className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                        onClick={() => setActiveSection('settings')}
-                      >
-                        <Settings size={16} />
-                        <span>Paramètres</span>
-                      </button>
-                      <div className="my-1 border-t border-gray-700"></div>
-                      <button 
-                        className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-red-400"
-                        onClick={handleLogout}
-                      >
-                        <LogOut size={16} />
-                        <span>Déconnexion</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
             
             {/* Mobile Menu Button */}
-            <button onClick={toggleMenu} className="md:hidden relative z-20 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+            <button onClick={handleMenuToggle} className="md:hidden relative z-20 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
@@ -407,10 +537,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   <h2 className="text-2xl font-bold">{currentUser?.displayName || 'Utilisateur'}</h2>
                   <p className="text-gray-400">{currentUser?.email}</p>
                   <div className="flex space-x-4">
-                    <button className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
+                    <button 
+                      onClick={() => {
+                        setIsEditingProfile(true);
+                        setIsChangingPassword(false);
+                      }}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                    >
                       Modifier le profil
                     </button>
-                    <button className="bg-transparent border border-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50">
+                    <button 
+                      onClick={() => {
+                        setIsChangingPassword(true);
+                        setIsEditingProfile(false);
+                      }}
+                      className="bg-transparent border border-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                    >
                       Changer le mot de passe
                     </button>
                   </div>
@@ -418,41 +560,157 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               </div>
             </div>
             
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4">Informations personnelles</h2>
-              <form className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {isEditingProfile && (
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
+                <h2 className="text-xl font-bold mb-4">Modifier mon profil</h2>
+                
+                {successMessage && (
+                  <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
+                    {successMessage}
+                  </div>
+                )}
+                
+                <form className="space-y-4" onSubmit={saveProfile}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Nom complet</label>
+                      <input 
+                        type="text" 
+                        name="displayName"
+                        value={userProfile.displayName}
+                        onChange={handleProfileChange}
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+                      <input 
+                        type="email" 
+                        value={currentUser?.email || ''}
+                        disabled
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg opacity-70 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">Nom complet</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Identifiant Telegram</label>
                     <input 
                       type="text" 
-                      value={currentUser?.displayName || ''}
+                      name="telegram"
+                      value={userProfile.telegram}
+                      onChange={handleProfileChange}
+                      placeholder="@votre_identifiant_telegram"
+                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                    />
+                  </div>
+                  <div className="flex space-x-4">
+                    <button 
+                      type="submit"
+                      disabled={isLoading}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
+                    >
+                      {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setIsEditingProfile(false)}
+                      className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+            
+            {isChangingPassword && (
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
+                <h2 className="text-xl font-bold mb-4">Changer mon mot de passe</h2>
+                
+                {successMessage && (
+                  <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
+                    {successMessage}
+                  </div>
+                )}
+                
+                <form className="space-y-4" onSubmit={changePassword}>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Mot de passe actuel</label>
+                    <input 
+                      type="password" 
+                      name="current"
+                      value={password.current}
+                      onChange={handlePasswordChange}
                       className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Nouveau mot de passe</label>
                     <input 
-                      type="email" 
-                      value={currentUser?.email || ''}
-                      disabled
-                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg opacity-70 cursor-not-allowed"
+                      type="password" 
+                      name="new"
+                      value={password.new}
+                      onChange={handlePasswordChange}
+                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Confirmer le nouveau mot de passe</label>
+                    <input 
+                      type="password" 
+                      name="confirm"
+                      value={password.confirm}
+                      onChange={handlePasswordChange}
+                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                    />
+                  </div>
+                  <div className="flex space-x-4">
+                    <button 
+                      type="submit"
+                      disabled={isLoading}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
+                    >
+                      {isLoading ? 'Modification...' : 'Changer le mot de passe'}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setIsChangingPassword(false)}
+                      className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {!isEditingProfile && !isChangingPassword && (
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4">Informations personnelles</h2>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-400 mb-1">Nom complet</p>
+                      <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        {currentUser?.displayName || 'Non défini'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-400 mb-1">Email</p>
+                      <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        {currentUser?.email || 'Non défini'}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-400 mb-1">Telegram</p>
+                    <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                      {userProfile.telegram || 'Non défini'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Téléphone</label>
-                  <input 
-                    type="tel" 
-                    placeholder="Votre numéro de téléphone"
-                    className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                  />
-                </div>
-                <button className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
-                  Enregistrer les modifications
-                </button>
-              </form>
-            </div>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -480,6 +738,55 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           </div>
         </div>
       </footer>
+      
+      {/* Menu Popup Portal */}
+      {isMenuOpen && createPortal(
+        <div>
+          <div 
+            className="fixed inset-0 z-[999]" 
+            onClick={() => setIsMenuOpen(false)}
+          ></div>
+          <div 
+            className="fixed z-[1000] w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl text-white"
+            style={{ 
+              top: `${buttonPosition.top}px`, 
+              right: `${buttonPosition.right}px` 
+            }}
+          >
+            <div className="p-2">
+              <button 
+                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
+                onClick={() => {
+                  setActiveSection('profile');
+                  setIsMenuOpen(false);
+                }}
+              >
+                <User size={16} />
+                <span>Mon profil</span>
+              </button>
+              <button 
+                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
+                onClick={() => {
+                  setActiveSection('settings');
+                  setIsMenuOpen(false);
+                }}
+              >
+                <Settings size={16} />
+                <span>Paramètres</span>
+              </button>
+              <div className="my-1 border-t border-gray-700"></div>
+              <button 
+                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-red-400"
+                onClick={handleLogout}
+              >
+                <LogOut size={16} />
+                <span>Déconnexion</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
