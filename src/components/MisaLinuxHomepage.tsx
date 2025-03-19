@@ -225,7 +225,11 @@ const MisaLinuxHomepage = () => {
             </div>
             
             {/* Mobile Menu Button */}
-            <button onClick={toggleMenu} className="md:hidden relative z-20 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+            <button 
+              onClick={toggleMenu} 
+              className="md:hidden relative z-20 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+              aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
