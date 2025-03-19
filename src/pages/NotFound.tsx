@@ -44,7 +44,9 @@ const NotFound = () => {
             <span className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 hover:translate-x-64 transition-transform duration-700"></span>
           </Link>
           <Link 
-            to="/contact"
+            to="https://t.me/misalinux" 
+            target="_blank" 
+            rel="noopener noreferrer"
             className="relative overflow-hidden px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-transparent border border-blue-600 hover:bg-blue-900/20 text-center"
           >
             Nous contacter
