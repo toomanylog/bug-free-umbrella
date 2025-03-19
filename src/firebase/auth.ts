@@ -10,7 +10,7 @@ import {
   updatePassword
 } from 'firebase/auth';
 import { ref, set } from 'firebase/database';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { auth, database, firestore } from './config';
 
 // Type pour les informations utilisateur
@@ -88,7 +88,7 @@ export const updateUserProfile = async (user: User, displayName: string, telegra
     // Récupérer d'abord les données utilisateur existantes
     const userRef = ref(database, `users/${user.uid}`);
     const userSnapshot = await new Promise<any>((resolve, reject) => {
-      import('firebase/database').then(({ get }) => {
+      import('firebase/database').then(({ get, child }) => {
         get(userRef).then(resolve).catch(reject);
       });
     });
@@ -130,7 +130,7 @@ export const getUserData = async (userId: string): Promise<UserData | null> => {
     const userSnapshot = await new Promise<any>((resolve, reject) => {
       const userRef = ref(database, `users/${userId}`);
       // Créer un gestionnaire d'événements pour lire une fois les données
-      import('firebase/database').then(({ get, child }) => {
+      import('firebase/database').then(({ get }) => {
         get(userRef).then(resolve).catch(reject);
       });
     });
