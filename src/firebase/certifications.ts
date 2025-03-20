@@ -360,49 +360,67 @@ export const submitExam = async (
   }
 };
 
-// Fonction pour obtenir les certifications d'un utilisateur
+// Fonction pour récupérer les certifications d'un utilisateur
 export const getUserCertifications = async (userId: string): Promise<{
   certification: Certification;
   status: CertificationStatus;
   earnedAt?: string;
-  expiresAt?: string;
 }[]> => {
   try {
-    // Récupérer les données de certification de l'utilisateur
-    const userCertificationsRef = ref(database, `userCertifications/${userId}`);
-    const userCertificationsSnapshot = await get(userCertificationsRef);
+    // Vérifier si l'utilisateur existe
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
     
-    if (!userCertificationsSnapshot.exists()) {
+    if (!userSnapshot.exists()) {
+      console.error(`L'utilisateur ${userId} n'existe pas`);
       return [];
     }
     
-    const userCertificationData = userCertificationsSnapshot.val();
-    
-    // Récupérer toutes les certifications
-    const certifications = await getAllCertifications();
-    const certificationMap = new Map(certifications.map(cert => [cert.id, cert]));
-    
-    // Combiner les données
-    return Object.entries(userCertificationData).map(([certId, data]: [string, any]) => {
-      const certification = certificationMap.get(certId);
+    // Récupérer les certifications de l'utilisateur
+    try {
+      const userCertificationsRef = ref(database, `userCertifications/${userId}`);
+      const userCertificationsSnapshot = await get(userCertificationsRef);
       
-      if (!certification) {
-        return null;
+      if (!userCertificationsSnapshot.exists()) {
+        return []; // Aucune certification trouvée
       }
       
-      return {
-        certification,
-        status: data.status,
-        earnedAt: data.earnedAt,
-        expiresAt: data.expiresAt
-      };
-    }).filter(Boolean) as {
-      certification: Certification;
-      status: CertificationStatus;
-      earnedAt?: string;
-      expiresAt?: string;
-    }[];
-    
+      const userCertifications = userCertificationsSnapshot.val();
+      
+      // Récupérer les détails de chaque certification
+      const certifications = await Promise.all(
+        Object.entries(userCertifications).map(async ([certificationId, certData]: [string, any]) => {
+          try {
+            const certification = await getCertificationById(certificationId);
+            
+            if (!certification) {
+              return null;
+            }
+            
+            return {
+              certification,
+              status: certData.status as CertificationStatus,
+              earnedAt: certData.earnedAt
+            };
+          } catch (error) {
+            console.error(`Erreur lors de la récupération des détails de la certification ${certificationId}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      // Filtrer les éléments null et retourner un tableau typé correctement
+      return certifications
+        .filter((cert): cert is { 
+          certification: Certification; 
+          status: CertificationStatus; 
+          earnedAt: string | undefined;
+        } => cert !== null);
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des certifications de l'utilisateur ${userId}:`, error);
+      // Retourner un tableau vide en cas d'erreur pour ne pas bloquer l'interface
+      return [];
+    }
   } catch (error) {
     console.error(`Erreur lors de la récupération des certifications de l'utilisateur ${userId}:`, error);
     return [];

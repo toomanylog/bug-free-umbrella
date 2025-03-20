@@ -133,27 +133,35 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     loadCatalogFormations();
   }, [isCatalogOpen, formations, currentUser]);
 
-  // Après les useEffects existants, ajouter un nouvel useEffect pour charger les certifications
+  // Après les useEffects existants, corriger l'useEffect pour charger les certifications
   useEffect(() => {
     const loadUserCertifications = async () => {
       if (activeSection === 'formations' && currentUser) {
         try {
-          const { getUserCertifications } = await import('../firebase/certifications');
-          const userCertifications = await getUserCertifications(currentUser.uid);
-          
-          // Stocker les IDs des certifications que l'utilisateur possède déjà
-          const certificationIds = userCertifications.map(cert => cert.certification.id);
-          
-          // Mettre à jour les formations avec cette information
-          setFormations(prevFormations => 
-            prevFormations.map(formation => ({
-              ...formation,
-              userHasCertification: formation.certificationId ? 
-                certificationIds.includes(formation.certificationId) : false
-            }))
-          );
+          // Tentative d'import dynamique avec gestion d'erreurs
+          try {
+            const { getUserCertifications } = await import('../firebase/certifications');
+            const userCertifications = await getUserCertifications(currentUser.uid);
+            
+            // Stocker les IDs des certifications que l'utilisateur possède déjà
+            const certificationIds = userCertifications.map(cert => cert.certification.id);
+            
+            // Mettre à jour les formations avec cette information
+            setFormations(prevFormations => 
+              prevFormations.map(formation => ({
+                ...formation,
+                userHasCertification: formation.certificationId ? 
+                  certificationIds.includes(formation.certificationId) : false
+              }))
+            );
+          } catch (error) {
+            console.error("Erreur lors du chargement du module certifications:", error);
+            // Continuer sans les données de certification
+            // Les boutons de certification ne s'afficheront pas, mais l'application ne plantera pas
+          }
         } catch (error) {
           console.error("Erreur lors du chargement des certifications de l'utilisateur:", error);
+          // Ne pas planter l'application si les certifications ne peuvent pas être chargées
         }
       }
     };
