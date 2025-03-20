@@ -147,8 +147,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           }
           
           try {
-            const userCertifications = await certificationsModule.getUserCertifications(currentUser.uid);
-            // Utiliser les données
+            const _userCertifications = await certificationsModule.getUserCertifications(currentUser.uid);
+            // Variable préfixée par underscore pour indiquer qu'elle n'est pas utilisée actuellement
+            // mais pourrait être utilisée dans une future implémentation
           } catch (error) {
             console.error("Erreur d'accès aux certifications:", error);
             // Continuer sans les certifications
