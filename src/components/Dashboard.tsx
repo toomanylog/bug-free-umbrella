@@ -290,48 +290,35 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white pb-20">
-      <div className="container px-4 py-12 mx-auto">
-        <div className="flex flex-col lg:flex-row justify-between mb-12">
-          <div>
-            <h1 className="text-4xl font-bold mb-4">
-              Bonjour, {userProfile.displayName || 'Utilisateur'}
-            </h1>
-            <p className="text-gray-400 mb-4">
-              Bienvenue sur votre espace formation
-            </p>
-            {isAdmin && (
-              <a 
-                href="/admin" 
-                className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors text-white font-medium"
-              >
-                Accéder au Dashboard Admin
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 ml-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </a>
-            )}
-          </div>
-          
-          <div className="mt-6 lg:mt-0 bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center w-full lg:w-64">
-            <h3 className="text-xl font-bold mb-2 text-center">Découvrir plus</h3>
-            <p className="text-gray-400 text-center mb-4">Explorez notre catalogue de formations</p>
-            <button 
-              className="bg-transparent border border-blue-600 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-blue-900/20"
-              onClick={() => setIsCatalogOpen(true)}
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+      <div className="container px-4 py-12 mx-auto flex-grow">
+        <div className="mb-12">
+          <h1 className="text-4xl font-bold mb-4">
+            Bonjour, {userProfile.displayName || 'Utilisateur'}
+          </h1>
+          <p className="text-gray-400 mb-4">
+            Bienvenue sur votre espace formation
+          </p>
+          {isAdmin && (
+            <a 
+              href="/admin" 
+              className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors text-white font-medium"
             >
-              Voir le catalogue
-            </button>
-          </div>
+              Accéder au Dashboard Admin
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 ml-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </a>
+          )}
         </div>
         
         {/* Navigation - Avec Aperçu, Outils et Mes formations */}
@@ -770,79 +757,96 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {formations.map(formation => {
-                    // Vérifier si l'utilisateur a déjà commencé cette formation
-                    const userProgress = userData?.formationsProgress?.find(
-                      (progress: UserFormationProgress) => progress.formationId === formation.id
-                    );
-                    
-                    const hasStarted = userProgress && userProgress.completedModules?.length > 0;
-                    
-                    return (
-                      <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden flex flex-col">
-                        {formation.imageUrl && (
-                          <div className="h-40 overflow-hidden">
-                            <img 
-                              src={formation.imageUrl} 
-                              alt={formation.title} 
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className="p-6 flex-1 flex flex-col">
-                          <h3 className="text-xl font-bold mb-2">{formation.title}</h3>
-                          <p className="text-gray-400 mb-4 text-sm flex-1">
-                            {formation.description?.length > 100 
-                              ? `${formation.description.substring(0, 100)}...` 
-                              : formation.description}
-                          </p>
-                          <div className="mt-2">
-                            <button 
-                              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
-                              onClick={() => {
-                                // Rediriger vers la page de détail de la formation
-                                navigate(`/formations/${formation.id}`);
-                              }}
-                            >
-                              {/* Adapter le texte en fonction de la progression */}
-                              {hasStarted ? 'Continuer l\'apprentissage' : 'Commencer la formation'}
-                            </button>
+                <>
+                  <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
+                    <div className="flex flex-col md:flex-row items-center justify-between">
+                      <div className="mb-4 md:mb-0">
+                        <h3 className="text-xl font-bold mb-2">Découvrir plus de formations</h3>
+                        <p className="text-gray-400">Explorez notre catalogue complet de formations disponibles</p>
+                      </div>
+                      <button 
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                        onClick={() => setIsCatalogOpen(true)}
+                      >
+                        Voir le catalogue
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {formations.map(formation => {
+                      // Vérifier si l'utilisateur a déjà commencé cette formation
+                      const userProgress = userData?.formationsProgress?.find(
+                        (progress: UserFormationProgress) => progress.formationId === formation.id
+                      );
+                      
+                      const hasStarted = userProgress && userProgress.completedModules?.length > 0;
+                      
+                      return (
+                        <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden flex flex-col">
+                          {formation.imageUrl && (
+                            <div className="h-40 overflow-hidden">
+                              <img 
+                                src={formation.imageUrl} 
+                                alt={formation.title} 
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="p-6 flex-1 flex flex-col">
+                            <h3 className="text-xl font-bold mb-2">{formation.title}</h3>
+                            <p className="text-gray-400 mb-4 text-sm flex-1">
+                              {formation.description?.length > 100 
+                                ? `${formation.description.substring(0, 100)}...` 
+                                : formation.description}
+                            </p>
+                            <div className="mt-2">
+                              <button 
+                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                                onClick={() => {
+                                  // Rediriger vers la page de détail de la formation
+                                  navigate(`/formations/${formation.id}`);
+                                }}
+                              >
+                                {/* Adapter le texte en fonction de la progression */}
+                                {hasStarted ? 'Continuer l\'apprentissage' : 'Commencer la formation'}
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           )}
         </main>
+      </div>
       
-        {/* Footer */}
-        <footer className="py-8 bg-gray-900 border-t border-gray-800 mt-auto">
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row justify-between items-center">
-              <div className="flex items-center space-x-2 mb-6 md:mb-0">
-                <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
-                  <span className="font-bold text-sm">ML</span>
-                </div>
-                <span className="font-bold text-lg">Misa Linux</span>
+      {/* Footer - ajout de sticky */}
+      <footer className="sticky bottom-0 py-6 bg-gray-900 border-t border-gray-800 mt-auto">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-6 md:mb-0">
+              <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
+                <span className="font-bold text-sm">ML</span>
               </div>
-              
-              <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-                <Link to="/cgu" className="hover:text-blue-400 transition-colors text-sm">Conditions générales d'utilisation</Link>
-                <Link to="/cgv" className="hover:text-blue-400 transition-colors text-sm">Conditions générales de vente</Link>
-                <Link to="/privacy" className="hover:text-blue-400 transition-colors text-sm">Politique de confidentialité</Link>
-              </div>
-              
-              <div className="text-gray-400 text-xs">
-                &copy; {new Date().getFullYear()} Misa Linux. Tous droits réservés.
-              </div>
+              <span className="font-bold text-lg">Misa Linux</span>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
+              <Link to="/cgu" className="hover:text-blue-400 transition-colors text-sm">Conditions générales d'utilisation</Link>
+              <Link to="/cgv" className="hover:text-blue-400 transition-colors text-sm">Conditions générales de vente</Link>
+              <Link to="/privacy" className="hover:text-blue-400 transition-colors text-sm">Politique de confidentialité</Link>
+            </div>
+            
+            <div className="text-gray-400 text-xs">
+              &copy; {new Date().getFullYear()} Misa Linux. Tous droits réservés.
             </div>
           </div>
-        </footer>
-      </div>
+        </div>
+      </footer>
       
       {/* Menu Popup Portal */}
       {isMenuOpen && createPortal(
