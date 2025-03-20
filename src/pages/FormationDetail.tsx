@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, CheckCircle, Clock, Award, BookOpen, Video, Download, Share2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getFormationById } from '../firebase/formations';
-import { updateFormationProgress, Formation, Module } from '../firebase/auth';
+import { updateFormationProgress, Formation } from '../firebase/auth';
 
 interface FormationModule {
   id: number;
@@ -14,27 +14,6 @@ interface FormationModule {
   isLocked: boolean;
 }
 
-interface FormationData {
-  id: string;
-  title: string;
-  description: string;
-  longDescription: string;
-  level: string;
-  modules: number;
-  modulesData: FormationModule[];
-  duration: string;
-  certification: boolean;
-  popular: boolean;
-  completed: number;
-  rating: number;
-  price: number;
-  tags: string[];
-  badge: string;
-  instructor: string;
-  requirements: string[];
-  objectives: string[];
-}
-
 const FormationDetail: React.FC = () => {
   const { formationId } = useParams<{ formationId: string }>();
   const { userData } = useAuth();
@@ -42,7 +21,6 @@ const FormationDetail: React.FC = () => {
   const [formation, setFormation] = useState<Formation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeModuleIndex, setActiveModuleIndex] = useState<number | null>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [completedModules, setCompletedModules] = useState<Set<string>>(new Set());
 

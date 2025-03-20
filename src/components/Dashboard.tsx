@@ -17,7 +17,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const [isFormationsOpen, setIsFormationsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [userProfile, setUserProfile] = useState({
     displayName: currentUser?.displayName || '',
@@ -93,10 +92,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     loadUserStats();
   }, [currentUser]);
 
-  // Charger les formations de l'utilisateur quand la section est ouverte
+  // Charger les formations de l'utilisateur quand la section formations est active
   useEffect(() => {
     const loadUserFormations = async () => {
-      if (isFormationsOpen && currentUser) {
+      if (activeSection === 'formations' && currentUser) {
         try {
           const { getUserFormations } = await import('../firebase/formations');
           const userFormations = await getUserFormations(currentUser.uid);
@@ -108,7 +107,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     };
     
     loadUserFormations();
-  }, [isFormationsOpen, currentUser]);
+  }, [activeSection, currentUser]);
 
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
@@ -850,14 +849,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           >
             <div className="p-2">
               <button 
-                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
+                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
+                  activeSection === 'formations' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
+                } transition-colors`}
                 onClick={() => {
-                  setActiveSection('profile');
-                  setIsMenuOpen(false);
+                  setActiveSection('formations');
                 }}
               >
-                <User size={16} />
-                <span>Mon profil</span>
+                <BookOpen size={18} />
+                <span>Mes formations</span>
               </button>
               <button 
                 className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
@@ -868,6 +868,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               >
                 <Settings size={16} />
                 <span>Paramètres</span>
+              </button>
+              <button 
+                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
+                onClick={() => {
+                  setActiveSection('profile');
+                  setIsMenuOpen(false);
+                }}
+              >
+                <User size={16} />
+                <span>Mon profil</span>
               </button>
               <div className="my-1 border-t border-gray-700"></div>
               <button 
