@@ -7,6 +7,7 @@ import CertificationManager from './CertificationManager';
 import { Users, BookOpen, Home, Settings, ArrowLeft, Award } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
+import { getAllCertifications } from '../../firebase/certifications';
 
 // Sidebar Item Component
 const SidebarItem: React.FC<{
@@ -45,20 +46,13 @@ const AdminDashboard: React.FC = () => {
         // Charger le nombre d'utilisateurs
         const users = await getAllUsers();
         
-        // Calculer le nombre de certifications (utilisateurs ayant complété des formations)
-        let certificationsCount = 0;
-        users.forEach(user => {
-          if (user.formationsProgress) {
-            certificationsCount += Object.values(user.formationsProgress).filter(
-              (progress: any) => progress.completed && progress.certificateUrl
-            ).length;
-          }
-        });
+        // Charger le nombre de certifications
+        const certifications = await getAllCertifications();
         
         setStats({
           formations: formations.length,
           users: users.length,
-          certifications: certificationsCount
+          certifications: certifications.length
         });
       } catch (error) {
         console.error("Erreur lors du chargement des statistiques:", error);

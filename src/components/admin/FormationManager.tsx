@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { getAllUsers, assignFormationToUser } from '../../firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { getAllCertifications, Certification } from '../../firebase/certifications';
+import ReactMarkdown from 'react-markdown';
 
 // Déclaration de module pour uuid
 declare module 'uuid' {
@@ -321,7 +322,9 @@ const FormationManager: React.FC = () => {
               
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-2 text-white">Description</h3>
-                <p className="text-gray-300 whitespace-pre-wrap">{previewFormation.description}</p>
+                <div className="text-gray-300 markdown-content">
+                  <ReactMarkdown>{previewFormation.description}</ReactMarkdown>
+                </div>
               </div>
               
               <div className="mb-6">
@@ -332,10 +335,10 @@ const FormationManager: React.FC = () => {
                       <li key={module.id} className="border border-gray-700 p-3 rounded-lg">
                         <div className="font-medium text-white">{module.title}</div>
                         {module.content && (
-                          <div className="mt-2 text-sm text-gray-300">
-                            {module.content.length > 100 
-                              ? `${module.content.substring(0, 100)}...` 
-                              : module.content}
+                          <div className="mt-2 text-sm text-gray-300 markdown-content">
+                            {module.content.length > 200 
+                              ? <ReactMarkdown>{`${module.content.substring(0, 200)}...`}</ReactMarkdown>
+                              : <ReactMarkdown>{module.content}</ReactMarkdown>}
                           </div>
                         )}
                       </li>

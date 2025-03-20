@@ -291,13 +291,26 @@ export const submitExam = async (
       let isCorrect = false;
       
       if (question) {
-        if (Array.isArray(question.correctAnswer) && Array.isArray(answer.answer)) {
-          // Pour les questions à réponses multiples
-          isCorrect = question.correctAnswer.length === answer.answer.length && 
-                     question.correctAnswer.every(a => answer.answer.includes(a));
-        } else {
-          // Pour les questions à réponse unique
+        // Gestion différente selon le type de question
+        if (question.type === QuestionType.MULTIPLE_ANSWER) {
+          // Pour les questions à choix multiples
+          if (Array.isArray(question.correctAnswer) && Array.isArray(answer.answer)) {
+            // Vérifier que toutes les bonnes réponses sont sélectionnées et qu'il n'y a pas de réponses en trop
+            isCorrect = question.correctAnswer.length === answer.answer.length && 
+                       question.correctAnswer.every(a => answer.answer.includes(a));
+          }
+        } else if (question.type === QuestionType.MULTIPLE_CHOICE || question.type === QuestionType.TRUE_FALSE) {
+          // Pour les questions à choix unique ou vrai/faux
           isCorrect = question.correctAnswer === answer.answer;
+        } else if (question.type === QuestionType.SHORT_ANSWER) {
+          // Pour les questions à réponse courte, normaliser pour la comparaison
+          const normalizedCorrect = Array.isArray(question.correctAnswer) 
+            ? question.correctAnswer[0].toLowerCase().trim() 
+            : question.correctAnswer.toLowerCase().trim();
+          const normalizedAnswer = Array.isArray(answer.answer) 
+            ? answer.answer[0].toLowerCase().trim() 
+            : answer.answer.toLowerCase().trim();
+          isCorrect = normalizedCorrect === normalizedAnswer;
         }
         
         if (isCorrect) {

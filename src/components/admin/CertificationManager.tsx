@@ -11,6 +11,7 @@ import {
   FileText
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import ReactMarkdown from 'react-markdown';
 
 import { 
   getAllCertifications,
@@ -973,7 +974,9 @@ const CertificationManager: React.FC = () => {
                 
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold mb-2">{previewCertification.title}</h3>
-                  <p className="text-gray-300 mb-4">{previewCertification.description}</p>
+                  <div className="text-gray-300 mb-4 markdown-content">
+                    <ReactMarkdown>{previewCertification.description}</ReactMarkdown>
+                  </div>
                   
                   <div className="flex flex-wrap gap-2">
                     {!previewCertification.published && (
