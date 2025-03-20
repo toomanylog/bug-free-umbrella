@@ -5,6 +5,47 @@ import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
 import { Link } from 'react-router-dom';
 
+// Composant pour gérer les erreurs dans l'onglet formations
+const FormationsErrorBoundary: React.FC<{children: React.ReactNode}> = ({children}) => {
+  const [hasError, setHasError] = useState(false);
+  
+  useEffect(() => {
+    // Réinitialiser l'état d'erreur lorsque les enfants changent
+    setHasError(false);
+  }, [children]);
+  
+  if (hasError) {
+    return (
+      <div className="bg-red-900/20 backdrop-blur-sm border border-red-700/50 rounded-xl p-6 text-center">
+        <div className="flex flex-col items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mb-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+          <h2 className="text-xl font-bold mb-2">Erreur de chargement</h2>
+          <p className="text-gray-400 max-w-lg mx-auto mb-6">
+            Une erreur s'est produite lors du chargement de vos formations. 
+            Cela peut être dû à un problème temporaire ou à une mise à jour en cours.
+          </p>
+          <button 
+            className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium"
+            onClick={() => setHasError(false)}
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  try {
+    return <>{children}</>;
+  } catch (error) {
+    console.error("Erreur capturée dans FormationsErrorBoundary:", error);
+    setHasError(true);
+    return null;
+  }
+};
+
 interface DashboardProps {
   onClose: () => void;
 }
@@ -97,11 +138,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     const loadUserFormations = async () => {
       if (activeSection === 'formations' && currentUser) {
         try {
-          const { getUserFormations } = await import('../firebase/formations');
-          const userFormations = await getUserFormations(currentUser.uid);
-          setFormations(userFormations.map(item => item.formation));
+          // Utiliser try/catch pour éviter les erreurs non gérées
+          const formationsModule = await import('../firebase/formations').catch(err => {
+            console.warn("Erreur lors de l'importation du module formations:", err);
+            return { getUserFormations: null };
+          });
+          
+          if (!formationsModule || !formationsModule.getUserFormations) {
+            console.warn("Module de formations non disponible");
+            return;
+          }
+          
+          try {
+            const userFormations = await formationsModule.getUserFormations(currentUser.uid);
+            if (Array.isArray(userFormations)) {
+              // Utilisation d'une variable intermédiaire avec assertion de type
+              const validFormations = userFormations
+                .filter((item): item is {formation: any; progress: any} => 
+                  item !== null && item.formation !== null
+                );
+              setFormations(validFormations.map(item => item.formation));
+            } else {
+              console.warn("Les formations récupérées ne sont pas un tableau:", userFormations);
+              setFormations([]);
+            }
+          } catch (error) {
+            console.warn("Erreur lors de la récupération des formations:", error);
+            setFormations([]);
+          }
         } catch (error) {
-          console.error("Erreur lors du chargement des formations de l'utilisateur:", error);
+          console.warn("Erreur lors du chargement du module formations:", error);
+          setFormations([]);
         }
       }
     };
@@ -799,120 +866,146 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             <div className="space-y-6">
               <h1 className="text-3xl font-bold">Mes formations</h1>
               
-              {formations.length === 0 ? (
-                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center">
-                  <div className="flex flex-col items-center">
-                    <BookOpen className="h-16 w-16 text-blue-500 mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Aucune formation assignée</h2>
-                    <p className="text-gray-400 max-w-lg mx-auto mb-6">
-                      Vous n'avez pas encore de formations assignées à votre compte. 
-                      Les formations vous permettent d'acquérir de nouvelles compétences.
-                    </p>
-                    <button 
-                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium"
-                      onClick={() => setIsCatalogOpen(true)}
-                    >
-                      Explorer le catalogue de formations
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
-                    <div className="flex flex-col md:flex-row items-center justify-between">
-                      <div className="mb-4 md:mb-0">
-                        <h3 className="text-xl font-bold mb-2">Découvrir plus de formations</h3>
-                        <p className="text-gray-400">Explorez notre catalogue complet de formations disponibles</p>
+              {(() => {
+                try {
+                  return formations.length === 0 ? (
+                    <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center">
+                      <div className="flex flex-col items-center">
+                        <BookOpen className="h-16 w-16 text-blue-500 mb-4" />
+                        <h2 className="text-xl font-bold mb-2">Aucune formation assignée</h2>
+                        <p className="text-gray-400 max-w-lg mx-auto mb-6">
+                          Vous n'avez pas encore de formations assignées à votre compte. 
+                          Les formations vous permettent d'acquérir de nouvelles compétences.
+                        </p>
+                        <button 
+                          className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium"
+                          onClick={() => setIsCatalogOpen(true)}
+                        >
+                          Explorer le catalogue de formations
+                        </button>
                       </div>
-                      <button 
-                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
-                        onClick={() => setIsCatalogOpen(true)}
-                      >
-                        Voir le catalogue
-                      </button>
                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {formations.map(formation => {
-                      // Récupérer les infos de progression pour cette formation
-                      const userProgress = userData?.formationsProgress?.find(
-                        (p: UserFormationProgress) => p.formationId === formation.id
-                      );
+                  ) : (
+                    <>
+                      <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
+                        <div className="flex flex-col md:flex-row items-center justify-between">
+                          <div className="mb-4 md:mb-0">
+                            <h3 className="text-xl font-bold mb-2">Découvrir plus de formations</h3>
+                            <p className="text-gray-400">Explorez notre catalogue complet de formations disponibles</p>
+                          </div>
+                          <button 
+                            className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                            onClick={() => setIsCatalogOpen(true)}
+                          >
+                            Voir le catalogue
+                          </button>
+                        </div>
+                      </div>
                       
-                      const isCompleted = userProgress?.completed || false;
-                      const progress = userProgress 
-                        ? Math.round((userProgress.completedModules.length / formation.modules.length) * 100) 
-                        : 0;
-                      
-                      return (
-                        <div key={formation.id} className="bg-gray-800 rounded-lg p-4 shadow-md">
-                          <div className="flex flex-col md:flex-row gap-4">
-                            {formation.imageUrl && (
-                              <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden">
-                                <img 
-                                  src={formation.imageUrl} 
-                                  alt={formation.title} 
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            )}
-                            
-                            <div className="flex-1">
-                              <h3 className="text-xl font-semibold mb-1">{formation.title}</h3>
-                              <p className="text-gray-400 text-sm mb-2">{formation.description.substring(0, 150)}...</p>
-                              
-                              <div className="mb-2">
-                                <div className="flex justify-between text-sm mb-1">
-                                  <span>Progression: {progress}%</span>
-                                  <span>{userProgress?.completedModules.length || 0}/{formation.modules.length} modules</span>
-                                </div>
-                                <div className="w-full bg-gray-700 rounded-full h-2">
-                                  <div 
-                                    className="bg-blue-600 h-2 rounded-full" 
-                                    style={{ width: `${progress}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                              
-                              <div className="flex flex-wrap gap-2">
-                                <Link 
-                                  to={`/formation/${formation.id}`} 
-                                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                    isCompleted 
-                                      ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                      : progress > 0 
-                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                                  }`}
-                                >
-                                  {isCompleted 
-                                    ? 'Revoir la formation' 
-                                    : progress > 0 
-                                      ? "Continuer l'apprentissage" 
-                                      : 'Commencer la formation'
-                                  }
-                                </Link>
-                                
-                                {/* Bouton pour passer la certification */}
-                                {isCompleted && formation.certificationId && !formation.userHasCertification && (
-                                  <Link 
-                                    to={`/certification/${formation.certificationId}`} 
-                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center"
-                                  >
-                                    <Award size={16} className="mr-1" />
-                                    Passer la certification
-                                  </Link>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {formations.map(formation => {
+                          // Récupérer les infos de progression pour cette formation
+                          const userProgress = userData?.formationsProgress?.find(
+                            (p: UserFormationProgress) => p.formationId === formation.id
+                          );
+                          
+                          const isCompleted = userProgress?.completed || false;
+                          const progress = userProgress 
+                            ? Math.round((userProgress.completedModules.length / formation.modules.length) * 100) 
+                            : 0;
+                          
+                          return (
+                            <div key={formation.id} className="bg-gray-800 rounded-lg p-4 shadow-md">
+                              <div className="flex flex-col md:flex-row gap-4">
+                                {formation.imageUrl && (
+                                  <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden">
+                                    <img 
+                                      src={formation.imageUrl} 
+                                      alt={formation.title} 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
                                 )}
+                                
+                                <div className="flex-1">
+                                  <h3 className="text-xl font-semibold mb-1">{formation.title}</h3>
+                                  <p className="text-gray-400 text-sm mb-2">{formation.description.substring(0, 150)}...</p>
+                                  
+                                  <div className="mb-2">
+                                    <div className="flex justify-between text-sm mb-1">
+                                      <span>Progression: {progress}%</span>
+                                      <span>{userProgress?.completedModules.length || 0}/{formation.modules.length} modules</span>
+                                    </div>
+                                    <div className="w-full bg-gray-700 rounded-full h-2">
+                                      <div 
+                                        className="bg-blue-600 h-2 rounded-full" 
+                                        style={{ width: `${progress}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex flex-wrap gap-2">
+                                    <Link 
+                                      to={`/formation/${formation.id}`} 
+                                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                        isCompleted 
+                                          ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                          : progress > 0 
+                                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                      }`}
+                                    >
+                                      {isCompleted 
+                                        ? 'Revoir la formation' 
+                                        : progress > 0 
+                                          ? "Continuer l'apprentissage" 
+                                          : 'Commencer la formation'
+                                      }
+                                    </Link>
+                                    
+                                    {/* Bouton pour passer la certification */}
+                                    {isCompleted && formation.certificationId && !formation.userHasCertification && (
+                                      <Link 
+                                        to={`/certification/${formation.certificationId}`} 
+                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center"
+                                      >
+                                        <Award size={16} className="mr-1" />
+                                        Passer la certification
+                                      </Link>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                } catch (error) {
+                  console.error("Erreur lors du rendu de l'onglet Formations:", error);
+                  return (
+                    <div className="bg-red-900/20 backdrop-blur-sm border border-red-700/50 rounded-xl p-6 text-center">
+                      <div className="flex flex-col items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mb-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <h2 className="text-xl font-bold mb-2">Erreur de chargement</h2>
+                        <p className="text-gray-400 max-w-lg mx-auto mb-6">
+                          Une erreur s'est produite lors du chargement de vos formations. 
+                          Cela peut être dû à un problème temporaire ou à une mise à jour en cours.
+                        </p>
+                        <button 
+                          className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium"
+                          onClick={() => window.location.reload()}
+                        >
+                          Actualiser la page
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
             </div>
           )}
         </main>

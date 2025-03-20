@@ -225,6 +225,11 @@ export const getUserFormationProgress = async (userId: string, formationId: stri
 export const getUserFormations = async (userId: string) => {
   console.log('Tentative de récupération des formations pour:', userId);
   try {
+    if (!userId) {
+      console.warn('ID utilisateur non fourni pour getUserFormations');
+      return [];
+    }
+
     const userRef = ref(database, `users/${userId}`);
     const userSnapshot = await get(userRef);
     
@@ -232,26 +237,44 @@ export const getUserFormations = async (userId: string) => {
       const userData = userSnapshot.val();
       const formationsProgress = userData.formationsProgress || [];
       
-      // Récupérer les détails de chaque formation
-      const formationsWithProgress = await Promise.all(
-        formationsProgress.map(async (progress: UserFormationProgress) => {
-          const formation = await getFormationById(progress.formationId);
-          return { formation, progress };
-        })
-      );
-      
-      // Filtrer les formations qui n'existent plus
-      const filteredFormations = formationsWithProgress.filter(item => item.formation !== null);
-      
       console.log('Données utilisateur:', userData);
       console.log('Formations Progress:', formationsProgress);
-      console.log('Formations récupérées:', filteredFormations);
-      return filteredFormations;
+      
+      if (!Array.isArray(formationsProgress) || formationsProgress.length === 0) {
+        console.log('Aucune formation trouvée pour cet utilisateur');
+        return [];
+      }
+      
+      try {
+        // Récupérer les détails de chaque formation
+        const formationsWithProgress = await Promise.all(
+          formationsProgress.map(async (progress: UserFormationProgress) => {
+            try {
+              const formation = await getFormationById(progress.formationId);
+              return { formation, progress };
+            } catch (error) {
+              console.warn(`Erreur lors de la récupération de la formation ${progress.formationId}:`, error);
+              return null;
+            }
+          })
+        );
+        
+        // Filtrer les formations qui n'existent plus ou ont causé des erreurs
+        const filteredFormations = formationsWithProgress
+          .filter(item => item !== null && item.formation !== null);
+        
+        console.log('Formations récupérées:', filteredFormations);
+        return filteredFormations;
+      } catch (error) {
+        console.warn('Erreur lors de la récupération des détails des formations:', error);
+        return [];
+      }
+    } else {
+      console.warn(`Aucune donnée utilisateur trouvée pour l'ID: ${userId}`);
+      return [];
     }
-    
-    return [];
   } catch (error) {
-    console.error('Erreur formations:', error);
+    console.warn(`Erreur lors de la récupération des formations de l'utilisateur ${userId}:`, error);
     return [];
   }
 }; 
