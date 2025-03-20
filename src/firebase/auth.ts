@@ -282,4 +282,51 @@ export const getAuthErrorMessage = (errorCode: string): string => {
     default:
       return 'Une erreur s\'est produite. Veuillez réessayer.';
   }
+};
+
+// Fonction pour assigner une formation à un utilisateur
+export const assignFormationToUser = async (userId: string, formationId: string): Promise<void> => {
+  try {
+    // Récupérer les données utilisateur
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (!userSnapshot.exists()) {
+      throw new Error('Utilisateur non trouvé');
+    }
+    
+    const userData = userSnapshot.val();
+    let formationsProgress = userData.formationsProgress || [];
+    
+    // Vérifier si la formation est déjà assignée
+    const existingProgress = formationsProgress.find((p: UserFormationProgress) => p.formationId === formationId);
+    
+    if (existingProgress) {
+      // Si déjà assignée, ne rien faire
+      return;
+    }
+    
+    // Créer un nouvel enregistrement de progression
+    const newProgress: UserFormationProgress = {
+      formationId,
+      completedModules: [],
+      startedAt: new Date().toISOString(),
+      lastAccessedAt: new Date().toISOString(),
+      completed: false
+    };
+    
+    // Ajouter à la liste des formations en cours
+    formationsProgress.push(newProgress);
+    
+    // Mettre à jour dans la base de données
+    await update(userRef, {
+      formationsProgress,
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log(`Formation ${formationId} assignée à l'utilisateur ${userId}`);
+  } catch (error) {
+    console.error('Erreur lors de l\'assignation de la formation:', error);
+    throw error;
+  }
 }; 
