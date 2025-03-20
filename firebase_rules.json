@@ -1,12 +1,17 @@
 {
   "rules": {
     "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid"
+        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
     },
-    ".read": false,
-    ".write": false
+    "formations": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+    ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
   }
 } 
