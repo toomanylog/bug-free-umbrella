@@ -21,7 +21,13 @@ const AuthContext = createContext<AuthContextType>({
   refreshUserData: async () => {}
 });
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === null) {
+    throw new Error('useAuth doit être utilisé à l\'intérieur d\'un AuthProvider');
+  }
+  return context;
+};
 
 interface AuthProviderProps {
   children: ReactNode;

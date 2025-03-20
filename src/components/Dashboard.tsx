@@ -138,25 +138,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     const loadUserCertifications = async () => {
       if (activeSection === 'formations' && currentUser) {
         try {
-          // Tenter d'importer et utiliser getUserCertifications avec gestion d'erreur
-          const certificationsModule = await import('../firebase/certifications');
+          // Vérifier d'abord si le module existe
+          const certificationsModule = await import('../firebase/certifications').catch(err => {
+            console.error("Erreur lors de l'importation du module de certifications:", err);
+            return null;
+          });
           
-          if (!certificationsModule || !certificationsModule.getUserCertifications) {
-            console.error("Module de certifications non disponible");
+          if (!certificationsModule) {
+            console.warn("Module de certifications non disponible");
             return;
           }
           
+          // Utiliser une fonction catch pour éviter les erreurs non gérées
           try {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const _userCertifications = await certificationsModule.getUserCertifications(currentUser.uid);
-            // Variable préfixée par underscore pour indiquer qu'elle n'est pas utilisée actuellement
-            // mais pourrait être utilisée dans une future implémentation
+            // Ignorer les erreurs potentielles ici pour ne pas bloquer l'interface
+            await certificationsModule.getUserCertifications(currentUser.uid).catch(err => {
+              console.warn("Impossible de récupérer les certifications:", err);
+              return [];
+            });
           } catch (error) {
-            console.error("Erreur d'accès aux certifications:", error);
+            console.warn("Erreur lors de l'accès aux certifications:", error);
             // Continuer sans les certifications
           }
         } catch (error) {
-          console.error("Erreur lors du chargement du module de certifications:", error);
+          console.warn("Erreur générique lors du chargement des certifications:", error);
         }
       }
     };

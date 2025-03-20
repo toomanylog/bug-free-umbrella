@@ -436,6 +436,7 @@ export const getUserCertifications = async (userId: string): Promise<{
     }
   } catch (error) {
     console.error(`Erreur lors de la récupération des certifications de l'utilisateur ${userId}:`, error);
+    // Ici aussi, retourner un tableau vide en cas d'erreur pour ne pas bloquer l'interface
     return [];
   }
 };

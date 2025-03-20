@@ -222,7 +222,8 @@ export const getUserFormationProgress = async (userId: string, formationId: stri
 };
 
 // Fonction pour obtenir toutes les formations suivies par un utilisateur
-export const getUserFormations = async (userId: string): Promise<{formation: Formation, progress: UserFormationProgress}[]> => {
+export const getUserFormations = async (userId: string) => {
+  console.log('Tentative de récupération des formations pour:', userId);
   try {
     const userRef = ref(database, `users/${userId}`);
     const userSnapshot = await get(userRef);
@@ -240,12 +241,17 @@ export const getUserFormations = async (userId: string): Promise<{formation: For
       );
       
       // Filtrer les formations qui n'existent plus
-      return formationsWithProgress.filter(item => item.formation !== null);
+      const filteredFormations = formationsWithProgress.filter(item => item.formation !== null);
+      
+      console.log('Données utilisateur:', userData);
+      console.log('Formations Progress:', formationsProgress);
+      console.log('Formations récupérées:', filteredFormations);
+      return filteredFormations;
     }
     
     return [];
   } catch (error) {
-    console.error(`Erreur lors de la récupération des formations de l'utilisateur ${userId}:`, error);
+    console.error('Erreur formations:', error);
     return [];
   }
 }; 
