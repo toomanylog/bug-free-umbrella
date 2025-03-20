@@ -358,6 +358,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             <Wrench size={18} className="mr-2" />
             Outils
           </button>
+          <button 
+            onClick={() => {
+              setActiveSection('profile');
+              setIsMenuOpen(false);
+            }}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'profile' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <User size={18} className="mr-2" />
+            Mon profil
+          </button>
           
           {/* Menu mobile */}
           <div className="relative ml-auto md:hidden">
