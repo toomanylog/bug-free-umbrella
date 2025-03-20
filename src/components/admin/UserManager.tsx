@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAllUsers, updateUserRole, UserData, UserRole, Formation, assignFormationToUser } from '../../firebase/auth';
+import { getAllUsers, updateUserRole, UserData, UserRole, Formation, assignFormationToUser, removeFormationFromUser } from '../../firebase/auth';
 import { getAllFormations } from '../../firebase/formations';
-import { Users, UserCheck, UserX, PlusCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, UserCheck, UserX, PlusCircle, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 
 const UserManager: React.FC = () => {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -73,6 +73,24 @@ const UserManager: React.FC = () => {
       setUsers(updatedUsers);
     } catch (err) {
       showFeedback("Erreur lors de l'assignation de la formation", true);
+      console.error(err);
+    }
+  };
+
+  const handleRemoveFormation = async (userId: string, formationId: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir retirer cette formation pour cet utilisateur ?")) {
+      return;
+    }
+
+    try {
+      await removeFormationFromUser(userId, formationId);
+      showFeedback("Formation retirée avec succès");
+      
+      // Mise à jour de la liste
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
+    } catch (err) {
+      showFeedback("Erreur lors du retrait de la formation", true);
       console.error(err);
     }
   };
@@ -259,23 +277,32 @@ const UserManager: React.FC = () => {
                       )}
                       
                       {/* Liste des formations assignées */}
-                      {user.formationsProgress && Object.keys(user.formationsProgress).length > 0 ? (
+                      {user.formationsProgress && user.formationsProgress.length > 0 ? (
                         <ul className="bg-gray-700 rounded-lg overflow-hidden">
-                          {Object.entries(user.formationsProgress).map(([formationId, progress]) => {
-                            const formation = formations.find(f => f.id === formationId);
+                          {user.formationsProgress.map((progress) => {
+                            const formation = formations.find(f => f.id === progress.formationId);
                             const totalModules = formation?.modules?.length || 0;
                             const completedModules = progress.completedModules?.length || 0;
                             const progressPercent = totalModules > 0 ? (completedModules / totalModules) * 100 : 0;
                             
                             return (
-                              <li key={formationId} className="p-3 border-b border-gray-600 last:border-b-0">
+                              <li key={progress.formationId} className="p-3 border-b border-gray-600 last:border-b-0">
                                 <div className="flex justify-between items-center mb-1">
                                   <span className="font-medium">
                                     {formation?.title || 'Formation inconnue'}
                                   </span>
-                                  <span className="text-xs">
-                                    {completedModules}/{totalModules} modules
-                                  </span>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs">
+                                      {completedModules}/{totalModules} modules
+                                    </span>
+                                    <button
+                                      onClick={() => handleRemoveFormation(user.uid, progress.formationId)}
+                                      className="text-red-400 hover:text-red-300 p-1"
+                                      title="Retirer cette formation"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className="w-full bg-gray-600 rounded-full h-2">
                                   <div 

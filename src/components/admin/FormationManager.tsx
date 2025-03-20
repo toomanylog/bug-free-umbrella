@@ -658,13 +658,6 @@ const FormationManager: React.FC = () => {
                         >
                           <Eye size={16} />
                         </button>
-                        <button 
-                          className="p-1 hover:text-purple-400 transition-colors"
-                          onClick={() => openAssignModal(formation)}
-                          title="Assigner aux utilisateurs"
-                        >
-                          <Users size={16} />
-                        </button>
                       </div>
                     </td>
                   </tr>

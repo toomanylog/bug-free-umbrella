@@ -329,4 +329,41 @@ export const assignFormationToUser = async (userId: string, formationId: string)
     console.error('Erreur lors de l\'assignation de la formation:', error);
     throw error;
   }
+};
+
+// Fonction pour retirer une formation assignée à un utilisateur
+export const removeFormationFromUser = async (userId: string, formationId: string): Promise<void> => {
+  try {
+    // Récupérer les données utilisateur
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (!userSnapshot.exists()) {
+      throw new Error('Utilisateur non trouvé');
+    }
+    
+    const userData = userSnapshot.val();
+    const formationsProgress = userData.formationsProgress || [];
+    
+    // Filtrer pour retirer la formation
+    const updatedFormationsProgress = formationsProgress.filter(
+      (progress: UserFormationProgress) => progress.formationId !== formationId
+    );
+    
+    // Si aucun changement n'est nécessaire, terminer
+    if (updatedFormationsProgress.length === formationsProgress.length) {
+      return;
+    }
+    
+    // Mettre à jour dans la base de données
+    await update(userRef, {
+      formationsProgress: updatedFormationsProgress,
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log(`Formation ${formationId} retirée de l'utilisateur ${userId}`);
+  } catch (error) {
+    console.error('Erreur lors du retrait de la formation:', error);
+    throw error;
+  }
 }; 

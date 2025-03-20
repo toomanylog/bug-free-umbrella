@@ -16,6 +16,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isFormationsOpen, setIsFormationsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [userProfile, setUserProfile] = useState({
     displayName: currentUser?.displayName || '',
@@ -91,22 +92,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     loadUserStats();
   }, [currentUser]);
 
-  // Charger les formations disponibles
+  // Charger les formations de l'utilisateur quand la section est ouverte
   useEffect(() => {
-    const loadFormations = async () => {
-      if (isCatalogOpen) {
+    const loadUserFormations = async () => {
+      if (isFormationsOpen && currentUser) {
         try {
-          const { getPublishedFormations } = await import('../firebase/formations');
-          const publishedFormations = await getPublishedFormations();
-          setFormations(publishedFormations);
+          const { getUserFormations } = await import('../firebase/formations');
+          const userFormations = await getUserFormations(currentUser.uid);
+          setFormations(userFormations.map(item => item.formation));
         } catch (error) {
-          console.error("Erreur lors du chargement des formations:", error);
+          console.error("Erreur lors du chargement des formations de l'utilisateur:", error);
         }
       }
     };
     
-    loadFormations();
-  }, [isCatalogOpen]);
+    loadUserFormations();
+  }, [isFormationsOpen, currentUser]);
 
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
@@ -735,6 +736,63 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               </div>
             </div>
           )}
+
+          {activeSection === 'formations' && (
+            <div className="space-y-8">
+              <h1 className="text-3xl font-bold">Mes formations</h1>
+              
+              {formations.length === 0 ? (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center">
+                  <div className="flex flex-col items-center">
+                    <BookOpen className="h-16 w-16 text-blue-500 mb-4" />
+                    <h2 className="text-xl font-bold mb-2">Aucune formation assignée</h2>
+                    <p className="text-gray-400 max-w-lg mx-auto mb-6">
+                      Vous n'avez pas encore de formations assignées à votre compte. 
+                      Les formations vous permettent d'acquérir de nouvelles compétences.
+                    </p>
+                    <button 
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium"
+                      onClick={() => setIsCatalogOpen(true)}
+                    >
+                      Explorer le catalogue de formations
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {formations.map(formation => (
+                    <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden flex flex-col">
+                      {formation.imageUrl && (
+                        <div className="h-40 overflow-hidden">
+                          <img 
+                            src={formation.imageUrl} 
+                            alt={formation.title} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="p-6 flex-1 flex flex-col">
+                        <h3 className="text-xl font-bold mb-2">{formation.title}</h3>
+                        <p className="text-gray-400 mb-4 text-sm flex-1">
+                          {formation.description?.length > 100 
+                            ? `${formation.description.substring(0, 100)}...` 
+                            : formation.description}
+                        </p>
+                        <div className="mt-2">
+                          <button 
+                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                            onClick={() => {/* Rediriger vers la page de détail de la formation */}}
+                          >
+                            Continuer l'apprentissage
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </main>
       
         {/* Footer */}
@@ -877,6 +935,72 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           </div>
         </div>
       )}
+
+      {/* Sidebar */}
+      <aside className="bg-gray-900 w-full md:w-64 p-4 md:border-r border-gray-800">
+        <nav>
+          <ul className="space-y-2">
+            <li>
+              <button 
+                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
+                  activeSection === 'overview' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
+                } transition-colors`}
+                onClick={() => setActiveSection('overview')}
+              >
+                <BarChart2 size={18} />
+                <span>Vue d'ensemble</span>
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
+                  activeSection === 'formations' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
+                } transition-colors`}
+                onClick={() => {
+                  setActiveSection('formations');
+                  setIsFormationsOpen(true);
+                }}
+              >
+                <BookOpen size={18} />
+                <span>Mes formations</span>
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
+                  activeSection === 'tools' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
+                } transition-colors`}
+                onClick={() => setActiveSection('tools')}
+              >
+                <Wrench size={18} />
+                <span>Outils</span>
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
+                  activeSection === 'profile' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
+                } transition-colors`}
+                onClick={() => setActiveSection('profile')}
+              >
+                <User size={18} />
+                <span>Profil</span>
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
+                  activeSection === 'settings' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
+                } transition-colors`}
+                onClick={() => setActiveSection('settings')}
+              >
+                <Settings size={18} />
+                <span>Paramètres</span>
+              </button>
+            </li>
+          </ul>
+        </nav>
+      </aside>
     </div>
   );
 };
