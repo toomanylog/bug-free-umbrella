@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getAllUsers, updateUserRole, UserData, UserRole } from '../../firebase/auth';
-import { getAllFormations, assignFormationToUser, Formation } from '../../firebase/formations';
+import { getAllUsers, updateUserRole, UserData, UserRole, Formation } from '../../firebase/auth';
+import { getAllFormations, assignFormationToUser } from '../../firebase/formations';
 import { Users, UserCheck, UserX, PlusCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 const UserManager: React.FC = () => {
