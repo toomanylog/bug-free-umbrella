@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getAllUsers, updateUserRole, UserData, UserRole, Formation } from '../../firebase/auth';
-import { getAllFormations, assignFormationToUser } from '../../firebase/formations';
+import { getAllUsers, updateUserRole, UserData, UserRole, Formation, assignFormationToUser } from '../../firebase/auth';
+import { getAllFormations } from '../../firebase/formations';
 import { Users, UserCheck, UserX, PlusCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 const UserManager: React.FC = () => {
@@ -63,7 +63,7 @@ const UserManager: React.FC = () => {
     }
 
     try {
-      await assignFormationToUser(selectedFormation, userId);
+      await assignFormationToUser(userId, selectedFormation);
       showFeedback("Formation assignée avec succès");
       setAssigningFormation(null);
       setSelectedFormation('');

@@ -135,47 +135,6 @@ export const deleteModule = async (formationId: string, moduleId: string): Promi
   }
 };
 
-// Fonction pour assigner une formation à un utilisateur
-export const assignFormationToUser = async (userId: string, formationId: string): Promise<void> => {
-  try {
-    // Vérifier si l'utilisateur a déjà cette formation
-    const userRef = ref(database, `users/${userId}`);
-    const userSnapshot = await get(userRef);
-    
-    if (userSnapshot.exists()) {
-      const userData = userSnapshot.val();
-      let formationsProgress = userData.formationsProgress || [];
-      
-      // Vérifier si la formation est déjà assignée
-      const formationExists = formationsProgress.some(
-        (progress: UserFormationProgress) => progress.formationId === formationId
-      );
-      
-      if (!formationExists) {
-        // Ajouter la nouvelle formation
-        const newProgress: UserFormationProgress = {
-          formationId,
-          completedModules: [],
-          startedAt: new Date().toISOString(),
-          lastAccessedAt: new Date().toISOString(),
-          completed: false
-        };
-        
-        formationsProgress.push(newProgress);
-        
-        // Mettre à jour les données utilisateur
-        await update(userRef, {
-          formationsProgress,
-          updatedAt: new Date().toISOString()
-        });
-      }
-    }
-  } catch (error) {
-    console.error(`Erreur lors de l'assignation de la formation ${formationId} à l'utilisateur ${userId}:`, error);
-    throw error;
-  }
-};
-
 // Fonction pour marquer un module comme complété
 export const markModuleAsCompleted = async (userId: string, formationId: string, moduleId: string): Promise<void> => {
   try {
