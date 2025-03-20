@@ -6,7 +6,7 @@ import {
   updateFormation, 
   deleteFormation
 } from '../../firebase/formations';
-import { Plus, Edit, Trash2, Eye, X, Check } from 'lucide-react';
+import { Edit, Trash2, Eye, X, Check } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const EMPTY_FORMATION: Omit<Formation, 'id'> = {
