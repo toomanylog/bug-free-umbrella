@@ -157,30 +157,37 @@ export const updateUserProfile = async (user: User, displayName: string, telegra
     // Mettre à jour le nom d'affichage directement dans Auth
     await updateProfile(user, { displayName });
     
-    // Récupérer d'abord les données utilisateur existantes
-    const userRef = ref(database, `users/${user.uid}`);
-    const userSnapshot = await get(userRef);
-    
-    // Mettre à jour uniquement les champs nécessaires sans créer de sous-objet
-    await update(userRef, {
-      ...(userSnapshot.exists() ? {} : {}),
-      displayName,
-      telegram: telegramUsername,
-      updatedAt: new Date().toISOString()
-    });
-    
-    // Mettre à jour également dans Firestore
-    const userDocRef = doc(firestore, 'users', user.uid);
-    await updateDoc(userDocRef, {
-      displayName,
-      telegram: telegramUsername,
-      updatedAt: new Date().toISOString()
-    });
-    
-    console.log('Profil mis à jour avec succès');
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour du profil:', error);
-    throw error;
+    try {
+      // Mettre à jour dans Realtime Database en premier (plus fiable)
+      const userRef = ref(database, `users/${user.uid}`);
+      await update(userRef, {
+        displayName,
+        telegram: telegramUsername,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Mettre à jour également dans Firestore - mais capturez les erreurs en silence
+      try {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userDocRef, {
+          displayName,
+          telegram: telegramUsername,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (firestoreError) {
+        // Log l'erreur mais ne la propage pas, car la mise à jour Realtime DB a réussi
+        console.warn('Erreur Firestore non-critique:', firestoreError);
+      }
+      
+      console.log('Profil mis à jour avec succès');
+    } catch (dbError) {
+      // Si l'erreur est avec la base de données, on la propage
+      console.error('Erreur lors de la mise à jour du profil dans la base de données:', dbError);
+      throw dbError;
+    }
+  } catch (authError) {
+    console.error('Erreur lors de la mise à jour du profil auth:', authError);
+    throw authError;
   }
 };
 

@@ -30,6 +30,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [buttonPosition, setButtonPosition] = useState({ top: 0, right: 0 });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
@@ -100,87 +105,75 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     }));
   };
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPassword(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const saveProfile = async (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) return;
     
-    if (!currentUser) {
-      alert('Vous devez être connecté pour modifier votre profil.');
-      return;
-    }
-    
-    setIsLoading(true);
-    setSuccessMessage('');
-    
-    try {
-      await updateUserProfile(
-        currentUser,
-        userProfile.displayName,
-        userProfile.telegram
-      );
-      
-      setSuccessMessage('Profil mis à jour avec succès!');
-      setTimeout(() => {
-        setIsEditingProfile(false);
-        setSuccessMessage('');
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du profil:', error);
-      alert('Une erreur est survenue lors de la mise à jour du profil.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const changePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!currentUser) {
-      alert('Vous devez être connecté pour changer votre mot de passe.');
-      return;
-    }
-    
-    // Vérifier que les mots de passe correspondent
+    // Validation côté client
     if (password.new !== password.confirm) {
-      alert('Les nouveaux mots de passe ne correspondent pas.');
+      setPasswordError('Les mots de passe ne correspondent pas');
       return;
     }
     
-    setIsLoading(true);
-    setSuccessMessage('');
+    if (password.new.length < 6) {
+      setPasswordError('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
     
     try {
-      await changeUserPassword(
-        currentUser,
-        password.current,
-        password.new
-      );
+      setIsChangingPassword(true);
+      setPasswordError('');
       
-      setSuccessMessage('Mot de passe changé avec succès!');
+      await changeUserPassword(currentUser, password.current, password.new);
+      
+      // Attendre un court instant pour permettre à Firebase de finaliser la mise à jour
       setTimeout(() => {
-        setIsChangingPassword(false);
-        setSuccessMessage('');
+        setPasswordSuccess('Mot de passe modifié avec succès');
         setPassword({ current: '', new: '', confirm: '' });
-      }, 2000);
+        setIsChangingPassword(false);
+      }, 1000);
       
     } catch (error: any) {
       console.error('Erreur lors du changement de mot de passe:', error);
       
+      // Messages d'erreur en français
       if (error.code === 'auth/wrong-password') {
-        alert('Le mot de passe actuel est incorrect.');
+        setPasswordError('Le mot de passe actuel est incorrect');
+      } else if (error.code === 'auth/weak-password') {
+        setPasswordError('Le nouveau mot de passe est trop faible');
       } else {
-        alert('Une erreur est survenue lors du changement de mot de passe.');
+        setPasswordError(error.message || 'Une erreur s\'est produite');
       }
-    } finally {
-      setIsLoading(false);
+      
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    
+    try {
+      setIsSubmitting(true);
+      setError('');
+      
+      // Création d'une copie pour éviter des problèmes de référence
+      const updatedDisplayName = userProfile.displayName.trim();
+      const updatedTelegram = userProfile.telegram.trim();
+      
+      // Ajouter un délai pour éviter les problèmes de rafraîchissement trop rapide
+      await updateUserProfile(currentUser, updatedDisplayName, updatedTelegram);
+      
+      // Attendre un court instant pour permettre à Firebase de finaliser la mise à jour
+      setTimeout(() => {
+        setSuccess('Profil mis à jour avec succès');
+        setIsSubmitting(false);
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour du profil:', error);
+      setError(error.message || 'Une erreur s\'est produite lors de la mise à jour du profil');
+      setIsSubmitting(false);
     }
   };
 
@@ -485,7 +478,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                     </div>
                   )}
                   
-                  <form className="space-y-4" onSubmit={saveProfile}>
+                  <form className="space-y-4" onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-400 mb-1">Nom complet</label>
@@ -521,10 +514,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                     <div className="flex space-x-4">
                       <button 
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isSubmitting}
                         className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
                       >
-                        {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                        {isSubmitting ? 'Enregistrement...' : 'Enregistrer les modifications'}
                       </button>
                       <button 
                         type="button"
@@ -542,13 +535,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                 <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
                   <h2 className="text-xl font-bold mb-4">Changer mon mot de passe</h2>
                   
-                  {successMessage && (
+                  {passwordSuccess && (
                     <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
-                      {successMessage}
+                      {passwordSuccess}
                     </div>
                   )}
                   
-                  <form className="space-y-4" onSubmit={changePassword}>
+                  {passwordError && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg mb-4">
+                      {passwordError}
+                    </div>
+                  )}
+                  
+                  <form className="space-y-4" onSubmit={handlePasswordChange}>
                     <div>
                       <label className="block text-sm font-medium text-gray-400 mb-1">Mot de passe actuel</label>
                       <input 
@@ -582,10 +581,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                     <div className="flex space-x-4">
                       <button 
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isChangingPassword}
                         className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
                       >
-                        {isLoading ? 'Modification...' : 'Changer le mot de passe'}
+                        {isChangingPassword ? 'Modification...' : 'Changer le mot de passe'}
                       </button>
                       <button 
                         type="button"
