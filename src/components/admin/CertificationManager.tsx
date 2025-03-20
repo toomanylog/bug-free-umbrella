@@ -24,7 +24,7 @@ import {
   QuestionType
 } from '../../firebase/certifications';
 
-import { Formation, getAllUsers, UserData } from '../../firebase/auth';
+import { Formation } from '../../firebase/auth';
 import { getAllFormations } from '../../firebase/formations';
 
 const EMPTY_CERTIFICATION: Omit<Certification, 'id'> = {
