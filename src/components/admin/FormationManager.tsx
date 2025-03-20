@@ -25,6 +25,8 @@ const FormationManager: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [currentFormation, setCurrentFormation] = useState<Omit<Formation, 'id'> & { id?: string }>({...EMPTY_FORMATION});
   const [feedback, setFeedback] = useState<{message: string, isError: boolean} | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
+  const [previewFormation, setPreviewFormation] = useState<Formation | null>(null);
 
   // Charger toutes les formations
   useEffect(() => {
@@ -113,6 +115,16 @@ const FormationManager: React.FC = () => {
     setIsEditing(false);
   };
 
+  const handlePreview = (formation: Formation) => {
+    setPreviewFormation(formation);
+    setIsPreviewOpen(true);
+  };
+
+  const closePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewFormation(null);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -127,6 +139,64 @@ const FormationManager: React.FC = () => {
       {feedback && (
         <div className={`p-4 mb-4 rounded-lg ${feedback.isError ? 'bg-red-900/50 text-red-200' : 'bg-green-900/50 text-green-200'}`}>
           {feedback.message}
+        </div>
+      )}
+      
+      {/* Aperçu de la formation */}
+      {isPreviewOpen && previewFormation && (
+        <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 w-full max-w-3xl rounded-xl shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">{previewFormation.title}</h2>
+                <button 
+                  onClick={closePreview}
+                  className="p-2 hover:bg-gray-700 rounded-full"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              {previewFormation.imageUrl && (
+                <div className="mb-6">
+                  <img 
+                    src={previewFormation.imageUrl} 
+                    alt={previewFormation.title} 
+                    className="w-full h-64 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+              
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Description</h3>
+                <p className="text-gray-300 whitespace-pre-wrap">{previewFormation.description}</p>
+              </div>
+              
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Modules ({previewFormation.modules?.length || 0})</h3>
+                {previewFormation.modules?.length > 0 ? (
+                  <ul className="space-y-2">
+                    {previewFormation.modules.map((module, index) => (
+                      <li key={module.id} className="border border-gray-700 p-3 rounded-lg">
+                        <div className="font-medium">{module.title}</div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-400">Aucun module n'a encore été ajouté à cette formation.</p>
+                )}
+              </div>
+              
+              <div className="flex justify-end">
+                <button 
+                  onClick={closePreview}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       
@@ -203,17 +273,6 @@ const FormationManager: React.FC = () => {
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Formations ({formations.length})</h2>
-          
-          <button
-            className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center"
-            onClick={() => {
-              setCurrentFormation({...EMPTY_FORMATION});
-              setIsEditing(false);
-            }}
-          >
-            <Plus size={18} className="mr-1" />
-            Nouvelle formation
-          </button>
         </div>
         
         {error && (
@@ -273,6 +332,7 @@ const FormationManager: React.FC = () => {
                         </button>
                         <button 
                           className="p-1 hover:text-green-400 transition-colors"
+                          onClick={() => handlePreview(formation)}
                         >
                           <Eye size={16} />
                         </button>
