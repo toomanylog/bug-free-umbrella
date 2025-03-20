@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
 import { Link, useNavigate } from 'react-router-dom';
@@ -133,6 +133,34 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     
     loadCatalogFormations();
   }, [isCatalogOpen, formations, currentUser]);
+
+  // Après les useEffects existants, ajouter un nouvel useEffect pour charger les certifications
+  useEffect(() => {
+    const loadUserCertifications = async () => {
+      if (activeSection === 'formations' && currentUser) {
+        try {
+          const { getUserCertifications } = await import('../firebase/certifications');
+          const userCertifications = await getUserCertifications(currentUser.uid);
+          
+          // Stocker les IDs des certifications que l'utilisateur possède déjà
+          const certificationIds = userCertifications.map(cert => cert.certification.id);
+          
+          // Mettre à jour les formations avec cette information
+          setFormations(prevFormations => 
+            prevFormations.map(formation => ({
+              ...formation,
+              userHasCertification: formation.certificationId ? 
+                certificationIds.includes(formation.certificationId) : false
+            }))
+          );
+        } catch (error) {
+          console.error("Erreur lors du chargement des certifications de l'utilisateur:", error);
+        }
+      }
+    };
+    
+    loadUserCertifications();
+  }, [activeSection, currentUser]);
 
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
@@ -761,7 +789,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           )}
 
           {activeSection === 'formations' && (
-            <div className="space-y-8">
+            <div className="space-y-6">
               <h1 className="text-3xl font-bold">Mes formations</h1>
               
               {formations.length === 0 ? (
@@ -800,54 +828,76 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {formations.map(formation => {
-                      // Vérifier si l'utilisateur a déjà commencé cette formation
+                      // Récupérer les infos de progression pour cette formation
                       const userProgress = userData?.formationsProgress?.find(
-                        (progress: UserFormationProgress) => progress.formationId === formation.id
+                        (p: UserFormationProgress) => p.formationId === formation.id
                       );
                       
-                      const hasStarted = userProgress && userProgress.completedModules?.length > 0;
-                      const isCompleted = userProgress && userProgress.completed;
-                      
-                      // Vérifier si tous les modules sont complétés
-                      let buttonText = 'Commencer la formation';
-                      if (isCompleted) {
-                        buttonText = 'Revoir la formation';
-                      } else if (hasStarted) {
-                        buttonText = 'Continuer l\'apprentissage';
-                      }
+                      const isCompleted = userProgress?.completed || false;
+                      const progress = userProgress 
+                        ? Math.round((userProgress.completedModules.length / formation.modules.length) * 100) 
+                        : 0;
                       
                       return (
-                        <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden flex flex-col">
-                          {formation.imageUrl && (
-                            <div className="h-40 overflow-hidden">
-                              <img 
-                                src={formation.imageUrl} 
-                                alt={formation.title} 
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="p-6 flex-1 flex flex-col">
-                            <h3 className="text-xl font-bold mb-2">{formation.title}</h3>
-                            <p className="text-gray-400 mb-4 text-sm flex-1">
-                              {formation.description?.length > 100 
-                                ? `${formation.description.substring(0, 100)}...` 
-                                : formation.description}
-                            </p>
-                            <div className="mt-2">
-                              <button 
-                                className={`w-full ${
-                                  isCompleted 
-                                    ? 'bg-gradient-to-r from-green-600 to-teal-700' 
-                                    : 'bg-gradient-to-r from-blue-600 to-indigo-700'
-                                } px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30`}
-                                onClick={() => {
-                                  // Rediriger vers la page de détail de la formation
-                                  navigate(`/formations/${formation.id}`);
-                                }}
-                              >
-                                {buttonText}
-                              </button>
+                        <div key={formation.id} className="bg-gray-800 rounded-lg p-4 shadow-md">
+                          <div className="flex flex-col md:flex-row gap-4">
+                            {formation.imageUrl && (
+                              <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden">
+                                <img 
+                                  src={formation.imageUrl} 
+                                  alt={formation.title} 
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="flex-1">
+                              <h3 className="text-xl font-semibold mb-1">{formation.title}</h3>
+                              <p className="text-gray-400 text-sm mb-2">{formation.description.substring(0, 150)}...</p>
+                              
+                              <div className="mb-2">
+                                <div className="flex justify-between text-sm mb-1">
+                                  <span>Progression: {progress}%</span>
+                                  <span>{userProgress?.completedModules.length || 0}/{formation.modules.length} modules</span>
+                                </div>
+                                <div className="w-full bg-gray-700 rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full" 
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex flex-wrap gap-2">
+                                <Link 
+                                  to={`/formation/${formation.id}`} 
+                                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    isCompleted 
+                                      ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                      : progress > 0 
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                  }`}
+                                >
+                                  {isCompleted 
+                                    ? 'Revoir la formation' 
+                                    : progress > 0 
+                                      ? "Continuer l'apprentissage" 
+                                      : 'Commencer la formation'
+                                  }
+                                </Link>
+                                
+                                {/* Bouton pour passer la certification */}
+                                {isCompleted && formation.certificationId && !formation.userHasCertification && (
+                                  <Link 
+                                    to={`/certification/${formation.certificationId}`} 
+                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center"
+                                  >
+                                    <Award size={16} className="mr-1" />
+                                    Passer la certification
+                                  </Link>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>

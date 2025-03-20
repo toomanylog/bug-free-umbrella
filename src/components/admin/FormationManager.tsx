@@ -6,10 +6,11 @@ import {
   updateFormation, 
   deleteFormation
 } from '../../firebase/formations';
-import { Edit, Trash2, Eye, X, Check } from 'lucide-react';
+import { Edit, Trash2, Eye, X, Check, Award } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getAllUsers, assignFormationToUser } from '../../firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
+import { getAllCertifications, Certification } from '../../firebase/certifications';
 
 // Déclaration de module pour uuid
 declare module 'uuid' {
@@ -48,6 +49,7 @@ const FormationManager: React.FC = () => {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [currentModule, setCurrentModule] = useState({...EMPTY_MODULE});
   const [editingModuleIndex, setEditingModuleIndex] = useState<number | null>(null);
+  const [certifications, setCertifications] = useState<Certification[]>([]);
 
   // Charger toutes les formations
   useEffect(() => {
@@ -84,6 +86,20 @@ const FormationManager: React.FC = () => {
       loadUsers();
     }
   }, [isAssignOpen]);
+
+  // Charger les certifications
+  useEffect(() => {
+    const loadCertifications = async () => {
+      try {
+        const certificationsData = await getAllCertifications();
+        setCertifications(certificationsData);
+      } catch (err) {
+        console.error("Erreur lors du chargement des certifications:", err);
+      }
+    };
+    
+    loadCertifications();
+  }, []);
 
   const showFeedback = (message: string, isError: boolean = false) => {
     setFeedback({ message, isError });
@@ -463,6 +479,25 @@ const FormationManager: React.FC = () => {
             onChange={e => setCurrentFormation({...currentFormation, published: e.target.checked})}
           />
           <label htmlFor="published" className="text-sm font-medium text-gray-400">Publier cette formation</label>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-400 mb-1">Certification associée (optionnel)</label>
+          <select
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={currentFormation.certificationId || ''}
+            onChange={e => setCurrentFormation({...currentFormation, certificationId: e.target.value || undefined})}
+          >
+            <option value="">Aucune certification</option>
+            {certifications.map(certification => (
+              <option key={certification.id} value={certification.id}>
+                {certification.title}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            La certification sera proposée aux utilisateurs une fois la formation complétée
+          </p>
         </div>
 
         {/* Section des modules */}

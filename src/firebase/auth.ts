@@ -24,6 +24,7 @@ export interface Formation {
   imageUrl?: string;
   price?: number;
   published: boolean;
+  certificationId?: string; // ID de la certification associée
 }
 
 export interface Module {
