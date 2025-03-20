@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { getUserData, UserData, UserRole } from '../firebase/auth';
+import { ref, onValue } from 'firebase/database';
+import { database } from '../firebase/config';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -43,33 +45,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    const fetchUserData = async (user: User) => {
-      try {
-        const data = await getUserData(user.uid);
-        setUserData(data);
-        setIsAdmin(data?.role === UserRole.ADMIN);
-      } catch (error) {
-        console.error('Erreur lors de la récupération des données utilisateur:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+  const handleAuthChange = useCallback((user: User | null) => {
+    setCurrentUser(user);
+    setIsLoading(true);
+    
+    if (user) {
+      const userRef = ref(database, `users/${user.uid}`);
       
-      if (user) {
-        fetchUserData(user);
-      } else {
-        setUserData(null);
-        setIsAdmin(false);
+      onValue(userRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          console.log('Données utilisateur chargées:', data);
+          console.log('Rôle utilisateur:', data.role);
+          setUserData(data);
+          setIsAdmin(data?.role === UserRole.ADMIN);
+        }
         setIsLoading(false);
-      }
-    });
+      });
+    } else {
+      setUserData(null);
+      setIsAdmin(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, handleAuthChange);
 
     return unsubscribe;
-  }, []);
+  }, [handleAuthChange]);
 
   const value = {
     currentUser,
