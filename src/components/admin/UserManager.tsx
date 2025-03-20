@@ -18,16 +18,28 @@ const UserManager: React.FC = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [usersData, formationsData] = await Promise.all([
-          getAllUsers(),
-          getAllFormations()
-        ]);
-        setUsers(usersData);
-        setFormations(formationsData);
         setError(null);
+        
+        try {
+          // Chargement des formations
+          const formationsData = await getAllFormations();
+          setFormations(formationsData);
+        } catch (formationsError) {
+          console.error("Erreur lors du chargement des formations:", formationsError);
+          // Continuer sans les formations
+        }
+        
+        try {
+          // Chargement des utilisateurs
+          const usersData = await getAllUsers();
+          setUsers(usersData);
+        } catch (usersError) {
+          console.error("Erreur lors du chargement des utilisateurs:", usersError);
+          setError("Erreur de permission: Impossible de charger la liste des utilisateurs. Vérifiez vos droits d'administrateur.");
+        }
       } catch (err) {
-        setError("Erreur lors du chargement des données");
-        console.error(err);
+        setError("Erreur inattendue lors du chargement des données");
+        console.error("Erreur globale:", err);
       } finally {
         setLoading(false);
       }

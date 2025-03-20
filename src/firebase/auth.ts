@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { ref, set, update, get, remove } from 'firebase/database';
 import { auth, database } from './config';
+import { getAuth } from 'firebase/auth';
 
 // Types pour les formations
 export interface Formation {
@@ -250,16 +251,47 @@ export const getUserData = async (userId: string): Promise<any> => {
 // Fonction pour obtenir tous les utilisateurs (pour les admins)
 export const getAllUsers = async (): Promise<any[]> => {
   try {
+    console.log('Tentative de récupération des utilisateurs...');
+    
+    // Vérifier d'abord l'accès avec le rôle actuel
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    
+    if (!currentUser) {
+      console.error('Erreur lors de la récupération des utilisateurs: Aucun utilisateur connecté');
+      return [];
+    }
+    
+    // Vérifier si l'utilisateur est admin
+    const userDataRef = ref(database, `users/${currentUser.uid}`);
+    const userDataSnapshot = await get(userDataRef);
+    const userData = userDataSnapshot.val();
+    
+    if (!userData || userData.role !== UserRole.ADMIN) {
+      console.error("Erreur lors de la récupération des utilisateurs: L'utilisateur n'est pas administrateur");
+      return [];
+    }
+    
+    // Récupérer tous les utilisateurs
     const usersRef = ref(database, 'users');
     const snapshot = await get(usersRef);
     
-    if (!snapshot.exists()) return [];
+    if (!snapshot.exists()) {
+      console.log('Aucun utilisateur trouvé dans la base de données.');
+      return [];
+    }
     
+    console.log('Utilisateurs récupérés avec succès');
     const usersData = snapshot.val();
-    return Object.values(usersData);
+    return Object.entries(usersData).map(([uid, data]) => ({
+      uid,
+      ...data as any
+    }));
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs:', error);
-    return [];
+    
+    // Remonter l'erreur pour un meilleur debugging
+    throw error;
   }
 };
 

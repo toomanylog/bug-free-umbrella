@@ -869,8 +869,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                           );
                           
                           const isCompleted = userProgress?.completed || false;
+                          const completedModules = userProgress?.completedModules || [];
+                          const modulesLength = formation.modules?.length || 1;
                           const progress = userProgress 
-                            ? Math.round((userProgress.completedModules.length / formation.modules.length) * 100) 
+                            ? Math.round((completedModules.length / modulesLength) * 100) 
                             : 0;
                           
                           return (
@@ -893,7 +895,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                                   <div className="mb-2">
                                     <div className="flex justify-between text-sm mb-1">
                                       <span>Progression: {progress}%</span>
-                                      <span>{userProgress?.completedModules.length || 0}/{formation.modules.length} modules</span>
+                                      <span>{completedModules.length}/{modulesLength} modules</span>
                                     </div>
                                     <div className="w-full bg-gray-700 rounded-full h-2">
                                       <div 
