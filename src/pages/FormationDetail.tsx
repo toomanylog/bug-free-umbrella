@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, CheckCircle, Clock, Award, BookOpen, Video, Download, Share2, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getFormationById } from '../firebase/formations';
-import { updateFormationProgress } from '../firebase/auth';
+import { updateFormationProgress, Formation, Module } from '../firebase/auth';
 
 interface FormationModule {
   id: number;
@@ -33,24 +33,6 @@ interface FormationData {
   instructor: string;
   requirements: string[];
   objectives: string[];
-}
-
-interface Module {
-  id: string;
-  title: string;
-  content: string;
-  order: number;
-}
-
-interface Formation {
-  id: string;
-  title: string;
-  description: string;
-  imageUrl?: string;
-  modules: Module[];
-  published: boolean;
-  createdAt: string;
-  updatedAt?: string;
 }
 
 const FormationDetail: React.FC = () => {
@@ -135,7 +117,7 @@ const FormationDetail: React.FC = () => {
       console.error("Erreur lors de la mise à jour de la progression:", err);
       // Annuler la mise à jour locale en cas d'erreur
       setCompletedModules(prev => {
-        const newSet = new Set(prev);
+        const newSet = new Set(Array.from(prev));
         newSet.delete(moduleId);
         return newSet;
       });

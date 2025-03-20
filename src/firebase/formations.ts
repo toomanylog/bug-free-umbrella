@@ -41,13 +41,26 @@ export const getFormationById = async (formationId: string): Promise<Formation |
     const snapshot = await get(formationRef);
     
     if (snapshot.exists()) {
-      return { ...snapshot.val(), id: formationId };
+      const formationData = snapshot.val();
+      return {
+        id: formationId,
+        ...formationData,
+        // Assurez-vous que modules est un tableau et non un objet
+        modules: formationData.modules 
+          ? Array.isArray(formationData.modules) 
+            ? formationData.modules 
+            : Object.entries(formationData.modules).map(([id, data]: [string, any]) => ({
+                id,
+                ...data
+              }))
+          : []
+      };
     }
     
     return null;
   } catch (error) {
-    console.error(`Erreur lors de la récupération de la formation ${formationId}:`, error);
-    return null;
+    console.error("Erreur lors de la récupération de la formation:", error);
+    throw error;
   }
 };
 

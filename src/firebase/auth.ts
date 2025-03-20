@@ -366,4 +366,69 @@ export const removeFormationFromUser = async (userId: string, formationId: strin
     console.error('Erreur lors du retrait de la formation:', error);
     throw error;
   }
+};
+
+// Mettre à jour la progression d'un utilisateur pour une formation spécifique
+export const updateFormationProgress = async (userId: string, formationId: string, moduleId: string): Promise<void> => {
+  try {
+    // Récupérer les données utilisateur
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (!userSnapshot.exists()) {
+      throw new Error('Utilisateur non trouvé');
+    }
+    
+    const userData = userSnapshot.val();
+    let formationsProgress = userData.formationsProgress || [];
+    
+    // Rechercher si la formation existe déjà dans la progression de l'utilisateur
+    let formationProgress = formationsProgress.find(
+      (progress: UserFormationProgress) => progress.formationId === formationId
+    );
+    
+    if (!formationProgress) {
+      // Si la formation n'existe pas encore dans la progression, créer un nouvel enregistrement
+      formationProgress = {
+        formationId,
+        completedModules: [],
+        startedAt: new Date().toISOString(),
+        lastAccessedAt: new Date().toISOString(),
+        completed: false
+      };
+      formationsProgress.push(formationProgress);
+    }
+    
+    // Vérifier si le module est déjà complété
+    if (!formationProgress.completedModules.includes(moduleId)) {
+      formationProgress.completedModules.push(moduleId);
+      formationProgress.lastAccessedAt = new Date().toISOString();
+      
+      // Récupérer les informations de la formation pour vérifier si tous les modules sont complétés
+      const formationRef = ref(database, `formations/${formationId}`);
+      const formationSnapshot = await get(formationRef);
+      
+      if (formationSnapshot.exists()) {
+        const formationData = formationSnapshot.val();
+        const totalModules = formationData.modules ? Object.keys(formationData.modules).length : 0;
+        
+        // Marquer la formation comme complétée si tous les modules sont terminés
+        if (formationProgress.completedModules.length >= totalModules) {
+          formationProgress.completed = true;
+          formationProgress.completedAt = new Date().toISOString();
+        }
+      }
+    }
+    
+    // Mettre à jour dans la base de données
+    await update(userRef, {
+      formationsProgress,
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log(`Progression mise à jour pour la formation ${formationId}, module ${moduleId}`);
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la progression:', error);
+    throw error;
+  }
 }; 
