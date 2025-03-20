@@ -5,47 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
 import { Link } from 'react-router-dom';
 
-// Composant pour gérer les erreurs dans l'onglet formations
-const FormationsErrorBoundary: React.FC<{children: React.ReactNode}> = ({children}) => {
-  const [hasError, setHasError] = useState(false);
-  
-  useEffect(() => {
-    // Réinitialiser l'état d'erreur lorsque les enfants changent
-    setHasError(false);
-  }, [children]);
-  
-  if (hasError) {
-    return (
-      <div className="bg-red-900/20 backdrop-blur-sm border border-red-700/50 rounded-xl p-6 text-center">
-        <div className="flex flex-col items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mb-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-          <h2 className="text-xl font-bold mb-2">Erreur de chargement</h2>
-          <p className="text-gray-400 max-w-lg mx-auto mb-6">
-            Une erreur s'est produite lors du chargement de vos formations. 
-            Cela peut être dû à un problème temporaire ou à une mise à jour en cours.
-          </p>
-          <button 
-            className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium"
-            onClick={() => setHasError(false)}
-          >
-            Réessayer
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  try {
-    return <>{children}</>;
-  } catch (error) {
-    console.error("Erreur capturée dans FormationsErrorBoundary:", error);
-    setHasError(true);
-    return null;
-  }
-};
-
 interface DashboardProps {
   onClose: () => void;
 }
