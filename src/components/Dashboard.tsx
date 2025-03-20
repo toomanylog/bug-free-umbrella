@@ -45,6 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     lastLogin: new Date().toLocaleDateString('fr-FR')
   });
   const [formations, setFormations] = useState<any[]>([]);
+  const [allFormations, setAllFormations] = useState<any[]>([]);
 
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
@@ -108,6 +109,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     
     loadUserFormations();
   }, [activeSection, currentUser]);
+
+  // Charger toutes les formations disponibles pour le catalogue
+  useEffect(() => {
+    const loadCatalogFormations = async () => {
+      if (isCatalogOpen && currentUser) {
+        try {
+          const { getPublishedFormations } = await import('../firebase/formations');
+          const publishedFormations = await getPublishedFormations();
+          
+          // Filtrer pour exclure les formations déjà assignées à l'utilisateur
+          const userFormationIds = formations.map(f => f.id);
+          const filteredFormations = publishedFormations.filter(
+            formation => !userFormationIds.includes(formation.id)
+          );
+          
+          setAllFormations(filteredFormations);
+        } catch (error) {
+          console.error("Erreur lors du chargement du catalogue de formations:", error);
+        }
+      }
+    };
+    
+    loadCatalogFormations();
+  }, [isCatalogOpen, formations, currentUser]);
 
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
@@ -781,6 +806,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                       );
                       
                       const hasStarted = userProgress && userProgress.completedModules?.length > 0;
+                      const isCompleted = userProgress && userProgress.completed;
+                      
+                      // Vérifier si tous les modules sont complétés
+                      let buttonText = 'Commencer la formation';
+                      if (isCompleted) {
+                        buttonText = 'Revoir la formation';
+                      } else if (hasStarted) {
+                        buttonText = 'Continuer l\'apprentissage';
+                      }
                       
                       return (
                         <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden flex flex-col">
@@ -802,14 +836,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                             </p>
                             <div className="mt-2">
                               <button 
-                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                                className={`w-full ${
+                                  isCompleted 
+                                    ? 'bg-gradient-to-r from-green-600 to-teal-700' 
+                                    : 'bg-gradient-to-r from-blue-600 to-indigo-700'
+                                } px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30`}
                                 onClick={() => {
                                   // Rediriger vers la page de détail de la formation
                                   navigate(`/formations/${formation.id}`);
                                 }}
                               >
-                                {/* Adapter le texte en fonction de la progression */}
-                                {hasStarted ? 'Continuer l\'apprentissage' : 'Commencer la formation'}
+                                {buttonText}
                               </button>
                             </div>
                           </div>
@@ -915,14 +952,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               
               {/* Content */}
               <div className="p-6">
-                {formations.length === 0 ? (
+                {allFormations.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4">Aucune formation n'est disponible pour le moment.</div>
-                    <div className="text-sm text-gray-500">Revenez bientôt pour découvrir nos formations.</div>
+                    <div className="text-gray-400 mb-4">Aucune nouvelle formation n'est disponible pour le moment.</div>
+                    <div className="text-sm text-gray-500">Revenez bientôt pour découvrir nos nouvelles formations.</div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {formations.map(formation => (
+                    {allFormations.map(formation => (
                       <div 
                         key={formation.id} 
                         className="bg-gray-700/50 rounded-lg overflow-hidden flex flex-col hover:shadow-lg hover:shadow-blue-500/10 transition-all border border-gray-600"
