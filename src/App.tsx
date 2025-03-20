@@ -7,6 +7,7 @@ import ErrorBoundary from './pages/ErrorBoundary';
 import CGU from './pages/CGU';
 import CGV from './pages/CGV';
 import Privacy from './pages/Privacy';
+import AdminDashboard from './components/admin/AdminDashboard';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
               <Route path="/cgu" element={<CGU />} />
               <Route path="/cgv" element={<CGV />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
