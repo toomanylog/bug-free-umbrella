@@ -275,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           </div>
         </div>
         
-        {/* Navigation */}
+        {/* Navigation - Simplifiée avec seulement Aperçu et Outils */}
         <div className="flex flex-wrap gap-4 mb-8 border-b border-gray-800 pb-4">
           <button 
             onClick={() => setActiveSection('overview')}
@@ -298,28 +298,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           >
             <Wrench size={18} className="mr-2" />
             Outils
-          </button>
-          <button 
-            onClick={() => setActiveSection('profile')}
-            className={`flex items-center px-4 py-2 rounded-lg ${
-              activeSection === 'profile' 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            <User size={18} className="mr-2" />
-            Profil
-          </button>
-          <button 
-            onClick={() => setActiveSection('settings')}
-            className={`flex items-center px-4 py-2 rounded-lg ${
-              activeSection === 'settings' 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            <Settings size={18} className="mr-2" />
-            Paramètres
           </button>
           
           {/* Menu mobile */}
@@ -427,7 +405,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                     </div>
                     {tool.status === "active" ? (
                       <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
-                        Utiliser l'outil
+                        Télécharger
                       </button>
                     ) : (
                       <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
@@ -677,7 +655,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
         </footer>
       </div>
       
-      {/* Menu Popup Portal */}
+      {/* Menu Popup Portal - Ajout des options Profil et Paramètres ici */}
       {isMenuOpen && createPortal(
         <div>
           <div 
