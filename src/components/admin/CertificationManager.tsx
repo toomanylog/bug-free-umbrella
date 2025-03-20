@@ -25,19 +25,8 @@ import {
   QuestionType
 } from '../../firebase/certifications';
 
-import { Formation, getAllUsers, UserData } from '../../firebase/auth';
-import { Formation } from '../../firebase/formations';
+import { Formation, getAllUsers, UserData, UserRole } from '../../firebase/auth';
 import { getAllFormations } from '../../firebase/formations';
-import { UserData, getAllUsers } from '../../firebase/auth';
-
-// Déclaration de module pour uuid
-declare module 'uuid' {
-  export function v4(): string;
-}
-
-import { Formation, UserData, UserRole } from '../../firebase/auth';
-import { getAllFormations } from '../../firebase/formations';
-import { getAllUsers } from '../../firebase/auth';
 
 const EMPTY_CERTIFICATION: Omit<Certification, 'id'> = {
   title: '',
