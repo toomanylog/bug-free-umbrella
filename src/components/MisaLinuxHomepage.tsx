@@ -681,10 +681,13 @@ const MisaLinuxHomepage = () => {
       </section>
       
       {/* Outils Section */}
-      <section className="py-20 bg-gray-900" id="outils">
+      <section className="py-20 bg-gray-900" id="tools">
         <div className="container mx-auto px-4">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Nos Outils Spécialisés</h2>
+          <div id="tools-header" className="text-center max-w-3xl mx-auto mb-16 animate-on-scroll">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 inline-block relative">
+              Nos Outils Spécialisés
+              <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent transition-all duration-1000 ${animatedElements['tools-header'] ? 'w-24' : 'w-0'}`}></div>
+            </h2>
             <p className="text-gray-400">
               Des outils puissants développés par nos experts pour optimiser vos workflows et améliorer vos performances
             </p>
@@ -731,10 +734,10 @@ const MisaLinuxHomepage = () => {
           
           <div className="text-center mt-12">
             <button 
-              onClick={() => currentUser ? setShowDashboard(true) : setIsLoginModalOpen(true)}
+              onClick={() => handleProtectedAction({type: 'tool', id: 'all-tools', name: 'Suite complète'})}
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg hover:shadow-lg hover:shadow-blue-600/20 transition-all"
             >
-              {currentUser ? 'Accéder à tous nos outils' : 'Créer un compte pour accéder aux outils'}
+              Accéder à tous nos outils
             </button>
           </div>
         </div>
@@ -893,9 +896,9 @@ const MisaLinuxHomepage = () => {
             </div>
             
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <button onClick={() => navigate('/cgu')} className="hover:text-blue-400 transition-colors">Conditions générales d'utilisation</button>
-              <button onClick={() => navigate('/cgv')} className="hover:text-blue-400 transition-colors">Conditions générales de vente</button>
-              <button onClick={() => navigate('/privacy')} className="hover:text-blue-400 transition-colors">Politique de confidentialité</button>
+              <a href="/cgu" className="hover:text-blue-400 transition-colors">Conditions générales d'utilisation</a>
+              <a href="/cgv" className="hover:text-blue-400 transition-colors">Conditions générales de vente</a>
+              <a href="/privacy" className="hover:text-blue-400 transition-colors">Politique de confidentialité</a>
             </div>
             
             <div className="text-gray-400 text-sm">
