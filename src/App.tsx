@@ -13,8 +13,8 @@ import { AuthProvider } from './contexts/AuthContext';
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <AuthProvider>
+      <AuthProvider>
+        <Router>
           <div className="App">
             <Routes>
               <Route path="/" element={<MisaLinuxHomepage />} />
@@ -25,8 +25,8 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
-        </AuthProvider>
-      </Router>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
