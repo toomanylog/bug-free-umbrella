@@ -9,9 +9,45 @@ import {
   reauthenticateWithCredential,
   updatePassword
 } from 'firebase/auth';
-import { ref, set } from 'firebase/database';
-import { doc, setDoc } from 'firebase/firestore';
+import { ref, set, get, update } from 'firebase/database';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, database, firestore } from './config';
+
+// Types pour les formations
+export interface Formation {
+  id: string;
+  title: string;
+  description: string;
+  modules: Module[];
+  createdAt: string;
+  updatedAt?: string;
+  imageUrl?: string;
+  price?: number;
+  published: boolean;
+}
+
+export interface Module {
+  id: string;
+  title: string;
+  content: string;
+  order: number;
+}
+
+export interface UserFormationProgress {
+  formationId: string;
+  completedModules: string[]; // IDs des modules complétés
+  startedAt: string;
+  lastAccessedAt: string;
+  completed: boolean;
+  completedAt?: string;
+  certificateUrl?: string;
+}
+
+// Définition des rôles utilisateur
+export enum UserRole {
+  CLIENT = 'client',
+  ADMIN = 'admin'
+}
 
 // Type pour les informations utilisateur
 export interface UserData {
@@ -19,8 +55,42 @@ export interface UserData {
   displayName: string;
   email: string;
   createdAt: string;
+  updatedAt?: string;
   telegram?: string;
+  role: UserRole;
+  formationsProgress?: UserFormationProgress[];
 }
+
+// Fonction pour vérifier si un utilisateur est admin
+export const isUserAdmin = async (userId: string): Promise<boolean> => {
+  try {
+    const userData = await getUserData(userId);
+    return userData?.role === UserRole.ADMIN;
+  } catch (error) {
+    console.error('Erreur lors de la vérification du rôle:', error);
+    return false;
+  }
+};
+
+// Fonction pour modifier le rôle d'un utilisateur (réservé aux admins)
+export const updateUserRole = async (targetUserId: string, newRole: UserRole): Promise<void> => {
+  try {
+    // Mettre à jour dans Realtime Database
+    await update(ref(database, `users/${targetUserId}`), {
+      role: newRole,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Mettre à jour dans Firestore aussi
+    await updateDoc(doc(firestore, 'users', targetUserId), {
+      role: newRole,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du rôle:', error);
+    throw error;
+  }
+};
 
 // Fonction pour créer un compte utilisateur
 export const registerUser = async (email: string, password: string, displayName: string): Promise<User> => {
@@ -37,7 +107,9 @@ export const registerUser = async (email: string, password: string, displayName:
       uid: user.uid,
       displayName: displayName,
       email: user.email || '',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      role: UserRole.CLIENT, // Par défaut, tous les nouveaux utilisateurs sont des clients
+      formationsProgress: []
     };
     
     await set(ref(database, `users/${user.uid}`), userData);
@@ -87,15 +159,19 @@ export const updateUserProfile = async (user: User, displayName: string, telegra
     
     // Récupérer d'abord les données utilisateur existantes
     const userRef = ref(database, `users/${user.uid}`);
-    const userSnapshot = await new Promise<any>((resolve, reject) => {
-      import('firebase/database').then(({ get, child }) => {
-        get(userRef).then(resolve).catch(reject);
-      });
-    });
+    const userSnapshot = await get(userRef);
     
     // Mettre à jour uniquement les champs nécessaires sans créer de sous-objet
-    await set(userRef, {
-      ...(userSnapshot.exists() ? userSnapshot.val() : {}),
+    await update(userRef, {
+      ...(userSnapshot.exists() ? {} : {}),
+      displayName,
+      telegram: telegramUsername,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Mettre à jour également dans Firestore
+    const userDocRef = doc(firestore, 'users', user.uid);
+    await updateDoc(userDocRef, {
       displayName,
       telegram: telegramUsername,
       updatedAt: new Date().toISOString()
@@ -127,13 +203,8 @@ export const changeUserPassword = async (user: User, currentPassword: string, ne
 export const getUserData = async (userId: string): Promise<UserData | null> => {
   try {
     // Utiliser Realtime Database au lieu de Firestore
-    const userSnapshot = await new Promise<any>((resolve, reject) => {
-      const userRef = ref(database, `users/${userId}`);
-      // Créer un gestionnaire d'événements pour lire une fois les données
-      import('firebase/database').then(({ get }) => {
-        get(userRef).then(resolve).catch(reject);
-      });
-    });
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
     
     if (userSnapshot.exists()) {
       return userSnapshot.val() as UserData;
@@ -143,6 +214,24 @@ export const getUserData = async (userId: string): Promise<UserData | null> => {
   } catch (error) {
     console.error('Erreur lors de la récupération des données utilisateur:', error);
     return null;
+  }
+};
+
+// Fonction pour obtenir tous les utilisateurs (pour les admins)
+export const getAllUsers = async (): Promise<UserData[]> => {
+  try {
+    const usersRef = ref(database, 'users');
+    const usersSnapshot = await get(usersRef);
+    
+    if (usersSnapshot.exists()) {
+      const usersData: Record<string, UserData> = usersSnapshot.val();
+      return Object.values(usersData);
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération des utilisateurs:', error);
+    return [];
   }
 };
 

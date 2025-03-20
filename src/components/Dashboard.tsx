@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Menu, ChevronDown, LogOut, User, Settings, BarChart2, Book, FileText, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { logoutUser, updateUserProfile, changeUserPassword, getUserData } from '../firebase/auth';
+import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole } from '../firebase/auth';
 import { Link } from 'react-router-dom';
 
 interface DashboardProps {
@@ -29,6 +29,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [buttonPosition, setButtonPosition] = useState({ top: 0, right: 0 });
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
@@ -41,6 +42,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               displayName: currentUser.displayName || userData.displayName || '',
               telegram: userData.telegram || ''
             });
+            setIsAdmin(userData.role === UserRole.ADMIN);
           }
         } catch (error) {
           console.error('Erreur lors du chargement des données utilisateur:', error);
@@ -190,12 +192,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     lastLogin: new Date().toLocaleDateString('fr-FR')
   };
 
-  const formations = [
-    { id: 1, title: 'Formation Obtention de Crédit', progress: 45, totalModules: 12, completedModules: 5 },
-    { id: 2, title: 'Formation PACKID Professionnel', progress: 20, totalModules: 8, completedModules: 2 },
-    { id: 3, title: 'Formation Spam Expert', progress: 10, totalModules: 10, completedModules: 1 }
-  ];
-
   const notifications = [
     { id: 1, message: 'Nouvelle formation disponible : "Formation Spam Expert"', date: '21/03/2025', isRead: false },
     { id: 2, message: 'Votre certification pour "Formation PACKID Professionnel" est en cours de validation', date: '20/03/2025', isRead: true },
@@ -238,545 +234,448 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-900/90 backdrop-blur-md py-4 shadow-xl border-b border-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <div className="h-12 w-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center transform rotate-12">
-                <span className="font-bold text-xl">ML</span>
-              </div>
-              <span className="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Misa Linux</span>
-            </div>
-            
-            {/* Navigation - Desktop */}
-            <nav className="hidden md:flex space-x-8">
-              <button 
-                onClick={() => setActiveSection('overview')}
-                className={`relative hover:text-blue-400 transition-colors group ${activeSection === 'overview' ? 'text-blue-400' : ''}`}
+    <div className="min-h-screen bg-gray-900 text-white pb-20">
+      <div className="container px-4 py-12 mx-auto">
+        <div className="flex flex-col lg:flex-row justify-between mb-12">
+          <div>
+            <h1 className="text-4xl font-bold mb-4">
+              Bonjour, {userProfile.displayName || 'Utilisateur'}
+            </h1>
+            <p className="text-gray-400 mb-4">
+              Bienvenue sur votre espace formation
+            </p>
+            {isAdmin && (
+              <a 
+                href="/admin" 
+                className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors text-white font-medium"
               >
-                Tableau de bord
-                <span className={`absolute bottom-0 left-0 h-0.5 bg-blue-400 transition-all duration-300 ${activeSection === 'overview' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-              </button>
-              <button 
-                onClick={() => setActiveSection('formations')}
-                className={`relative hover:text-blue-400 transition-colors group ${activeSection === 'formations' ? 'text-blue-400' : ''}`}
-              >
-                Mes formations
-                <span className={`absolute bottom-0 left-0 h-0.5 bg-blue-400 transition-all duration-300 ${activeSection === 'formations' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-              </button>
-              <button 
-                onClick={() => setActiveSection('tools')}
-                className={`relative hover:text-blue-400 transition-colors group ${activeSection === 'tools' ? 'text-blue-400' : ''}`}
-              >
-                Outils
-                <span className={`absolute bottom-0 left-0 h-0.5 bg-blue-400 transition-all duration-300 ${activeSection === 'tools' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
-              </button>
-            </nav>
-            
-            {/* User Menu */}
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="relative">
-                <button 
-                  ref={buttonRef}
-                  onClick={handleMenuToggle}
-                  className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 rounded-lg px-4 py-2 transition-colors"
+                Accéder au Dashboard Admin
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 ml-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
                 >
-                  <span>{currentUser?.displayName || currentUser?.email}</span>
-                  <ChevronDown size={16} className={`transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
-              </div>
-            </div>
-            
-            {/* Mobile Menu Button */}
-            <button onClick={handleMenuToggle} className="md:hidden relative z-20 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </a>
+            )}
+          </div>
+          
+          <div className="mt-6 lg:mt-0 bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center w-full lg:w-64">
+            <h3 className="text-xl font-bold mb-2 text-center">Découvrir plus</h3>
+            <p className="text-gray-400 text-center mb-4">Explorez notre catalogue de formations</p>
+            <button className="bg-transparent border border-blue-600 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-blue-900/20">
+              Voir le catalogue
+            </button>
+          </div>
+        </div>
+        
+        {/* Navigation */}
+        <div className="flex flex-wrap gap-4 mb-8 border-b border-gray-800 pb-4">
+          <button 
+            onClick={() => setActiveSection('overview')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'overview' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <BarChart2 size={18} className="mr-2" />
+            Aperçu
+          </button>
+          <button 
+            onClick={() => setActiveSection('tools')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'tools' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <Wrench size={18} className="mr-2" />
+            Outils
+          </button>
+          <button 
+            onClick={() => setActiveSection('profile')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'profile' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <User size={18} className="mr-2" />
+            Profil
+          </button>
+          <button 
+            onClick={() => setActiveSection('settings')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'settings' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <Settings size={18} className="mr-2" />
+            Paramètres
+          </button>
+          
+          {/* Menu mobile */}
+          <div className="relative ml-auto md:hidden">
+            <button
+              ref={buttonRef}
+              onClick={handleMenuToggle}
+              className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center"
+            >
+              <Menu size={20} />
+              <span className="ml-1">{userProfile.displayName}</span>
+              <ChevronDown size={16} className="ml-1" />
             </button>
           </div>
           
-          {/* Mobile Menu */}
-          <div className={`fixed inset-0 bg-gray-900/95 backdrop-blur-md z-10 flex items-center justify-center transition-all duration-500 md:hidden ${
-            isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
-          }`}>
-            <nav className="flex flex-col items-center space-y-6 text-center">
-              <button 
-                onClick={() => {
-                  setActiveSection('overview');
-                  setIsMenuOpen(false);
-                }}
-                className={`text-2xl font-bold ${activeSection === 'overview' ? 'text-blue-400' : 'hover:text-blue-400'} transition-colors`}
-              >
-                Tableau de bord
-              </button>
-              <button 
-                onClick={() => {
-                  setActiveSection('formations');
-                  setIsMenuOpen(false);
-                }}
-                className={`text-2xl font-bold ${activeSection === 'formations' ? 'text-blue-400' : 'hover:text-blue-400'} transition-colors`}
-              >
-                Mes formations
-              </button>
-              <button 
-                onClick={() => {
-                  setActiveSection('tools');
-                  setIsMenuOpen(false);
-                }}
-                className={`text-2xl font-bold ${activeSection === 'tools' ? 'text-blue-400' : 'hover:text-blue-400'} transition-colors`}
-              >
-                Outils
-              </button>
-              <button 
-                onClick={() => {
-                  setActiveSection('profile');
-                  setIsMenuOpen(false);
-                }}
-                className={`text-2xl font-bold ${activeSection === 'profile' ? 'text-blue-400' : 'hover:text-blue-400'} transition-colors`}
-              >
-                Mon profil
-              </button>
-              <button 
-                onClick={handleLogout}
-                className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-700 px-8 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
-              >
-                Déconnexion
-              </button>
-            </nav>
+          {/* Menu PC */}
+          <div className="hidden md:flex ml-auto">
+            <button
+              ref={buttonRef}
+              onClick={handleMenuToggle}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center"
+            >
+              <span className="mr-2">{userProfile.displayName}</span>
+              <ChevronDown size={16} />
+            </button>
           </div>
         </div>
-      </header>
+        
+        {/* Contenu principal */}
+        <main>
+          {activeSection === 'overview' && (
+            <div className="space-y-8">
+              {/* Statistiques */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-400 mb-2">Formations</h3>
+                  <p className="text-3xl font-bold">{userStats.totalFormations}</p>
+                </div>
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-400 mb-2">Formations terminées</h3>
+                  <p className="text-3xl font-bold">{userStats.formationsCompleted}</p>
+                </div>
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-400 mb-2">Certifications</h3>
+                  <p className="text-3xl font-bold">{userStats.certificationsObtained}</p>
+                </div>
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-400 mb-2">Dernière connexion</h3>
+                  <p className="text-xl font-bold">{userStats.lastLogin}</p>
+                </div>
+              </div>
+              
+              {/* Notifications récentes */}
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4">Notifications récentes</h2>
+                <div className="space-y-4">
+                  {notifications.map(notification => (
+                    <div 
+                      key={notification.id} 
+                      className={`p-4 border-l-4 rounded-r-lg ${
+                        notification.isRead 
+                          ? 'bg-gray-800/50 border-gray-600' 
+                          : 'bg-blue-900/20 border-blue-600'
+                      }`}
+                    >
+                      <div className="flex justify-between">
+                        <p className={notification.isRead ? 'text-gray-300' : 'font-medium'}>
+                          {notification.message}
+                        </p>
+                        <span className="text-sm text-gray-400">{notification.date}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {activeSection === 'overview' && (
-          <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Bienvenue, {currentUser?.displayName || 'Utilisateur'} !</h1>
-            
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-gray-400 text-sm">Formations totales</p>
-                    <h3 className="text-2xl font-bold mt-1">{userStats.totalFormations}</h3>
-                  </div>
-                  <div className="p-3 bg-blue-500/10 rounded-lg">
-                    <Book className="text-blue-400" size={24} />
-                  </div>
-                </div>
-              </div>
+          {activeSection === 'tools' && (
+            <div className="space-y-8">
+              <h1 className="text-3xl font-bold">Outils spécialisés</h1>
               
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-gray-400 text-sm">Formations terminées</p>
-                    <h3 className="text-2xl font-bold mt-1">{userStats.formationsCompleted}</h3>
-                  </div>
-                  <div className="p-3 bg-green-500/10 rounded-lg">
-                    <FileText className="text-green-400" size={24} />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-gray-400 text-sm">Certifications</p>
-                    <h3 className="text-2xl font-bold mt-1">{userStats.certificationsObtained}</h3>
-                  </div>
-                  <div className="p-3 bg-purple-500/10 rounded-lg">
-                    <BarChart2 className="text-purple-400" size={24} />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-gray-400 text-sm">Dernière connexion</p>
-                    <h3 className="text-xl font-bold mt-1">{userStats.lastLogin}</h3>
-                  </div>
-                  <div className="p-3 bg-indigo-500/10 rounded-lg">
-                    <User className="text-indigo-400" size={24} />
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Progress Section */}
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4">Progression des formations</h2>
-              <div className="space-y-6">
-                {formations.map(formation => (
-                  <div key={formation.id} className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>{formation.title}</span>
-                      <span className="text-blue-400">{formation.progress}%</span>
-                    </div>
-                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-600 to-indigo-700" 
-                        style={{ width: `${formation.progress}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {formation.completedModules} sur {formation.totalModules} modules complétés
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Notifications */}
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4">Notifications récentes</h2>
-              <div className="space-y-4">
-                {notifications.map(notification => (
-                  <div 
-                    key={notification.id} 
-                    className={`p-4 border ${notification.isRead ? 'border-gray-700/50 bg-gray-800/30' : 'border-blue-500/30 bg-blue-900/10'} rounded-lg`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <p className={notification.isRead ? 'text-gray-300' : 'text-white font-medium'}>
-                        {notification.message}
-                      </p>
-                      {!notification.isRead && (
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {tools.map(tool => (
+                  <div key={tool.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="p-3 bg-blue-900/20 rounded-lg">
+                        {tool.icon}
+                      </div>
+                      {tool.status === "active" ? (
+                        <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
+                      ) : (
+                        <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-400 mt-2">{notification.date}</p>
+                    <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
+                    <p className="text-gray-400 mb-4">{tool.description}</p>
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-300 mb-2">Fonctionnalités:</p>
+                      <ul className="text-sm text-gray-400 list-disc pl-5 space-y-1">
+                        {tool.features.map((feature, index) => (
+                          <li key={index}>{feature}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    {tool.status === "active" ? (
+                      <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
+                        Utiliser l'outil
+                      </button>
+                    ) : (
+                      <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
+                        Disponible prochainement
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeSection === 'formations' && (
-          <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Mes formations</h1>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {formations.map(formation => (
-                <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                  <div className="h-40 bg-gradient-to-br from-blue-900/40 to-indigo-900/40 flex items-center justify-center">
-                    <Book size={64} className="text-blue-400 opacity-50" />
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2">{formation.title}</h3>
-                    <div className="flex justify-between text-sm text-gray-400 mb-3">
-                      <span>Progression: {formation.progress}%</span>
-                      <span>{formation.completedModules}/{formation.totalModules} modules</span>
-                    </div>
-                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden mb-4">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-600 to-indigo-700" 
-                        style={{ width: `${formation.progress}%` }}
-                      ></div>
-                    </div>
-                    <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
-                      Continuer
-                    </button>
-                  </div>
-                </div>
-              ))}
+          {activeSection === 'settings' && (
+            <div className="space-y-8">
+              <h1 className="text-3xl font-bold">Paramètres</h1>
               
-              {/* Add New Formation Card */}
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-dashed border-gray-700/50 rounded-xl overflow-hidden hover:shadow-lg hover:shadow-blue-900/10 transition-all flex flex-col items-center justify-center p-6 h-full">
-                <div className="p-4 bg-blue-900/20 rounded-full mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
-                    <path d="M5 12h14" />
-                    <path d="M12 5v14" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold mb-2 text-center">Découvrir plus</h3>
-                <p className="text-gray-400 text-center mb-4">Explorez notre catalogue de formations</p>
-                <button className="bg-transparent border border-blue-600 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-blue-900/20">
-                  Voir le catalogue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeSection === 'tools' && (
-          <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Outils spécialisés</h1>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {tools.map(tool => (
-                <div key={tool.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-3 bg-blue-900/20 rounded-lg">
-                      {tool.icon}
-                    </div>
-                    {tool.status === "active" ? (
-                      <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
-                    ) : (
-                      <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
-                    )}
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
-                  <p className="text-gray-400 mb-4">{tool.description}</p>
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-300 mb-2">Fonctionnalités:</p>
-                    <ul className="text-sm text-gray-400 list-disc pl-5 space-y-1">
-                      {tool.features.map((feature, index) => (
-                        <li key={index}>{feature}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  {tool.status === "active" ? (
-                    <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
-                      Utiliser l'outil
-                    </button>
-                  ) : (
-                    <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
-                      Disponible prochainement
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeSection === 'settings' && (
-          <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Paramètres</h1>
-            
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <div className="flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="bg-blue-900/20 p-4 rounded-full inline-block mb-4">
-                    <Settings className="text-blue-400 h-12 w-12" />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2">Fonctionnalité à venir</h2>
-                  <p className="text-gray-400 max-w-md mx-auto">
-                    Les paramètres de l'application seront bientôt disponibles. Vous pourrez personnaliser votre expérience, gérer vos notifications et configurer vos préférences.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeSection === 'profile' && (
-          <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Mon profil</h1>
-            
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
-                <div className="w-32 h-32 bg-gradient-to-br from-blue-600/50 to-indigo-700/50 rounded-full flex items-center justify-center">
-                  <span className="text-5xl font-bold">{currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}</span>
-                </div>
-                
-                <div className="space-y-4">
-                  <h2 className="text-2xl font-bold">{currentUser?.displayName || 'Utilisateur'}</h2>
-                  <p className="text-gray-400">{currentUser?.email}</p>
-                  <div className="flex space-x-4">
-                    <button 
-                      onClick={() => {
-                        setIsEditingProfile(true);
-                        setIsChangingPassword(false);
-                      }}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
-                    >
-                      Modifier le profil
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setIsChangingPassword(true);
-                        setIsEditingProfile(false);
-                      }}
-                      className="bg-transparent border border-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
-                    >
-                      Changer le mot de passe
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {isEditingProfile && (
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
-                <h2 className="text-xl font-bold mb-4">Modifier mon profil</h2>
-                
-                {successMessage && (
-                  <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
-                    {successMessage}
-                  </div>
-                )}
-                
-                <form className="space-y-4" onSubmit={saveProfile}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Nom complet</label>
-                      <input 
-                        type="text" 
-                        name="displayName"
-                        value={userProfile.displayName}
-                        onChange={handleProfileChange}
-                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
-                      <input 
-                        type="email" 
-                        value={currentUser?.email || ''}
-                        disabled
-                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg opacity-70 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">Identifiant Telegram</label>
-                    <input 
-                      type="text" 
-                      name="telegram"
-                      value={userProfile.telegram}
-                      onChange={handleProfileChange}
-                      placeholder="@votre_identifiant_telegram"
-                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                    />
-                  </div>
-                  <div className="flex space-x-4">
-                    <button 
-                      type="submit"
-                      disabled={isLoading}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
-                    >
-                      {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setIsEditingProfile(false)}
-                      className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-            
-            {isChangingPassword && (
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
-                <h2 className="text-xl font-bold mb-4">Changer mon mot de passe</h2>
-                
-                {successMessage && (
-                  <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
-                    {successMessage}
-                  </div>
-                )}
-                
-                <form className="space-y-4" onSubmit={changePassword}>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">Mot de passe actuel</label>
-                    <input 
-                      type="password" 
-                      name="current"
-                      value={password.current}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">Nouveau mot de passe</label>
-                    <input 
-                      type="password" 
-                      name="new"
-                      value={password.new}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">Confirmer le nouveau mot de passe</label>
-                    <input 
-                      type="password" 
-                      name="confirm"
-                      value={password.confirm}
-                      onChange={handlePasswordChange}
-                      className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-                    />
-                  </div>
-                  <div className="flex space-x-4">
-                    <button 
-                      type="submit"
-                      disabled={isLoading}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
-                    >
-                      {isLoading ? 'Modification...' : 'Changer le mot de passe'}
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setIsChangingPassword(false)}
-                      className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {!isEditingProfile && !isChangingPassword && (
               <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                <h2 className="text-xl font-bold mb-4">Informations personnelles</h2>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-400 mb-1">Nom complet</p>
-                      <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
-                        {currentUser?.displayName || 'Non défini'}
-                      </p>
+                <div className="flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <div className="bg-blue-900/20 p-4 rounded-full inline-block mb-4">
+                      <Settings className="text-blue-400 h-12 w-12" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-400 mb-1">Email</p>
-                      <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
-                        {currentUser?.email || 'Non défini'}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-400 mb-1">Telegram</p>
-                    <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
-                      {userProfile.telegram || 'Non défini'}
+                    <h2 className="text-2xl font-bold mb-2">Fonctionnalité à venir</h2>
+                    <p className="text-gray-400 max-w-md mx-auto">
+                      Les paramètres de l'application seront bientôt disponibles. Vous pourrez personnaliser votre expérience, gérer vos notifications et configurer vos préférences.
                     </p>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        )}
-      </main>
-      
-      {/* Footer */}
-      <footer className="py-8 bg-gray-900 border-t border-gray-800 mt-auto">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-6 md:mb-0">
-              <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
-                <span className="font-bold text-sm">ML</span>
+            </div>
+          )}
+
+          {activeSection === 'profile' && (
+            <div className="space-y-8">
+              <h1 className="text-3xl font-bold">Mon profil</h1>
+              
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                  <div className="w-32 h-32 bg-gradient-to-br from-blue-600/50 to-indigo-700/50 rounded-full flex items-center justify-center">
+                    <span className="text-5xl font-bold">{currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}</span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-bold">{currentUser?.displayName || 'Utilisateur'}</h2>
+                    <p className="text-gray-400">{currentUser?.email}</p>
+                    <div className="flex space-x-4">
+                      <button 
+                        onClick={() => {
+                          setIsEditingProfile(true);
+                          setIsChangingPassword(false);
+                        }}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                      >
+                        Modifier le profil
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setIsChangingPassword(true);
+                          setIsEditingProfile(false);
+                        }}
+                        className="bg-transparent border border-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                      >
+                        Changer le mot de passe
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span className="font-bold text-lg">Misa Linux</span>
+              
+              {isEditingProfile && (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
+                  <h2 className="text-xl font-bold mb-4">Modifier mon profil</h2>
+                  
+                  {successMessage && (
+                    <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
+                      {successMessage}
+                    </div>
+                  )}
+                  
+                  <form className="space-y-4" onSubmit={saveProfile}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Nom complet</label>
+                        <input 
+                          type="text" 
+                          name="displayName"
+                          value={userProfile.displayName}
+                          onChange={handleProfileChange}
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+                        <input 
+                          type="email" 
+                          value={currentUser?.email || ''}
+                          disabled
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg opacity-70 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Identifiant Telegram</label>
+                      <input 
+                        type="text" 
+                        name="telegram"
+                        value={userProfile.telegram}
+                        onChange={handleProfileChange}
+                        placeholder="@votre_identifiant_telegram"
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div className="flex space-x-4">
+                      <button 
+                        type="submit"
+                        disabled={isLoading}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
+                      >
+                        {isLoading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditingProfile(false)}
+                        className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+              
+              {isChangingPassword && (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
+                  <h2 className="text-xl font-bold mb-4">Changer mon mot de passe</h2>
+                  
+                  {successMessage && (
+                    <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
+                      {successMessage}
+                    </div>
+                  )}
+                  
+                  <form className="space-y-4" onSubmit={changePassword}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Mot de passe actuel</label>
+                      <input 
+                        type="password" 
+                        name="current"
+                        value={password.current}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Nouveau mot de passe</label>
+                      <input 
+                        type="password" 
+                        name="new"
+                        value={password.new}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Confirmer le nouveau mot de passe</label>
+                      <input 
+                        type="password" 
+                        name="confirm"
+                        value={password.confirm}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div className="flex space-x-4">
+                      <button 
+                        type="submit"
+                        disabled={isLoading}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
+                      >
+                        {isLoading ? 'Modification...' : 'Changer le mot de passe'}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsChangingPassword(false)}
+                        className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {!isEditingProfile && !isChangingPassword && (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                  <h2 className="text-xl font-bold mb-4">Informations personnelles</h2>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-400 mb-1">Nom complet</p>
+                        <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          {currentUser?.displayName || 'Non défini'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-400 mb-1">Email</p>
+                        <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          {currentUser?.email || 'Non défini'}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-400 mb-1">Telegram</p>
+                      <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        {userProfile.telegram || 'Non défini'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            
-            <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <Link to="/cgu" className="hover:text-blue-400 transition-colors text-sm">Conditions générales d'utilisation</Link>
-              <Link to="/cgv" className="hover:text-blue-400 transition-colors text-sm">Conditions générales de vente</Link>
-              <Link to="/privacy" className="hover:text-blue-400 transition-colors text-sm">Politique de confidentialité</Link>
-            </div>
-            
-            <div className="text-gray-400 text-xs">
-              &copy; {new Date().getFullYear()} Misa Linux. Tous droits réservés.
+          )}
+        </main>
+      
+        {/* Footer */}
+        <footer className="py-8 bg-gray-900 border-t border-gray-800 mt-auto">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <div className="flex items-center space-x-2 mb-6 md:mb-0">
+                <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
+                  <span className="font-bold text-sm">ML</span>
+                </div>
+                <span className="font-bold text-lg">Misa Linux</span>
+              </div>
+              
+              <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
+                <Link to="/cgu" className="hover:text-blue-400 transition-colors text-sm">Conditions générales d'utilisation</Link>
+                <Link to="/cgv" className="hover:text-blue-400 transition-colors text-sm">Conditions générales de vente</Link>
+                <Link to="/privacy" className="hover:text-blue-400 transition-colors text-sm">Politique de confidentialité</Link>
+              </div>
+              
+              <div className="text-gray-400 text-xs">
+                &copy; {new Date().getFullYear()} Misa Linux. Tous droits réservés.
+              </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
       
       {/* Menu Popup Portal */}
       {isMenuOpen && createPortal(
