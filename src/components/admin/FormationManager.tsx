@@ -6,7 +6,7 @@ import {
   updateFormation, 
   deleteFormation
 } from '../../firebase/formations';
-import { Edit, Trash2, Eye, X, Check, Users } from 'lucide-react';
+import { Edit, Trash2, Eye, X, Check } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getAllUsers, assignFormationToUser } from '../../firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -162,12 +162,6 @@ const FormationManager: React.FC = () => {
   const closePreview = () => {
     setIsPreviewOpen(false);
     setPreviewFormation(null);
-  };
-
-  const openAssignModal = (formation: Formation) => {
-    setSelectedFormation(formation);
-    setSelectedUsers([]);
-    setIsAssignOpen(true);
   };
 
   const closeAssignModal = () => {
