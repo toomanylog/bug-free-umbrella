@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 interface DashboardProps {
   onClose: () => void;
@@ -11,7 +11,6 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const { currentUser, userData } = useAuth();
-  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
