@@ -138,30 +138,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     const loadUserCertifications = async () => {
       if (activeSection === 'formations' && currentUser) {
         try {
-          // Tentative d'import dynamique avec gestion d'erreurs
+          // Tenter d'importer et utiliser getUserCertifications avec gestion d'erreur
+          const certificationsModule = await import('../firebase/certifications');
+          
+          if (!certificationsModule || !certificationsModule.getUserCertifications) {
+            console.error("Module de certifications non disponible");
+            return;
+          }
+          
           try {
-            const { getUserCertifications } = await import('../firebase/certifications');
-            const userCertifications = await getUserCertifications(currentUser.uid);
-            
-            // Stocker les IDs des certifications que l'utilisateur possède déjà
-            const certificationIds = userCertifications.map(cert => cert.certification.id);
-            
-            // Mettre à jour les formations avec cette information
-            setFormations(prevFormations => 
-              prevFormations.map(formation => ({
-                ...formation,
-                userHasCertification: formation.certificationId ? 
-                  certificationIds.includes(formation.certificationId) : false
-              }))
-            );
+            const userCertifications = await certificationsModule.getUserCertifications(currentUser.uid);
+            // Utiliser les données
           } catch (error) {
-            console.error("Erreur lors du chargement du module certifications:", error);
-            // Continuer sans les données de certification
-            // Les boutons de certification ne s'afficheront pas, mais l'application ne plantera pas
+            console.error("Erreur d'accès aux certifications:", error);
+            // Continuer sans les certifications
           }
         } catch (error) {
-          console.error("Erreur lors du chargement des certifications de l'utilisateur:", error);
-          // Ne pas planter l'application si les certifications ne peuvent pas être chargées
+          console.error("Erreur lors du chargement du module de certifications:", error);
         }
       }
     };
