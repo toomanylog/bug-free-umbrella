@@ -371,12 +371,11 @@ export const removeFormationFromUser = async (userId: string, formationId: strin
 // Mettre à jour la progression d'un utilisateur pour une formation spécifique
 export const updateFormationProgress = async (userId: string, formationId: string, moduleId: string): Promise<void> => {
   try {
-    // Récupérer les données utilisateur
     const userRef = ref(database, `users/${userId}`);
     const userSnapshot = await get(userRef);
     
     if (!userSnapshot.exists()) {
-      throw new Error('Utilisateur non trouvé');
+      throw new Error(`Utilisateur avec l'ID ${userId} non trouvé`);
     }
     
     const userData = userSnapshot.val();
@@ -397,6 +396,11 @@ export const updateFormationProgress = async (userId: string, formationId: strin
         completed: false
       };
       formationsProgress.push(formationProgress);
+    }
+    
+    // S'assurer que completedModules existe
+    if (!formationProgress.completedModules) {
+      formationProgress.completedModules = [];
     }
     
     // Vérifier si le module est déjà complété

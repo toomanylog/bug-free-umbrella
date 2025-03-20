@@ -334,7 +334,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           </div>
         </div>
         
-        {/* Navigation - Simplifiée avec seulement Aperçu et Outils */}
+        {/* Navigation - Avec Aperçu, Outils et Mes formations */}
         <div className="flex flex-wrap gap-4 mb-8 border-b border-gray-800 pb-4">
           <button 
             onClick={() => setActiveSection('overview')}
@@ -359,18 +359,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             Outils
           </button>
           <button 
-            onClick={() => {
-              setActiveSection('profile');
-              setIsMenuOpen(false);
-            }}
+            onClick={() => setActiveSection('formations')}
             className={`flex items-center px-4 py-2 rounded-lg ${
-              activeSection === 'profile' 
+              activeSection === 'formations' 
               ? 'bg-blue-600 text-white' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
             }`}
           >
-            <User size={18} className="mr-2" />
-            Mon profil
+            <BookOpen size={18} className="mr-2" />
+            Mes formations
           </button>
           
           {/* Menu mobile */}
@@ -847,7 +844,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
         </footer>
       </div>
       
-      {/* Menu Popup Portal - Ajout des options Profil et Paramètres ici */}
+      {/* Menu Popup Portal */}
       {isMenuOpen && createPortal(
         <div>
           <div 
@@ -863,15 +860,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           >
             <div className="p-2">
               <button 
-                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
-                  activeSection === 'formations' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
-                } transition-colors`}
+                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
                 onClick={() => {
-                  setActiveSection('formations');
+                  setActiveSection('profile');
+                  setIsMenuOpen(false);
                 }}
               >
-                <BookOpen size={18} />
-                <span>Mes formations</span>
+                <User size={16} />
+                <span>Mon profil</span>
               </button>
               <button 
                 className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
@@ -883,19 +879,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                 <Settings size={16} />
                 <span>Paramètres</span>
               </button>
+              <div className="border-t border-gray-700 my-1"></div>
               <button 
-                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-white"
-                onClick={() => {
-                  setActiveSection('profile');
-                  setIsMenuOpen(false);
-                }}
-              >
-                <User size={16} />
-                <span>Mon profil</span>
-              </button>
-              <div className="my-1 border-t border-gray-700"></div>
-              <button 
-                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-red-400"
+                className="flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg hover:bg-red-900/30 text-red-400 transition-colors"
                 onClick={handleLogout}
               >
                 <LogOut size={16} />
