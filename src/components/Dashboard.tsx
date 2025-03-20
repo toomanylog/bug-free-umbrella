@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole } from '../firebase/auth';
+import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
 import { Link } from 'react-router-dom';
 
 interface DashboardProps {
@@ -15,8 +15,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const [userProfile, setUserProfile] = useState({
     displayName: currentUser?.displayName || '',
@@ -31,10 +29,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const [buttonPosition, setButtonPosition] = useState({ top: 0, right: 0 });
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [userStats, setUserStats] = useState({
+    totalFormations: 0,
+    formationsCompleted: 0,
+    certificationsObtained: 0,
+    lastLogin: new Date().toLocaleDateString('fr-FR')
+  });
 
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
@@ -56,6 +63,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     };
     
     loadUserData();
+  }, [currentUser]);
+
+  // Charger les statistiques réelles de l'utilisateur
+  useEffect(() => {
+    const loadUserStats = async () => {
+      if (currentUser) {
+        try {
+          const userData = await getUserData(currentUser.uid);
+          if (userData && userData.formationsProgress) {
+            const stats = {
+              totalFormations: userData.formationsProgress.length,
+              formationsCompleted: userData.formationsProgress.filter((f: UserFormationProgress) => f.completed).length,
+              certificationsObtained: userData.formationsProgress.filter((f: UserFormationProgress) => f.certificateUrl).length,
+              lastLogin: new Date().toLocaleDateString('fr-FR')
+            };
+            setUserStats(stats);
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des statistiques:', error);
+        }
+      }
+    };
+    
+    loadUserStats();
   }, [currentUser]);
 
   // Fermer le menu quand on clique en dehors
@@ -151,40 +182,52 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!currentUser) return;
     
+    setIsSubmitting(true);
+    setProfileError('');
+    
     try {
-      setIsSubmitting(true);
-      setError('');
-      
-      // Création d'une copie pour éviter des problèmes de référence
       const updatedDisplayName = userProfile.displayName.trim();
       const updatedTelegram = userProfile.telegram.trim();
       
-      // Ajouter un délai pour éviter les problèmes de rafraîchissement trop rapide
       await updateUserProfile(currentUser, updatedDisplayName, updatedTelegram);
       
-      // Attendre un court instant pour permettre à Firebase de finaliser la mise à jour
-      setTimeout(() => {
-        setSuccess('Profil mis à jour avec succès');
-        setIsSubmitting(false);
-      }, 1000);
+      // Afficher un message de succès
+      setProfileSuccess('Profil mis à jour avec succès');
+      setIsEditingProfile(false);
       
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour du profil:', error);
-      setError(error.message || 'Une erreur s\'est produite lors de la mise à jour du profil');
+      setProfileError(error.message || 'Une erreur s\'est produite lors de la mise à jour du profil');
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Données factices pour le dashboard
-  const userStats = {
-    totalFormations: 3,
-    formationsCompleted: 1,
-    certificationsObtained: 1,
-    lastLogin: new Date().toLocaleDateString('fr-FR')
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    
+    try {
+      setIsDeletingAccount(true);
+      setDeleteError('');
+      
+      await deleteUserAccount(currentUser, deletePassword);
+      
+      // Déconnexion après suppression réussie
+      await logoutUser();
+      onClose();
+      
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression du compte:', error);
+      setDeleteError(error.message || 'Une erreur s\'est produite lors de la suppression du compte');
+      setIsDeletingAccount(false);
+    }
   };
 
+  // Données factices pour le dashboard
   const notifications = [
     { id: 1, message: 'Nouvelle formation disponible : "Formation Spam Expert"', date: '21/03/2025', isRead: false },
     { id: 2, message: 'Votre certification pour "Formation PACKID Professionnel" est en cours de validation', date: '20/03/2025', isRead: true },
@@ -472,9 +515,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                 <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
                   <h2 className="text-xl font-bold mb-4">Modifier mon profil</h2>
                   
-                  {successMessage && (
+                  {profileSuccess && (
                     <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
-                      {successMessage}
+                      {profileSuccess}
+                    </div>
+                  )}
+                  
+                  {profileError && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg mb-4">
+                      {profileError}
                     </div>
                   )}
                   
@@ -625,6 +674,43 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   </div>
                 </div>
               )}
+
+              {/* Section de suppression de compte */}
+              <div className="bg-red-900/20 backdrop-blur-sm border border-red-700/50 rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4 text-red-400">Zone de danger</h2>
+                <p className="text-gray-400 mb-4">
+                  La suppression de votre compte est irréversible. Toutes vos données seront supprimées définitivement.
+                </p>
+                
+                {deleteError && (
+                  <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg mb-4">
+                    {deleteError}
+                  </div>
+                )}
+                
+                <form onSubmit={handleDeleteAccount} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">
+                      Confirmez votre mot de passe
+                    </label>
+                    <input 
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-900/80 border border-red-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
+                      required
+                    />
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    disabled={isDeletingAccount}
+                    className="bg-red-600 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-red-700 disabled:opacity-70"
+                  >
+                    {isDeletingAccount ? 'Suppression...' : 'Supprimer mon compte'}
+                  </button>
+                </form>
+              </div>
             </div>
           )}
         </main>

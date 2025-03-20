@@ -93,6 +93,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [telegramUsername, setTelegramUsername] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,7 +114,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     setError(null);
 
     try {
-      await registerUser(email, password, displayName);
+      await registerUser(email, password, displayName, telegramUsername);
       onSuccess();
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code));
@@ -140,13 +141,22 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">Adresse email</label>
+        <label className="block text-sm font-medium text-gray-300 mb-1">Adresse e-mail</label>
         <input 
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
           required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-1">Nom d'utilisateur Telegram (optionnel)</label>
+        <input 
+          type="text"
+          value={telegramUsername}
+          onChange={(e) => setTelegramUsername(e.target.value)}
+          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
         />
       </div>
       <div>
