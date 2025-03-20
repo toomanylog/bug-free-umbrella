@@ -9,6 +9,12 @@ import {
 import { Edit, Trash2, Eye, X, Check, Plus, Users } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getAllUsers, assignFormationToUser } from '../../firebase/auth';
+
+// Déclaration de module pour uuid
+declare module 'uuid' {
+  export function v4(): string;
+}
+
 import { v4 as uuidv4 } from 'uuid';
 
 const EMPTY_FORMATION: Omit<Formation, 'id'> = {
