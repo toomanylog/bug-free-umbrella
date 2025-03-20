@@ -4,10 +4,17 @@ import { LoginForm, RegisterForm, ForgotPasswordForm } from './AuthForms';
 import { logoutUser } from '../firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import Dashboard from './Dashboard';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface AnimatedElements {
   [key: string]: boolean;
+}
+
+// Type pour la redirection post-login
+type RedirectTarget = {
+  type: 'formation' | 'catalog' | null;
+  id?: string;
+  name?: string;
 }
 
 const MisaLinuxHomepage = () => {
@@ -17,7 +24,12 @@ const MisaLinuxHomepage = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [animatedElements, setAnimatedElements] = useState<AnimatedElements>({});
   const [showDashboard, setShowDashboard] = useState(false);
+  const [redirectAfterLogin, setRedirectAfterLogin] = useState<RedirectTarget>({
+    type: null
+  });
+  
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const toggleLoginModal = () => setIsLoginModalOpen(!isLoginModalOpen);
@@ -55,13 +67,70 @@ const MisaLinuxHomepage = () => {
     };
   }, []);
 
-  // Quand l'utilisateur est connecté, afficher le dashboard
+  // Quand l'utilisateur est connecté, afficher le dashboard et gérer les redirections
   useEffect(() => {
     if (currentUser) {
-      setShowDashboard(true);
-      setIsLoginModalOpen(false);
+      // Si une redirection est en attente
+      if (redirectAfterLogin.type) {
+        // Rediriger vers la formation spécifique
+        if (redirectAfterLogin.type === 'formation' && redirectAfterLogin.id) {
+          navigate(`/formations/${redirectAfterLogin.id}`);
+          setRedirectAfterLogin({ type: null });
+        } 
+        // Rediriger vers le catalogue de formations
+        else if (redirectAfterLogin.type === 'catalog') {
+          navigate('/formations');
+          setRedirectAfterLogin({ type: null });
+        }
+        // Sinon afficher le dashboard
+        else {
+          setShowDashboard(true);
+          setIsLoginModalOpen(false);
+        }
+      } else {
+        setShowDashboard(true);
+        setIsLoginModalOpen(false);
+      }
     }
-  }, [currentUser]);
+  }, [currentUser, redirectAfterLogin, navigate]);
+
+  // Défilement doux pour les liens d'ancrage
+  useEffect(() => {
+    const handleSmoothScroll = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'A' && target.getAttribute('href')?.startsWith('#')) {
+        e.preventDefault();
+        const id = target.getAttribute('href')?.substring(1);
+        const element = document.getElementById(id || '');
+        if (element) {
+          window.scrollTo({
+            top: element.offsetTop - 100, // Décalage pour tenir compte du header
+            behavior: 'smooth'
+          });
+        }
+      }
+    };
+
+    document.body.addEventListener('click', handleSmoothScroll);
+    return () => document.body.removeEventListener('click', handleSmoothScroll);
+  }, []);
+  
+  // Fonction pour gérer les clics sur les boutons qui nécessitent une connexion
+  const handleProtectedAction = (action: RedirectTarget) => {
+    if (currentUser) {
+      // Si déjà connecté, rediriger directement
+      if (action.type === 'formation' && action.id) {
+        navigate(`/formations/${action.id}`);
+      } else if (action.type === 'catalog') {
+        navigate('/formations');
+      }
+    } else {
+      // Sinon, ouvrir la popup de login et enregistrer l'action pour redirection après connexion
+      setRedirectAfterLogin(action);
+      setActiveForm('register'); // Ouvrir sur le formulaire d'inscription
+      setIsLoginModalOpen(true);
+    }
+  };
 
   // Services data
   const services = [
@@ -133,10 +202,45 @@ const MisaLinuxHomepage = () => {
     }
   ];
   
+  // Outils data
+  const ourTools = [
+    {
+      id: 'tool-leads',
+      name: "Vérificateur de Leads",
+      description: "Analysez vos listes d'emails et de numéros pour déterminer le taux de bounce, les leads détectés comme leaks, spam traps ou à risque.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>,
+      status: "active"
+    },
+    {
+      id: 'tool-sender',
+      name: "Email Sender Pro",
+      description: "Système d'envoi d'emails rotatif avancé avec rotation de sujets, noms d'expéditeur, adresses, templates HTML et variables personnalisées.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>,
+      status: "active"
+    },
+    {
+      id: 'tool-cracker',
+      name: "Credential Cracker",
+      description: "Détectez les identifiants de connexion exposés dans des listes d'IP ou de domaines pour identifier les SMTP vulnérables et les clés API.",
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <rect x="8" y="16" width="8" height="6" rx="1"></rect>
+            </svg>,
+      status: "soon"
+    }
+  ];
+  
   const handleLogout = async () => {
     try {
       await logoutUser();
       setShowDashboard(false);
+      setRedirectAfterLogin({ type: null });
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     }
@@ -190,6 +294,10 @@ const MisaLinuxHomepage = () => {
               </a>
               <a href="#formations" className="relative hover:text-blue-400 transition-colors group">
                 Formations
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 transition-all duration-300 group-hover:w-full"></span>
+              </a>
+              <a href="#tools" className="relative hover:text-blue-400 transition-colors group">
+                Outils
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 transition-all duration-300 group-hover:w-full"></span>
               </a>
               <a href="#about" className="relative hover:text-blue-400 transition-colors group">
@@ -259,6 +367,13 @@ const MisaLinuxHomepage = () => {
                 Formations
               </a>
               <a 
+                href="#tools" 
+                onClick={() => setIsMenuOpen(false)}
+                className="text-2xl font-bold hover:text-blue-400 transition-colors"
+              >
+                Outils
+              </a>
+              <a 
                 href="#about" 
                 onClick={() => setIsMenuOpen(false)}
                 className="text-2xl font-bold hover:text-blue-400 transition-colors"
@@ -299,14 +414,20 @@ const MisaLinuxHomepage = () => {
               Formations avancées et outils professionnels pour exceller dans le monde du spamming et des techniques spécialisées.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <button className="group relative overflow-hidden px-8 py-4 rounded-lg font-medium text-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30">
+              <a 
+                href="#formations"
+                className="group relative overflow-hidden px-8 py-4 rounded-lg font-medium text-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30 inline-block"
+              >
                 Découvrir nos formations
                 <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
-              </button>
-              <button className="group relative overflow-hidden px-8 py-4 rounded-lg font-medium text-lg transition-all duration-300 bg-transparent border border-blue-600 hover:bg-blue-900/20">
+              </a>
+              <a 
+                href="#tools"
+                className="group relative overflow-hidden px-8 py-4 rounded-lg font-medium text-lg transition-all duration-300 bg-transparent border border-blue-600 hover:bg-blue-900/20 inline-block"
+              >
                 Explorer nos outils
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-500 transition-all duration-700 group-hover:w-full"></span>
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -373,7 +494,10 @@ const MisaLinuxHomepage = () => {
                 </p>
               </div>
               <div className="md:w-1/3 flex justify-start md:justify-end">
-                <button className="group relative overflow-hidden px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30">
+                <button 
+                  onClick={() => handleProtectedAction({ type: 'catalog' })}
+                  className="group relative overflow-hidden px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30"
+                >
                   Toutes les formations
                   <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
                 </button>
@@ -410,7 +534,14 @@ const MisaLinuxHomepage = () => {
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <button className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30">
+                    <button 
+                      onClick={() => handleProtectedAction({ 
+                        type: 'formation', 
+                        id: 'credit', 
+                        name: 'Masterclass Obtention de Crédit' 
+                      })}
+                      className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30"
+                    >
                       Voir la formation
                       <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
                     </button>
@@ -442,7 +573,14 @@ const MisaLinuxHomepage = () => {
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <button className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30">
+                    <button 
+                      onClick={() => handleProtectedAction({ 
+                        type: 'formation', 
+                        id: 'packid', 
+                        name: 'PACKID Professionnel' 
+                      })}
+                      className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30"
+                    >
                       Voir la formation
                       <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
                     </button>
@@ -474,7 +612,14 @@ const MisaLinuxHomepage = () => {
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <button className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30">
+                    <button 
+                      onClick={() => handleProtectedAction({ 
+                        type: 'formation', 
+                        id: 'coldmail', 
+                        name: 'Coldmail Expert' 
+                      })}
+                      className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30"
+                    >
                       Voir la formation
                       <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
                     </button>
@@ -509,7 +654,14 @@ const MisaLinuxHomepage = () => {
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <button className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30">
+                    <button 
+                      onClick={() => handleProtectedAction({ 
+                        type: 'formation', 
+                        id: 'tools-suite', 
+                        name: 'Suite Complète d\'Outils' 
+                      })}
+                      className="relative overflow-hidden px-6 py-2 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30"
+                    >
                       Voir la formation
                       <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
                     </button>
@@ -517,6 +669,58 @@ const MisaLinuxHomepage = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Outils Section */}
+      <section id="tools" className="py-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-indigo-900/10 to-gray-900 z-0"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div id="tools-header" className="max-w-xl mx-auto text-center mb-16 animate-on-scroll">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 inline-block relative">
+              Nos Outils Spécialisés
+              <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent transition-all duration-1000 ${animatedElements['tools-header'] ? 'w-24' : 'w-0'}`}></div>
+            </h2>
+            <p className="text-xl text-gray-300">
+              Des outils développés par nos experts pour optimiser vos workflows dans l'univers fraude.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {ourTools.map((tool, index) => (
+              <div 
+                id={`tool-${tool.id}`}
+                key={tool.id} 
+                className="relative group bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700/50 overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-600/10 hover:-translate-y-2 animate-on-scroll"
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  opacity: animatedElements[`tool-${tool.id}`] ? 1 : 0,
+                  transform: animatedElements[`tool-${tool.id}`] ? 'translateY(0)' : 'translateY(20px)',
+                  transition: 'opacity 0.5s ease, transform 0.5s ease'
+                }}
+              >
+                <div className="absolute -top-12 -right-12 w-24 h-24 bg-blue-600/10 rounded-full filter blur-xl group-hover:bg-blue-600/20 transition-all duration-300"></div>
+                
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center mb-6 transform transition-transform duration-300 group-hover:rotate-12">
+                  {tool.icon}
+                </div>
+                
+                <h3 className="text-xl font-bold mb-3">{tool.name}</h3>
+                <p className="text-gray-400 mb-6">{tool.description}</p>
+                
+                {tool.status === "active" ? (
+                  <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
+                    Télécharger
+                  </button>
+                ) : (
+                  <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
+                    Disponible prochainement
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </section>
