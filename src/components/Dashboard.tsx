@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
 import { Link } from 'react-router-dom';
@@ -15,6 +15,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [userProfile, setUserProfile] = useState({
     displayName: currentUser?.displayName || '',
@@ -42,6 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     certificationsObtained: 0,
     lastLogin: new Date().toLocaleDateString('fr-FR')
   });
+  const [formations, setFormations] = useState<any[]>([]);
 
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
@@ -88,6 +90,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     
     loadUserStats();
   }, [currentUser]);
+
+  // Charger les formations disponibles
+  useEffect(() => {
+    const loadFormations = async () => {
+      if (isCatalogOpen) {
+        try {
+          const { getPublishedFormations } = await import('../firebase/formations');
+          const publishedFormations = await getPublishedFormations();
+          setFormations(publishedFormations);
+        } catch (error) {
+          console.error("Erreur lors du chargement des formations:", error);
+        }
+      }
+    };
+    
+    loadFormations();
+  }, [isCatalogOpen]);
 
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
@@ -305,7 +324,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           <div className="mt-6 lg:mt-0 bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center w-full lg:w-64">
             <h3 className="text-xl font-bold mb-2 text-center">Découvrir plus</h3>
             <p className="text-gray-400 text-center mb-4">Explorez notre catalogue de formations</p>
-            <button className="bg-transparent border border-blue-600 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-blue-900/20">
+            <button 
+              className="bg-transparent border border-blue-600 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-blue-900/20"
+              onClick={() => setIsCatalogOpen(true)}
+            >
               Voir le catalogue
             </button>
           </div>
@@ -787,6 +809,73 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Catalogue de formations */}
+      {isCatalogOpen && (
+        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm z-50 overflow-y-auto">
+          <div className="container mx-auto py-12 px-4">
+            <div className="max-w-6xl mx-auto bg-gray-800 rounded-xl shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Catalogue de formations</h2>
+                <button 
+                  className="p-2 hover:bg-gray-700 rounded-full"
+                  onClick={() => setIsCatalogOpen(false)}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              {/* Content */}
+              <div className="p-6">
+                {formations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 mb-4">Aucune formation n'est disponible pour le moment.</div>
+                    <div className="text-sm text-gray-500">Revenez bientôt pour découvrir nos formations.</div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {formations.map(formation => (
+                      <div 
+                        key={formation.id} 
+                        className="bg-gray-700/50 rounded-lg overflow-hidden flex flex-col hover:shadow-lg hover:shadow-blue-500/10 transition-all border border-gray-600"
+                      >
+                        {formation.imageUrl ? (
+                          <div className="h-40 overflow-hidden">
+                            <img 
+                              src={formation.imageUrl} 
+                              alt={formation.title} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-40 bg-gradient-to-br from-blue-900/50 to-indigo-900/50 flex items-center justify-center">
+                            <BookOpen size={48} className="text-blue-400/50" />
+                          </div>
+                        )}
+                        
+                        <div className="p-4 flex-1 flex flex-col">
+                          <h3 className="text-lg font-bold mb-2">{formation.title}</h3>
+                          <p className="text-gray-400 text-sm mb-4 flex-1">
+                            {formation.description.length > 100
+                              ? `${formation.description.slice(0, 100)}...`
+                              : formation.description}
+                          </p>
+                          <button 
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors w-full mt-auto"
+                          >
+                            Voir les détails
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

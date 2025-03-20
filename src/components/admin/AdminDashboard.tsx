@@ -3,7 +3,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../firebase/auth';
 import FormationManager from './FormationManager';
 import UserManager from './UserManager';
-import { Users, BookOpen, Home, Settings } from 'lucide-react';
+import { Users, BookOpen, Home, Settings, ArrowLeft } from 'lucide-react';
+import { getAllFormations } from '../../firebase/formations';
+import { getAllUsers } from '../../firebase/auth';
 
 // Sidebar Item Component
 const SidebarItem: React.FC<{
@@ -26,7 +28,45 @@ const SidebarItem: React.FC<{
 const AdminDashboard: React.FC = () => {
   const { userData, isAdmin } = useAuth();
   const [activeSection, setActiveSection] = useState<string>('dashboard');
+  const [stats, setStats] = useState({
+    formations: 0,
+    users: 0,
+    certifications: 0
+  });
   
+  // Charger les statistiques
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        // Charger le nombre de formations
+        const formations = await getAllFormations();
+        
+        // Charger le nombre d'utilisateurs
+        const users = await getAllUsers();
+        
+        // Calculer le nombre de certifications (utilisateurs ayant complété des formations)
+        let certificationsCount = 0;
+        users.forEach(user => {
+          if (user.formationsProgress) {
+            certificationsCount += Object.values(user.formationsProgress).filter(
+              (progress: any) => progress.completed && progress.certificateUrl
+            ).length;
+          }
+        });
+        
+        setStats({
+          formations: formations.length,
+          users: users.length,
+          certifications: certificationsCount
+        });
+      } catch (error) {
+        console.error("Erreur lors du chargement des statistiques:", error);
+      }
+    };
+    
+    loadStats();
+  }, []);
+
   useEffect(() => {
     // Si l'utilisateur n'est pas admin, rediriger
     if (userData && userData.role !== UserRole.ADMIN) {
@@ -43,6 +83,10 @@ const AdminDashboard: React.FC = () => {
       </div>
     );
   }
+
+  const goToClientDashboard = () => {
+    window.location.href = '/';
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
@@ -81,6 +125,16 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveSection('settings')}
           />
         </ul>
+        
+        <div className="mt-8 pt-4 border-t border-gray-700">
+          <button 
+            onClick={goToClientDashboard}
+            className="flex items-center text-gray-400 hover:text-white transition-colors w-full py-2"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            <span>Retour au dashboard client</span>
+          </button>
+        </div>
       </div>
       
       {/* Main Content */}
@@ -104,7 +158,7 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-semibold mb-4">Formations</h2>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">0</span>
+                <span className="text-3xl font-bold">{stats.formations}</span>
                 <BookOpen size={28} className="text-blue-500" />
               </div>
             </div>
@@ -112,7 +166,7 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-semibold mb-4">Utilisateurs</h2>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">0</span>
+                <span className="text-3xl font-bold">{stats.users}</span>
                 <Users size={28} className="text-green-500" />
               </div>
             </div>
@@ -120,7 +174,7 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-semibold mb-4">Certifications</h2>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">0</span>
+                <span className="text-3xl font-bold">{stats.certifications}</span>
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
                   viewBox="0 0 24 24" 

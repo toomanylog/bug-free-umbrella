@@ -7,6 +7,7 @@ import {
   deleteFormation
 } from '../../firebase/formations';
 import { Plus, Edit, Trash2, Eye, X, Check } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 const EMPTY_FORMATION: Omit<Formation, 'id'> = {
   title: '',
@@ -116,6 +117,7 @@ const FormationManager: React.FC = () => {
   };
 
   const handlePreview = (formation: Formation) => {
+    console.log("Preview formation:", formation);
     setPreviewFormation(formation);
     setIsPreviewOpen(true);
   };
@@ -143,7 +145,7 @@ const FormationManager: React.FC = () => {
       )}
       
       {/* Aperçu de la formation */}
-      {isPreviewOpen && previewFormation && (
+      {isPreviewOpen && previewFormation && createPortal(
         <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 w-full max-w-3xl rounded-xl shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="p-6">
@@ -197,7 +199,8 @@ const FormationManager: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       
       {/* Formulaire de création/édition */}
