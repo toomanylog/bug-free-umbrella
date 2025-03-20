@@ -5,15 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { getFormationById } from '../firebase/formations';
 import { updateFormationProgress, Formation } from '../firebase/auth';
 
-interface FormationModule {
-  id: number;
-  title: string;
-  description: string;
-  duration: string;
-  isVideo: boolean;
-  isLocked: boolean;
-}
-
 const FormationDetail: React.FC = () => {
   const { formationId } = useParams<{ formationId: string }>();
   const { userData } = useAuth();
