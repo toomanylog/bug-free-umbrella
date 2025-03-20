@@ -147,6 +147,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           }
           
           try {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const _userCertifications = await certificationsModule.getUserCertifications(currentUser.uid);
             // Variable préfixée par underscore pour indiquer qu'elle n'est pas utilisée actuellement
             // mais pourrait être utilisée dans une future implémentation
