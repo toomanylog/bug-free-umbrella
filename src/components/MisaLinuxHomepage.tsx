@@ -4,7 +4,7 @@ import { LoginForm, RegisterForm, ForgotPasswordForm } from './AuthForms';
 import { logoutUser } from '../firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
 import Dashboard from './Dashboard';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 interface AnimatedElements {
   [key: string]: boolean;
