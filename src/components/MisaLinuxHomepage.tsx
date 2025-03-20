@@ -12,7 +12,7 @@ interface AnimatedElements {
 
 // Type pour la redirection post-login
 type RedirectTarget = {
-  type: 'formation' | 'catalog' | null;
+  type: 'formation' | 'catalog' | 'tool' | null;
   id?: string;
   name?: string;
 }
@@ -123,6 +123,10 @@ const MisaLinuxHomepage = () => {
         navigate(`/formations/${action.id}`);
       } else if (action.type === 'catalog') {
         navigate('/formations');
+      } else if (action.type === 'tool' && action.id) {
+        // Pour les outils, peut-être déclencher un téléchargement ou une autre action
+        console.log(`Téléchargement de l'outil: ${action.name}`);
+        alert(`Le téléchargement de l'outil "${action.name}" va démarrer.`);
       }
     } else {
       // Sinon, ouvrir la popup de login et enregistrer l'action pour redirection après connexion
@@ -211,7 +215,8 @@ const MisaLinuxHomepage = () => {
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
               <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
             </svg>,
-      status: "active"
+      status: "active",
+      features: ["Détection de bounce", "Identification de spam traps", "Analyse de risques", "Statistiques détaillées", "Export de rapports"]
     },
     {
       id: 'tool-sender',
@@ -221,7 +226,8 @@ const MisaLinuxHomepage = () => {
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
               <polyline points="22,6 12,13 2,6" />
             </svg>,
-      status: "active"
+      status: "active",
+      features: ["Rotation de SMTP", "Templates HTML dynamiques", "Variables personnalisables", "Gestion de bouncing", "Limitation de débit"]
     },
     {
       id: 'tool-cracker',
@@ -232,7 +238,8 @@ const MisaLinuxHomepage = () => {
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
               <rect x="8" y="16" width="8" height="6" rx="1"></rect>
             </svg>,
-      status: "soon"
+      status: "soon",
+      features: ["Scan d'IP et domaines", "Détection de SMTP", "Recherche de clés API", "Analyse de vulnérabilités", "Export de résultats"]
     }
   ];
   
@@ -674,44 +681,43 @@ const MisaLinuxHomepage = () => {
       </section>
       
       {/* Outils Section */}
-      <section id="tools" className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-indigo-900/10 to-gray-900 z-0"></div>
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <div id="tools-header" className="max-w-xl mx-auto text-center mb-16 animate-on-scroll">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6 inline-block relative">
-              Nos Outils Spécialisés
-              <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent transition-all duration-1000 ${animatedElements['tools-header'] ? 'w-24' : 'w-0'}`}></div>
-            </h2>
-            <p className="text-xl text-gray-300">
-              Des outils développés par nos experts pour optimiser vos workflows dans l'univers fraude.
+      <section className="py-20 bg-gray-900" id="outils">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Nos Outils Spécialisés</h2>
+            <p className="text-gray-400">
+              Des outils puissants développés par nos experts pour optimiser vos workflows et améliorer vos performances
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {ourTools.map((tool, index) => (
-              <div 
-                id={`tool-${tool.id}`}
-                key={tool.id} 
-                className="relative group bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700/50 overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-600/10 hover:-translate-y-2 animate-on-scroll"
-                style={{ 
-                  animationDelay: `${index * 100}ms`,
-                  opacity: animatedElements[`tool-${tool.id}`] ? 1 : 0,
-                  transform: animatedElements[`tool-${tool.id}`] ? 'translateY(0)' : 'translateY(20px)',
-                  transition: 'opacity 0.5s ease, transform 0.5s ease'
-                }}
-              >
-                <div className="absolute -top-12 -right-12 w-24 h-24 bg-blue-600/10 rounded-full filter blur-xl group-hover:bg-blue-600/20 transition-all duration-300"></div>
-                
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center mb-6 transform transition-transform duration-300 group-hover:rotate-12">
-                  {tool.icon}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ourTools.map(tool => (
+              <div key={tool.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-blue-900/20 rounded-lg">
+                    {tool.icon}
+                  </div>
+                  {tool.status === "active" ? (
+                    <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
+                  ) : (
+                    <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
+                  )}
                 </div>
-                
-                <h3 className="text-xl font-bold mb-3">{tool.name}</h3>
-                <p className="text-gray-400 mb-6">{tool.description}</p>
-                
+                <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
+                <p className="text-gray-400 mb-4">{tool.description}</p>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-300 mb-2">Fonctionnalités:</p>
+                  <ul className="text-sm text-gray-400 list-disc pl-5 space-y-1">
+                    {tool.features.map((feature, index) => (
+                      <li key={index}>{feature}</li>
+                    ))}
+                  </ul>
+                </div>
                 {tool.status === "active" ? (
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
+                  <button 
+                    onClick={() => handleProtectedAction({type: 'tool', id: tool.id, name: tool.name})}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                  >
                     Télécharger
                   </button>
                 ) : (
@@ -721,6 +727,15 @@ const MisaLinuxHomepage = () => {
                 )}
               </div>
             ))}
+          </div>
+          
+          <div className="text-center mt-12">
+            <button 
+              onClick={() => currentUser ? setShowDashboard(true) : setIsLoginModalOpen(true)}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg hover:shadow-lg hover:shadow-blue-600/20 transition-all"
+            >
+              {currentUser ? 'Accéder à tous nos outils' : 'Créer un compte pour accéder aux outils'}
+            </button>
           </div>
         </div>
       </section>
