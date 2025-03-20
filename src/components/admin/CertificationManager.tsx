@@ -8,8 +8,7 @@ import {
   Check, 
   Plus, 
   Award, 
-  FileText,
-  User
+  FileText
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -25,7 +24,7 @@ import {
   QuestionType
 } from '../../firebase/certifications';
 
-import { Formation, getAllUsers, UserData, UserRole } from '../../firebase/auth';
+import { Formation, getAllUsers, UserData } from '../../firebase/auth';
 import { getAllFormations } from '../../firebase/formations';
 
 const EMPTY_CERTIFICATION: Omit<Certification, 'id'> = {
@@ -72,7 +71,6 @@ const CertificationManager: React.FC = () => {
   
   // États pour les formations et utilisateurs disponibles
   const [formations, setFormations] = useState<Formation[]>([]);
-  const [users, setUsers] = useState<UserData[]>([]);
   
   // Charger les certifications
   useEffect(() => {
@@ -105,20 +103,6 @@ const CertificationManager: React.FC = () => {
     };
     
     loadFormations();
-  }, []);
-  
-  // Charger les utilisateurs
-  useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const data = await getAllUsers();
-        setUsers(data);
-      } catch (err) {
-        console.error('Erreur lors du chargement des utilisateurs', err);
-      }
-    };
-    
-    loadUsers();
   }, []);
 
   // Gestionnaires d'événements pour les certifications
