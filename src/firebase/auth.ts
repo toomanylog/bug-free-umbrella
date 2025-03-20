@@ -1,17 +1,17 @@
 import { 
+  User,
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
-  sendPasswordResetEmail, 
   signOut, 
+  sendPasswordResetEmail,
   updateProfile,
-  User,
-  EmailAuthProvider,
   reauthenticateWithCredential,
-  updatePassword
+  EmailAuthProvider,
+  updatePassword,
+  deleteUser
 } from 'firebase/auth';
-import { ref, set, get, update } from 'firebase/database';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, database, firestore } from './config';
+import { ref, set, update, get, remove } from 'firebase/database';
+import { auth, database } from './config';
 
 // Types pour les formations
 export interface Formation {
@@ -62,9 +62,12 @@ export interface UserData {
 }
 
 // Fonction pour vérifier si un utilisateur est admin
-export const isUserAdmin = async (userId: string): Promise<boolean> => {
+export const checkUserIsAdmin = async (userId: string): Promise<boolean> => {
   try {
-    const userData = await getUserData(userId);
+    const userRef = ref(database, `users/${userId}`);
+    const snapshot = await get(userRef);
+    const userData = snapshot.val();
+    
     return userData?.role === UserRole.ADMIN;
   } catch (error) {
     console.error('Erreur lors de la vérification du rôle:', error);
@@ -72,20 +75,45 @@ export const isUserAdmin = async (userId: string): Promise<boolean> => {
   }
 };
 
-// Fonction pour modifier le rôle d'un utilisateur (réservé aux admins)
-export const updateUserRole = async (targetUserId: string, newRole: UserRole): Promise<void> => {
+// Fonction pour supprimer un compte utilisateur
+export const deleteUserAccount = async (user: User, password: string): Promise<void> => {
   try {
+    // Réauthentifier l'utilisateur
+    const credential = EmailAuthProvider.credential(
+      user.email || '',
+      password
+    );
+    await reauthenticateWithCredential(user, credential);
+    
+    // Supprimer les données dans Realtime Database
+    const userRef = ref(database, `users/${user.uid}`);
+    await remove(userRef);
+    
+    // Supprimer le compte
+    await deleteUser(user);
+  } catch (error) {
+    console.error('Erreur lors de la suppression du compte:', error);
+    throw error;
+  }
+};
+
+// Fonction pour mettre à jour le rôle d'un utilisateur (réservé aux admins)
+export const updateUserRole = async (targetUserId: string, newRole: UserRole): Promise<void> => {
+  // Vérifier si l'utilisateur existe avant de tenter de mettre à jour
+  try {
+    const userRef = ref(database, `users/${targetUserId}`);
+    const snapshot = await get(userRef);
+    
+    if (!snapshot.exists()) {
+      throw new Error('Utilisateur non trouvé');
+    }
+    
     // Mettre à jour dans Realtime Database
-    await update(ref(database, `users/${targetUserId}`), {
+    await update(userRef, {
       role: newRole,
       updatedAt: new Date().toISOString()
     });
     
-    // Mettre à jour dans Firestore aussi
-    await updateDoc(doc(firestore, 'users', targetUserId), {
-      role: newRole,
-      updatedAt: new Date().toISOString()
-    });
   } catch (error) {
     console.error('Erreur lors de la mise à jour du rôle:', error);
     throw error;
@@ -93,29 +121,36 @@ export const updateUserRole = async (targetUserId: string, newRole: UserRole): P
 };
 
 // Fonction pour créer un compte utilisateur
-export const registerUser = async (email: string, password: string, displayName: string): Promise<User> => {
+export const registerUser = async (
+  email: string, 
+  password: string, 
+  displayName: string,
+  telegramUsername: string
+): Promise<User> => {
   try {
-    // Créer l'utilisateur avec email et mot de passe
+    // Créer l'utilisateur avec Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
-    // Mettre à jour le profil avec le nom d'affichage
-    await updateProfile(user, { displayName });
+    // Mettre à jour le profil
+    await updateProfile(user, {
+      displayName
+    });
     
-    // Sauvegarder les informations utilisateur dans la Realtime Database
-    const userData: UserData = {
+    // Stocker des informations supplémentaires
+    const userData = {
       uid: user.uid,
-      displayName: displayName,
-      email: user.email || '',
-      createdAt: new Date().toISOString(),
+      email,
+      displayName,
+      telegram: telegramUsername,
       role: UserRole.CLIENT, // Par défaut, tous les nouveaux utilisateurs sont des clients
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       formationsProgress: []
     };
     
+    // Enregistrer dans Realtime Database
     await set(ref(database, `users/${user.uid}`), userData);
-    
-    // Créer aussi un document dans Firestore
-    await setDoc(doc(firestore, 'users', user.uid), userData);
     
     return user;
   } catch (error) {
@@ -152,32 +187,25 @@ export const logoutUser = async (): Promise<void> => {
 };
 
 // Fonction pour mettre à jour le profil utilisateur
-export const updateUserProfile = async (user: User, displayName: string, telegramUsername: string): Promise<void> => {
+export const updateUserProfile = async (
+  user: User, 
+  displayName: string, 
+  telegramUsername: string
+): Promise<void> => {
   try {
-    // Mettre à jour le nom d'affichage directement dans Auth
-    await updateProfile(user, { displayName });
+    // Mettre à jour dans Firebase Auth
+    await updateProfile(user, {
+      displayName
+    });
     
     try {
-      // Mettre à jour dans Realtime Database en premier (plus fiable)
+      // Mettre à jour dans Realtime Database
       const userRef = ref(database, `users/${user.uid}`);
       await update(userRef, {
         displayName,
         telegram: telegramUsername,
         updatedAt: new Date().toISOString()
       });
-      
-      // Mettre à jour également dans Firestore - mais capturez les erreurs en silence
-      try {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        await updateDoc(userDocRef, {
-          displayName,
-          telegram: telegramUsername,
-          updatedAt: new Date().toISOString()
-        });
-      } catch (firestoreError) {
-        // Log l'erreur mais ne la propage pas, car la mise à jour Realtime DB a réussi
-        console.warn('Erreur Firestore non-critique:', firestoreError);
-      }
       
       console.log('Profil mis à jour avec succès');
     } catch (dbError) {
@@ -207,17 +235,11 @@ export const changeUserPassword = async (user: User, currentPassword: string, ne
 };
 
 // Fonction pour obtenir les données utilisateur depuis la Realtime Database
-export const getUserData = async (userId: string): Promise<UserData | null> => {
+export const getUserData = async (userId: string): Promise<any> => {
   try {
-    // Utiliser Realtime Database au lieu de Firestore
     const userRef = ref(database, `users/${userId}`);
-    const userSnapshot = await get(userRef);
-    
-    if (userSnapshot.exists()) {
-      return userSnapshot.val() as UserData;
-    } else {
-      return null;
-    }
+    const snapshot = await get(userRef);
+    return snapshot.exists() ? snapshot.val() : null;
   } catch (error) {
     console.error('Erreur lors de la récupération des données utilisateur:', error);
     return null;
@@ -225,17 +247,15 @@ export const getUserData = async (userId: string): Promise<UserData | null> => {
 };
 
 // Fonction pour obtenir tous les utilisateurs (pour les admins)
-export const getAllUsers = async (): Promise<UserData[]> => {
+export const getAllUsers = async (): Promise<any[]> => {
   try {
     const usersRef = ref(database, 'users');
-    const usersSnapshot = await get(usersRef);
+    const snapshot = await get(usersRef);
     
-    if (usersSnapshot.exists()) {
-      const usersData: Record<string, UserData> = usersSnapshot.val();
-      return Object.values(usersData);
-    } else {
-      return [];
-    }
+    if (!snapshot.exists()) return [];
+    
+    const usersData = snapshot.val();
+    return Object.values(usersData);
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs:', error);
     return [];
@@ -245,20 +265,20 @@ export const getAllUsers = async (): Promise<UserData[]> => {
 // Fonction pour obtenir l'erreur en français
 export const getAuthErrorMessage = (errorCode: string): string => {
   switch (errorCode) {
-    case 'auth/email-already-in-use':
-      return 'Cette adresse email est déjà utilisée par un autre compte.';
-    case 'auth/invalid-email':
-      return 'L\'adresse email est invalide.';
-    case 'auth/weak-password':
-      return 'Le mot de passe est trop faible. Utilisez au moins 6 caractères.';
     case 'auth/user-not-found':
-      return 'Aucun utilisateur trouvé avec cette adresse email.';
+      return 'Aucun compte trouvé avec cette adresse email.';
     case 'auth/wrong-password':
       return 'Mot de passe incorrect.';
-    case 'auth/too-many-requests':
-      return 'Trop de tentatives de connexion. Veuillez réessayer plus tard.';
+    case 'auth/email-already-in-use':
+      return 'Cette adresse email est déjà utilisée.';
+    case 'auth/weak-password':
+      return 'Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.';
+    case 'auth/invalid-email':
+      return 'Format d\'email invalide.';
     case 'auth/user-disabled':
       return 'Ce compte a été désactivé.';
+    case 'auth/requires-recent-login':
+      return 'Cette opération nécessite une connexion récente. Veuillez vous reconnecter.';
     default:
       return 'Une erreur s\'est produite. Veuillez réessayer.';
   }
