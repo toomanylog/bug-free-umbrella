@@ -3,14 +3,15 @@ import { createPortal } from 'react-dom';
 import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface DashboardProps {
   onClose: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, userData } = useAuth();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -760,35 +761,48 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {formations.map(formation => (
-                    <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden flex flex-col">
-                      {formation.imageUrl && (
-                        <div className="h-40 overflow-hidden">
-                          <img 
-                            src={formation.imageUrl} 
-                            alt={formation.title} 
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="p-6 flex-1 flex flex-col">
-                        <h3 className="text-xl font-bold mb-2">{formation.title}</h3>
-                        <p className="text-gray-400 mb-4 text-sm flex-1">
-                          {formation.description?.length > 100 
-                            ? `${formation.description.substring(0, 100)}...` 
-                            : formation.description}
-                        </p>
-                        <div className="mt-2">
-                          <button 
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
-                            onClick={() => {/* Rediriger vers la page de détail de la formation */}}
-                          >
-                            Continuer l'apprentissage
-                          </button>
+                  {formations.map(formation => {
+                    // Vérifier si l'utilisateur a déjà commencé cette formation
+                    const userProgress = userData?.formationsProgress?.find(
+                      (progress: UserFormationProgress) => progress.formationId === formation.id
+                    );
+                    
+                    const hasStarted = userProgress && userProgress.completedModules?.length > 0;
+                    
+                    return (
+                      <div key={formation.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden flex flex-col">
+                        {formation.imageUrl && (
+                          <div className="h-40 overflow-hidden">
+                            <img 
+                              src={formation.imageUrl} 
+                              alt={formation.title} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="p-6 flex-1 flex flex-col">
+                          <h3 className="text-xl font-bold mb-2">{formation.title}</h3>
+                          <p className="text-gray-400 mb-4 text-sm flex-1">
+                            {formation.description?.length > 100 
+                              ? `${formation.description.substring(0, 100)}...` 
+                              : formation.description}
+                          </p>
+                          <div className="mt-2">
+                            <button 
+                              className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                              onClick={() => {
+                                // Rediriger vers la page de détail de la formation
+                                navigate(`/formations/${formation.id}`);
+                              }}
+                            >
+                              {/* Adapter le texte en fonction de la progression */}
+                              {hasStarted ? 'Continuer l\'apprentissage' : 'Commencer la formation'}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -935,72 +949,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           </div>
         </div>
       )}
-
-      {/* Sidebar */}
-      <aside className="bg-gray-900 w-full md:w-64 p-4 md:border-r border-gray-800">
-        <nav>
-          <ul className="space-y-2">
-            <li>
-              <button 
-                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
-                  activeSection === 'overview' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
-                } transition-colors`}
-                onClick={() => setActiveSection('overview')}
-              >
-                <BarChart2 size={18} />
-                <span>Vue d'ensemble</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
-                  activeSection === 'formations' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
-                } transition-colors`}
-                onClick={() => {
-                  setActiveSection('formations');
-                  setIsFormationsOpen(true);
-                }}
-              >
-                <BookOpen size={18} />
-                <span>Mes formations</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
-                  activeSection === 'tools' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
-                } transition-colors`}
-                onClick={() => setActiveSection('tools')}
-              >
-                <Wrench size={18} />
-                <span>Outils</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
-                  activeSection === 'profile' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
-                } transition-colors`}
-                onClick={() => setActiveSection('profile')}
-              >
-                <User size={18} />
-                <span>Profil</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                className={`flex items-center space-x-2 w-full text-left px-4 py-2 rounded-lg ${
-                  activeSection === 'settings' ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white' : 'hover:bg-gray-800 text-gray-400'
-                } transition-colors`}
-                onClick={() => setActiveSection('settings')}
-              >
-                <Settings size={18} />
-                <span>Paramètres</span>
-              </button>
-            </li>
-          </ul>
-        </nav>
-      </aside>
     </div>
   );
 };
