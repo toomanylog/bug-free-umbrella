@@ -3,7 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../firebase/auth';
 import FormationManager from './FormationManager';
 import UserManager from './UserManager';
-import { Users, BookOpen, Home, Settings, ArrowLeft } from 'lucide-react';
+import CertificationManager from './CertificationManager';
+import { Users, BookOpen, Home, Settings, ArrowLeft, Award } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
 
@@ -113,6 +114,12 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveSection('formations')}
           />
           <SidebarItem 
+            icon={<Award size={20} />}
+            label="Certifications"
+            active={activeSection === 'certifications'}
+            onClick={() => setActiveSection('certifications')}
+          />
+          <SidebarItem 
             icon={<Users size={20} />}
             label="Utilisateurs"
             active={activeSection === 'users'}
@@ -144,6 +151,7 @@ const AdminDashboard: React.FC = () => {
           <h1 className="text-3xl font-bold">
             {activeSection === 'dashboard' && 'Tableau de bord'}
             {activeSection === 'formations' && 'Gestion des formations'}
+            {activeSection === 'certifications' && 'Gestion des certifications'}
             {activeSection === 'users' && 'Gestion des utilisateurs'}
             {activeSection === 'settings' && 'Paramètres'}
           </h1>
@@ -194,6 +202,7 @@ const AdminDashboard: React.FC = () => {
         )}
         
         {activeSection === 'formations' && <FormationManager />}
+        {activeSection === 'certifications' && <CertificationManager />}
         {activeSection === 'users' && <UserManager />}
         {activeSection === 'settings' && (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
