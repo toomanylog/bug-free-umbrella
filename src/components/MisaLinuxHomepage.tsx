@@ -893,9 +893,9 @@ const MisaLinuxHomepage = () => {
             </div>
             
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <Link to="/cgu" className="hover:text-blue-400 transition-colors">Conditions générales d'utilisation</Link>
-              <Link to="/cgv" className="hover:text-blue-400 transition-colors">Conditions générales de vente</Link>
-              <Link to="/privacy" className="hover:text-blue-400 transition-colors">Politique de confidentialité</Link>
+              <button onClick={() => navigate('/cgu')} className="hover:text-blue-400 transition-colors">Conditions générales d'utilisation</button>
+              <button onClick={() => navigate('/cgv')} className="hover:text-blue-400 transition-colors">Conditions générales de vente</button>
+              <button onClick={() => navigate('/privacy')} className="hover:text-blue-400 transition-colors">Politique de confidentialité</button>
             </div>
             
             <div className="text-gray-400 text-sm">
