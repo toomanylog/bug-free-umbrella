@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { Formation } from '../../firebase/auth';
 import { 
   getAllFormations, 
   createFormation, 
   updateFormation, 
-  deleteFormation, 
-  Formation
+  deleteFormation
 } from '../../firebase/formations';
 import { Plus, Edit, Trash2, Eye, X, Check } from 'lucide-react';
 
-const EMPTY_FORMATION: Formation = {
-  id: '',
+const EMPTY_FORMATION: Omit<Formation, 'id'> = {
   title: '',
   description: '',
   imageUrl: '',
   published: false,
   modules: [],
-  createdAt: Date.now(),
-  updatedAt: Date.now()
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
 const FormationManager: React.FC = () => {
@@ -24,7 +23,7 @@ const FormationManager: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [currentFormation, setCurrentFormation] = useState<Formation>({...EMPTY_FORMATION});
+  const [currentFormation, setCurrentFormation] = useState<Omit<Formation, 'id'> & { id?: string }>({...EMPTY_FORMATION});
   const [feedback, setFeedback] = useState<{message: string, isError: boolean} | null>(null);
 
   // Charger toutes les formations
@@ -60,18 +59,24 @@ const FormationManager: React.FC = () => {
 
       if (currentFormation.id) {
         // Mise à jour
-        await updateFormation(currentFormation);
+        await updateFormation(currentFormation.id, currentFormation);
         setFormations(prev => 
-          prev.map(f => f.id === currentFormation.id ? currentFormation : f)
+          prev.map(f => f.id === currentFormation.id ? {...currentFormation, id: currentFormation.id} as Formation : f)
         );
         showFeedback("Formation mise à jour avec succès");
       } else {
         // Création
-        const newFormation = await createFormation({
+        const formationId = await createFormation({
           ...currentFormation,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
+        
+        const newFormation: Formation = {
+          ...currentFormation,
+          id: formationId
+        };
+        
         setFormations(prev => [...prev, newFormation]);
         showFeedback("Formation créée avec succès");
       }

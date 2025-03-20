@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Formation, Module } from '../../firebase/auth';
 import { 
-  Formation, 
-  Module,
   getFormationById,
   addModuleToFormation,
   updateModule,
@@ -17,10 +16,7 @@ interface ModuleManagerProps {
 const EMPTY_MODULE: Omit<Module, 'id'> = {
   title: '',
   content: '',
-  order: 0,
-  videoUrl: '',
-  duration: 0,
-  createdAt: Date.now(),
+  order: 0
 };
 
 const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) => {
@@ -28,7 +24,7 @@ const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) =>
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [currentModule, setCurrentModule] = useState<Module | Omit<Module, 'id'>>(EMPTY_MODULE);
+  const [currentModule, setCurrentModule] = useState<Omit<Module, 'id'> & { id?: string }>(EMPTY_MODULE);
   const [feedback, setFeedback] = useState<{message: string, isError: boolean} | null>(null);
 
   // Charger la formation
@@ -73,13 +69,17 @@ const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) =>
         return showFeedback("Le titre est requis", true);
       }
 
-      if ('id' in currentModule) {
+      if ('id' in currentModule && currentModule.id) {
         // Mise à jour
-        await updateModule(formationId, currentModule as Module);
+        await updateModule(formationId, currentModule.id, {
+          title: currentModule.title,
+          content: currentModule.content,
+          order: currentModule.order
+        });
         
         if (formation) {
-          const updatedModules = formation.modules.map(m => 
-            m.id === (currentModule as Module).id ? currentModule as Module : m
+          const updatedModules = formation.modules.map((m: Module) => 
+            m.id === currentModule.id ? {...currentModule, id: currentModule.id} as Module : m
           );
           setFormation({...formation, modules: updatedModules});
         }
@@ -89,11 +89,14 @@ const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) =>
         // Création
         const moduleToAdd = {
           ...currentModule,
-          order: formation?.modules?.length || 0,
-          createdAt: Date.now()
+          order: formation?.modules?.length || 0
         };
         
-        const newModule = await addModuleToFormation(formationId, moduleToAdd);
+        const moduleId = await addModuleToFormation(formationId, moduleToAdd);
+        const newModule: Module = {
+          ...moduleToAdd,
+          id: moduleId
+        };
         
         if (formation) {
           setFormation({
@@ -145,7 +148,7 @@ const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) =>
   const moveModule = async (moduleId: string, direction: 'up' | 'down') => {
     if (!formation || !formation.modules) return;
     
-    const moduleIndex = formation.modules.findIndex(m => m.id === moduleId);
+    const moduleIndex = formation.modules.findIndex((m: Module) => m.id === moduleId);
     if (moduleIndex === -1) return;
     
     const newIndex = direction === 'up' ? moduleIndex - 1 : moduleIndex + 1;
@@ -169,8 +172,13 @@ const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) =>
     
     // Mettre à jour la base de données
     try {
-      await updateModule(formationId, updatedModules[moduleIndex]);
-      await updateModule(formationId, updatedModules[newIndex]);
+      await updateModule(formationId, updatedModules[moduleIndex].id, {
+        order: updatedModules[moduleIndex].order
+      });
+      
+      await updateModule(formationId, updatedModules[newIndex].id, {
+        order: updatedModules[newIndex].order
+      });
     } catch (err) {
       console.error("Erreur lors du déplacement du module", err);
       showFeedback("Erreur lors du déplacement du module", true);
@@ -241,26 +249,6 @@ const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) =>
               onChange={e => setCurrentModule({...currentModule, title: e.target.value})}
             />
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">URL de la vidéo (si applicable)</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={currentModule.videoUrl}
-              onChange={e => setCurrentModule({...currentModule, videoUrl: e.target.value})}
-            />
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-400 mb-1">Durée estimée (en minutes)</label>
-          <input
-            type="number"
-            className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={currentModule.duration}
-            onChange={e => setCurrentModule({...currentModule, duration: parseInt(e.target.value) || 0})}
-          />
         </div>
         
         <div className="mb-4">
@@ -318,9 +306,6 @@ const ModuleManager: React.FC<ModuleManagerProps> = ({ formationId, onBack }) =>
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-semibold text-lg">{module.title}</h4>
-                    <p className="text-gray-400 text-sm mt-1">
-                      Durée: {module.duration} minutes
-                    </p>
                   </div>
                   
                   <div className="flex space-x-2">
