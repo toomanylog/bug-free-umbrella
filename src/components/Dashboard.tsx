@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Menu, ChevronDown, LogOut, User, Settings, BarChart2, Book, FileText, Wrench } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole } from '../firebase/auth';
 import { Link } from 'react-router-dom';

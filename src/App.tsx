@@ -7,9 +7,7 @@ import ErrorBoundary from './pages/ErrorBoundary';
 import CGU from './pages/CGU';
 import CGV from './pages/CGV';
 import Privacy from './pages/Privacy';
-import Dashboard from './components/Dashboard';
 import { AuthProvider } from './contexts/AuthContext';
-import { UserRole } from './firebase/auth';
 
 function App() {
   return (

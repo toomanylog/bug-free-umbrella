@@ -10,7 +10,7 @@ import {
   updatePassword
 } from 'firebase/auth';
 import { ref, set, get, update } from 'firebase/database';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, database, firestore } from './config';
 
 // Types pour les formations
