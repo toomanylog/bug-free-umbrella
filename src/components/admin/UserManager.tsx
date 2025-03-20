@@ -161,19 +161,11 @@ const UserManager: React.FC = () => {
                 {/* En-tête utilisateur */}
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    {user.photoURL ? (
-                      <img 
-                        src={user.photoURL} 
-                        alt={user.displayName || user.email} 
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center">
-                        <span className="text-lg font-bold">
-                          {(user.displayName || user.email || 'U')[0].toUpperCase()}
-                        </span>
-                      </div>
-                    )}
+                    <div className="h-10 w-10 rounded-full bg-gray-600 flex items-center justify-center">
+                      <span className="text-lg font-bold">
+                        {(user.displayName || user.email || 'U')[0].toUpperCase()}
+                      </span>
+                    </div>
                     
                     <div>
                       <h3 className="font-semibold">
