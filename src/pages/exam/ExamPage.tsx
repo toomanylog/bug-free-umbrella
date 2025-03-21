@@ -230,7 +230,7 @@ const ExamPage: React.FC = () => {
                 
                 <p className="text-gray-400 mb-4">
                   {isPassing 
-                    ? 'Vous avez passé l\'examen avec succès.' 
+                    ? 'Vous avez passé l\'examen avec succès et obtenu votre certification.' 
                     : 'Vous n\'avez pas atteint le score minimum requis pour valider cette certification.'}
                 </p>
                 
@@ -248,7 +248,7 @@ const ExamPage: React.FC = () => {
               </div>
               
               {isPassing && (
-                <div className="mt-12 border border-gray-700 rounded-xl overflow-hidden">
+                <div className="mt-12 border border-gray-700 rounded-xl overflow-hidden" id="certificate">
                   <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 p-8">
                     <div className="flex flex-col items-center justify-center">
                       <div className="text-center mb-6">
@@ -279,12 +279,16 @@ const ExamPage: React.FC = () => {
                   to={`/certification/${certificationId}`}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
                 >
-                  {isPassing ? 'Retour à la certification' : 'Retourner à la certification'}
+                  Retour à la certification
                 </Link>
                 
                 {isPassing && (
                   <button 
-                    onClick={() => window.print()}
+                    onClick={() => {
+                      // Utiliser html2canvas ou une autre méthode similaire pour capturer le certificat
+                      // Pour l'instant, utilisons l'API d'impression du navigateur
+                      window.print();
+                    }}
                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
                   >
                     <Download size={18} className="mr-2" />
