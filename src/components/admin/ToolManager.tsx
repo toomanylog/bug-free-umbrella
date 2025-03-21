@@ -12,7 +12,6 @@ import {
 import { getAllFormations } from '../../firebase/formations';
 import { getAllCertifications } from '../../firebase/certifications';
 import { Plus, Edit, Trash, Save, X, Download, UploadCloud, Loader, File, Database } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 
 // Constante pour GitHub
 const GITHUB_PATH = 'public/tools';
@@ -87,8 +86,8 @@ const ToolManager: React.FC = () => {
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [mediaType, setMediaType] = useState<'image' | 'file'>('image');
   
-  // Fonction pour ouvrir le sélecteur de médias
-  const openMediaSelector = (type: 'image' | 'file') => {
+  // Fonction pour modifier le formulaire et ouvrir le sélecteur de médias
+  const handleMediaSelectorOpen = (type: 'image' | 'file') => {
     setMediaType(type);
     setShowMediaSelector(true);
   };
@@ -116,7 +115,10 @@ const ToolManager: React.FC = () => {
       // 2. Générer un nom de fichier unique
       const timestamp = new Date().getTime();
       const fileName = `${timestamp}-${file.name.replace(/\s+/g, '-')}`;
+      const filePath = `${GITHUB_PATH}/${fileName}`;
       setUploadProgress(50);
+      
+      console.log(`Préparation de l'upload vers: ${filePath}`);
       
       // 3. Simuler une requête API (remplacer par une vraie implémentation)
       // Dans une vraie implémentation, vous utiliseriez l'API GitHub:
