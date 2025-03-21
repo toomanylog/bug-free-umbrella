@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Award, ArrowLeft, Clock } from 'lucide-react';
-import { getCertification, Certification as CertificationType, RequirementType } from '../firebase/certifications';
+import { getCertification, Certification as CertificationType, RequirementType, checkCertificationEligibility } from '../firebase/certifications';
+import { useAuth } from '../contexts/AuthContext';
 
 const CertificationDetail: React.FC = () => {
   const { certificationId } = useParams<{ certificationId: string }>();
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [certification, setCertification] = useState<CertificationType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [eligibilityStatus, setEligibilityStatus] = useState<{ eligible: boolean; missingRequirements: string[] }>({ 
+    eligible: false, 
+    missingRequirements: [] 
+  });
 
   useEffect(() => {
     const loadCertification = async () => {
@@ -17,6 +24,12 @@ const CertificationDetail: React.FC = () => {
         setLoading(true);
         const certData = await getCertification(certificationId);
         setCertification(certData);
+        
+        // Vérifier l'éligibilité de l'utilisateur si connecté
+        if (currentUser) {
+          const eligibility = await checkCertificationEligibility(currentUser.uid, certificationId);
+          setEligibilityStatus(eligibility);
+        }
       } catch (err: any) {
         console.error('Erreur lors du chargement de la certification:', err);
         setError('Impossible de charger les détails de la certification');
@@ -26,7 +39,27 @@ const CertificationDetail: React.FC = () => {
     };
 
     loadCertification();
-  }, [certificationId]);
+  }, [certificationId, currentUser]);
+
+  // Calculer la durée estimée basée sur le nombre de questions
+  const getEstimatedDuration = () => {
+    if (!certification?.examQuestions) return "Durée non disponible";
+    
+    // Estimation: environ 1 minute par question + 5 minutes de base
+    const questionCount = certification.examQuestions.length;
+    const minutes = 5 + questionCount;
+    
+    if (minutes < 10) return "Environ 5-10 minutes";
+    if (minutes < 20) return "Environ 10-20 minutes";
+    return `Environ ${minutes-5}-${minutes+5} minutes`;
+  };
+
+  const handleStartCertification = () => {
+    if (!certificationId || !currentUser) return;
+    
+    // Rediriger vers la page d'examen avec l'ID de la certification
+    navigate(`/exam/${certificationId}`);
+  };
 
   if (loading) {
     return (
@@ -132,7 +165,7 @@ const CertificationDetail: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold mb-1">Durée estimée</h3>
-                    <p className="text-gray-300">45-60 minutes pour compléter l'examen</p>
+                    <p className="text-gray-300">{getEstimatedDuration()}</p>
                   </div>
                 </div>
                 
@@ -166,12 +199,32 @@ const CertificationDetail: React.FC = () => {
 
             <div className="mt-8 flex justify-center">
               <button 
-                className="bg-gradient-to-r from-purple-600 to-indigo-700 px-8 py-3 rounded-lg font-semibold text-white flex items-center shadow-lg hover:shadow-indigo-600/30 transition-all"
+                onClick={handleStartCertification}
+                disabled={!currentUser || !eligibilityStatus.eligible}
+                className={`px-8 py-3 rounded-lg font-semibold text-white flex items-center shadow-lg transition-all
+                  ${eligibilityStatus.eligible 
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-700 hover:shadow-indigo-600/30' 
+                    : 'bg-gray-700 cursor-not-allowed opacity-70'}`}
               >
                 <Award size={20} className="mr-2" />
-                Commencer la certification
+                {!currentUser 
+                  ? 'Connectez-vous pour commencer' 
+                  : eligibilityStatus.eligible 
+                    ? 'Commencer la certification' 
+                    : 'Prérequis manquants'}
               </button>
             </div>
+            
+            {!eligibilityStatus.eligible && eligibilityStatus.missingRequirements.length > 0 && (
+              <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+                <h3 className="font-medium text-yellow-400 mb-2">Prérequis manquants :</h3>
+                <ul className="list-disc pl-5 text-gray-300 space-y-1">
+                  {eligibilityStatus.missingRequirements.map((requirement, index) => (
+                    <li key={index}>{requirement}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </div>
