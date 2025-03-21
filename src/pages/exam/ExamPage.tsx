@@ -264,6 +264,9 @@ const ExamPage: React.FC = () => {
                         <p className="text-sm text-gray-400 mt-6">
                           Date d'obtention: {new Date().toLocaleDateString('fr-FR')}
                         </p>
+                        <p className="text-sm text-gray-400 mt-2">
+                          Identifiant: CERT-{certificationId?.substring(0, 8)}
+                        </p>
                       </div>
                       
                       <div className="mt-4 w-full flex justify-center">
@@ -274,7 +277,7 @@ const ExamPage: React.FC = () => {
                 </div>
               )}
               
-              <div className="flex justify-center mt-8 space-x-4">
+              <div className="flex flex-wrap justify-center mt-8 gap-4">
                 <Link 
                   to={`/certification/${certificationId}`}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
@@ -285,15 +288,34 @@ const ExamPage: React.FC = () => {
                 {isPassing && (
                   <button 
                     onClick={() => {
-                      // Utiliser html2canvas ou une autre méthode similaire pour capturer le certificat
+                      // Utiliser html2canvas ou une autre méthode pour capturer le certificat
                       // Pour l'instant, utilisons l'API d'impression du navigateur
-                      window.print();
+                      const printContent = document.getElementById('certificate');
+                      if (printContent) {
+                        const originalContents = document.body.innerHTML;
+                        document.body.innerHTML = printContent.innerHTML;
+                        window.print();
+                        document.body.innerHTML = originalContents;
+                        window.location.reload(); // Recharger pour restaurer l'état
+                      } else {
+                        window.print();
+                      }
                     }}
                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
                   >
                     <Download size={18} className="mr-2" />
                     Télécharger mon certificat
                   </button>
+                )}
+                
+                {isPassing && (
+                  <Link 
+                    to="/"
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
+                  >
+                    <Award size={18} className="mr-2" />
+                    Voir toutes mes certifications
+                  </Link>
                 )}
               </div>
             </div>
