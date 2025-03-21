@@ -976,32 +976,40 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                                 </div>
                                 
                                 <div className="flex flex-wrap gap-2 mt-auto">
-                                  <Link 
-                                    to={`/formation/${formation.id}`} 
-                                    className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                      isCompleted 
-                                        ? 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-green-600/30' 
-                                        : progress > 0 
-                                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-blue-600/30' 
-                                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-blue-600/30'
-                                    } ${isCompleted && formation.certificationId && !formation.userHasCertification ? 'w-1/2' : 'w-full'}`}
-                                  >
-                                    {isCompleted 
-                                      ? 'Revoir la formation' 
-                                      : progress > 0 
-                                        ? "Continuer" 
-                                        : 'Commencer'
-                                    }
-                                  </Link>
-                                  
-                                  {/* Bouton pour passer la certification */}
-                                  {isCompleted && formation.certificationId && !formation.userHasCertification && (
+                                  {isCompleted && formation.certificationId && !formation.userHasCertification ? (
+                                    <>
+                                      <Link 
+                                        to={`/formation/${formation.id}`} 
+                                        className="w-[calc(50%-0.25rem)] px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center justify-center shadow-md hover:shadow-green-600/30 transition-all"
+                                      >
+                                        Revoir la formation
+                                      </Link>
+                                      
+                                      <Link 
+                                        to={`/certification/${formation.certificationId}`} 
+                                        className="w-[calc(50%-0.25rem)] px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center justify-center shadow-md hover:shadow-purple-600/30 transition-all"
+                                      >
+                                        <Award size={16} className="mr-1" />
+                                        Certification
+                                      </Link>
+                                    </>
+                                  ) : (
                                     <Link 
-                                      to={`/certification/${formation.certificationId}`} 
-                                      className="w-1/2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center justify-center shadow-md hover:shadow-purple-600/30 transition-all"
+                                      to={`/formation/${formation.id}`} 
+                                      className="w-full px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center transition-all shadow-md 
+                                        ${isCompleted 
+                                          ? 'bg-green-600 hover:bg-green-700 text-white hover:shadow-green-600/30' 
+                                          : progress > 0 
+                                            ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-600/30' 
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-600/30'
+                                        }"
                                     >
-                                      <Award size={16} className="mr-1" />
-                                      Certification
+                                      {isCompleted 
+                                        ? 'Revoir la formation' 
+                                        : progress > 0 
+                                          ? "Continuer" 
+                                          : 'Commencer'
+                                      }
                                     </Link>
                                   )}
                                 </div>
@@ -1076,8 +1084,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             className="fixed z-[1000] w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl text-white"
             style={{ 
               top: window.innerWidth >= 768 ? `${buttonPosition.top}px` : 'auto',
-              bottom: window.innerWidth < 768 ? '60px' : 'auto',
-              right: window.innerWidth >= 768 ? `${buttonPosition.right}px` : '20px'
+              bottom: window.innerWidth < 768 ? '70px' : 'auto',
+              right: window.innerWidth >= 768 ? `${buttonPosition.right}px` : '10px'
             }}
           >
             <div className="p-2">

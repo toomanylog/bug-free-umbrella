@@ -161,8 +161,8 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
             const formationRef = ref(database, `formations/${formationId}`);
             const formationSnapshot = await get(formationRef);
             const formationTitle = formationSnapshot.exists() 
-              ? formationSnapshot.val().title 
-              : 'une formation spécifique';
+              ? formationSnapshot.val().title || 'non spécifiée' 
+              : 'non spécifiée';
             
             missingConditions.push(`Terminer la formation "${formationTitle}"`);
           }
