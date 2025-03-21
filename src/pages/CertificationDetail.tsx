@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Award, ArrowLeft, Clock } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 import { getCertification, Certification as CertificationType, RequirementType } from '../firebase/certifications';
 
 const CertificationDetail: React.FC = () => {
   const { certificationId } = useParams<{ certificationId: string }>();
-  const { currentUser: user } = useAuth();
   const [certification, setCertification] = useState<CertificationType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
