@@ -978,13 +978,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                                 <div className="flex flex-wrap gap-2 mt-auto">
                                   <Link 
                                     to={`/formation/${formation.id}`} 
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                                       isCompleted 
                                         ? 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-green-600/30' 
                                         : progress > 0 
                                           ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-blue-600/30' 
                                           : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-blue-600/30'
-                                    }`}
+                                    } ${isCompleted && formation.certificationId && !formation.userHasCertification ? 'w-1/2' : 'w-full'}`}
                                   >
                                     {isCompleted 
                                       ? 'Revoir la formation' 
@@ -998,7 +998,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                                   {isCompleted && formation.certificationId && !formation.userHasCertification && (
                                     <Link 
                                       to={`/certification/${formation.certificationId}`} 
-                                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center shadow-md hover:shadow-purple-600/30 transition-all"
+                                      className="w-1/2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center justify-center shadow-md hover:shadow-purple-600/30 transition-all"
                                     >
                                       <Award size={16} className="mr-1" />
                                       Certification
@@ -1042,24 +1042,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
       </div>
       
       {/* Footer - ajout de sticky */}
-      <footer className="sticky bottom-0 py-6 bg-gray-900 border-t border-gray-800 mt-auto">
+      <footer className="py-4 md:py-6 bg-gray-900 border-t border-gray-800 mt-auto">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-6 md:mb-0">
+            <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
                 <span className="font-bold text-sm">ML</span>
               </div>
               <span className="font-bold text-lg">Misa Linux</span>
             </div>
             
-            <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <Link to="/cgu" className="hover:text-blue-400 transition-colors text-sm">Conditions générales d'utilisation</Link>
-              <Link to="/cgv" className="hover:text-blue-400 transition-colors text-sm">Conditions générales de vente</Link>
-              <Link to="/privacy" className="hover:text-blue-400 transition-colors text-sm">Politique de confidentialité</Link>
+            <div className="flex flex-wrap justify-center gap-3 md:gap-6 mb-4 md:mb-0 items-center">
+              <Link to="/cgu" className="hover:text-blue-400 transition-colors text-xs md:text-sm">CGU</Link>
+              <Link to="/cgv" className="hover:text-blue-400 transition-colors text-xs md:text-sm">CGV</Link>
+              <Link to="/privacy" className="hover:text-blue-400 transition-colors text-xs md:text-sm">Confidentialité</Link>
             </div>
             
             <div className="text-gray-400 text-xs">
-              &copy; {new Date().getFullYear()} Misa Linux. Tous droits réservés.
+              &copy; {new Date().getFullYear()} Misa Linux
             </div>
           </div>
         </div>
@@ -1075,8 +1075,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           <div 
             className="fixed z-[1000] w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl text-white"
             style={{ 
-              top: `${buttonPosition.top}px`, 
-              right: `${buttonPosition.right}px` 
+              top: window.innerWidth >= 768 ? `${buttonPosition.top}px` : 'auto',
+              bottom: window.innerWidth < 768 ? '60px' : 'auto',
+              right: window.innerWidth >= 768 ? `${buttonPosition.right}px` : '20px'
             }}
           >
             <div className="p-2">

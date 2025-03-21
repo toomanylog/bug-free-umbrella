@@ -24,6 +24,7 @@ function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/formation/:formationId" element={<FormationDetail />} />
+              <Route path="/certification/:certificationId" element={<NotFound />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
