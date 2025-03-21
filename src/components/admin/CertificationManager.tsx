@@ -111,6 +111,13 @@ const CertificationManager: React.FC = () => {
     try {
       setLoading(true);
       
+      // Vérifier que le titre est défini
+      if (!currentCertification.title || currentCertification.title.trim() === '') {
+        setFeedback({ message: 'Le titre de la certification est requis', isError: true });
+        setLoading(false);
+        return;
+      }
+      
       // Créer ou mettre à jour la certification
       if (currentCertification.id) {
         // Mise à jour

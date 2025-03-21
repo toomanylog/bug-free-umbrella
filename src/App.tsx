@@ -23,7 +23,7 @@ function App() {
               <Route path="/cgv" element={<CGV />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/formations/:formationId" element={<FormationDetail />} />
+              <Route path="/formation/:formationId" element={<FormationDetail />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

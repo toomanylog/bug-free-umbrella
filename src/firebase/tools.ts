@@ -178,8 +178,8 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
             const certificationRef = ref(database, `certifications/${certificationId}`);
             const certificationSnapshot = await get(certificationRef);
             const certificationTitle = certificationSnapshot.exists() 
-              ? certificationSnapshot.val().title 
-              : 'une certification spécifique';
+              ? certificationSnapshot.val().title || 'non spécifiée'
+              : 'non spécifiée';
             
             missingConditions.push(`Obtenir la certification "${certificationTitle}"`);
           }

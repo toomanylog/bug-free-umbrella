@@ -601,14 +601,15 @@ const ToolManager: React.FC = () => {
                               const certificationId = e.target.value;
                               const certification = certifications.find(c => c.id === certificationId);
                               updateCondition(index, 'value', certificationId);
-                              updateCondition(index, 'description', certification ? certification.title : '');
+                              const certificationTitle = certification && certification.title ? certification.title : 'Certification requise';
+                              updateCondition(index, 'description', certificationTitle);
                             }}
                             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="">Sélectionnez une certification</option>
                             {certifications.map(certification => (
                               <option key={certification.id} value={certification.id}>
-                                {certification.title}
+                                {certification.title || 'Certification sans titre'}
                               </option>
                             ))}
                           </select>
