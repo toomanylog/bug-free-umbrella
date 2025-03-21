@@ -1,3 +1,7 @@
+// Polyfill pour process.env utilisé par axios
+window.process = window.process || {};
+window.process.env = window.process.env || {};
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
