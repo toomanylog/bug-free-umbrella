@@ -379,6 +379,66 @@ export const submitExam = async (
         earnedAt: submittedAt,
         expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
       });
+      
+      try {
+        // Trouver la formation associée à cette certification pour mettre à jour formationsProgress
+        const userRef = ref(database, `users/${userId}`);
+        const userSnapshot = await get(userRef);
+        
+        if (userSnapshot.exists()) {
+          const userData = userSnapshot.val();
+          const formationsProgress = userData.formationsProgress || [];
+          
+          // Récupérer l'ID de la formation liée à cette certification
+          let formationId = certification.formation;
+          
+          // Si l'ID de formation n'est pas directement dans la certification, chercher parmi les formations
+          if (!formationId) {
+            // Chercher dans toutes les formations pour trouver celle qui a cette certification
+            const formationsRef = ref(database, 'formations');
+            const formationsSnapshot = await get(formationsRef);
+            
+            if (formationsSnapshot.exists()) {
+              const formations = formationsSnapshot.val();
+              
+              // Parcourir toutes les formations pour trouver celle qui a cette certification
+              for (const [fId, formation] of Object.entries<{certificationId?: string}>(formations)) {
+                if (formation.certificationId === certificationId) {
+                  formationId = fId;
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (formationId) {
+            // Mettre à jour le certificateUrl dans formationsProgress pour cette formation
+            const updatedFormationsProgress = formationsProgress.map((progress: any) => {
+              if (progress.formationId === formationId) {
+                return {
+                  ...progress,
+                  completed: true,
+                  certificateUrl: `/certification/${certificationId}`,
+                  completedAt: submittedAt
+                };
+              }
+              return progress;
+            });
+            
+            // Sauvegarder les changements
+            await update(userRef, {
+              formationsProgress: updatedFormationsProgress
+            });
+            
+            console.log(`Certification ${certificationId} enregistrée pour l'utilisateur ${userId} et liée à la formation ${formationId}`);
+          } else {
+            console.warn(`Aucune formation trouvée pour la certification ${certificationId}`);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour de formationsProgress:", error);
+        // Ne pas bloquer le processus même si cette partie échoue
+      }
     }
     
     // Retourner le résultat
