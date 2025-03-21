@@ -14,9 +14,7 @@ import { getAllCertifications } from '../../firebase/certifications';
 import { Plus, Edit, Trash, Save, X, Download, UploadCloud, Loader, File, Database } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Constantes pour GitHub
-const GITHUB_REPO = 'bug-free-umbrella';
-const GITHUB_OWNER = 'toomanylog'; // À remplacer par votre organisation/username
+// Constante pour GitHub
 const GITHUB_PATH = 'public/tools';
 
 // Types pour le formulaire
@@ -85,9 +83,6 @@ const ToolManager: React.FC = () => {
     conditions: []
   });
 
-  // État pour la soumission du formulaire
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   // État pour la modal de sélection de médias
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [mediaType, setMediaType] = useState<'image' | 'file'>('image');
@@ -115,13 +110,12 @@ const ToolManager: React.FC = () => {
       setUploadProgress(10);
       
       // 1. Convertir le fichier en base64
-      const base64Content = await fileToBase64(file);
+      await fileToBase64(file);
       setUploadProgress(30);
       
       // 2. Générer un nom de fichier unique
       const timestamp = new Date().getTime();
       const fileName = `${timestamp}-${file.name.replace(/\s+/g, '-')}`;
-      const filePath = `${GITHUB_PATH}/${fileName}`;
       setUploadProgress(50);
       
       // 3. Simuler une requête API (remplacer par une vraie implémentation)
@@ -412,7 +406,7 @@ const ToolManager: React.FC = () => {
     });
   };
 
-  // Rendu d'un objet Status pour l'affichage
+  // Rendu du statut d'un outil
   const renderStatus = (status: ToolStatus) => {
     switch (status) {
       case ToolStatus.ACTIVE:
@@ -428,168 +422,17 @@ const ToolManager: React.FC = () => {
     }
   };
 
-  // Rendu du formulaire d'édition/création
-  const renderToolForm = () => {
-    return (
-      <div className="bg-gray-800 p-6 rounded-lg">
-        <h3 className="text-xl font-bold mb-4">
-          {editingTool ? 'Modifier l\'outil' : 'Ajouter un outil'}
-        </h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Nom */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Nom de l'outil</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
-              required
-            />
-          </div>
-          
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md h-24"
-              required
-            />
-          </div>
-          
-          {/* URL de l'image */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Image de l'outil</label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
-                placeholder="URL de l'image ou chemin relatif"
-              />
-              <button
-                type="button"
-                onClick={() => openMediaSelector('image')}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center"
-              >
-                <UploadCloud size={16} className="mr-1" />
-                Choisir
-              </button>
-            </div>
-            {formData.imageUrl && (
-              <div className="mt-2 p-2 bg-gray-700 rounded-md flex items-center justify-center h-32">
-                <img 
-                  src={formData.imageUrl} 
-                  alt="Aperçu de l'image" 
-                  className="max-h-full max-w-full object-contain" 
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/150?text=Image+invalide';
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          
-          {/* Lien de téléchargement */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Lien de téléchargement</label>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                name="downloadLink"
-                value={formData.downloadLink}
-                onChange={(e) => setFormData({ ...formData, downloadLink: e.target.value })}
-                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
-                placeholder="Lien direct de téléchargement ou page web"
-              />
-              <button
-                type="button"
-                onClick={() => openMediaSelector('file')}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center"
-              >
-                <UploadCloud size={16} className="mr-1" />
-                Choisir
-              </button>
-            </div>
-          </div>
-          
-          {/* Catégorie */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Catégorie</label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
-              required
-            >
-              <option value="">Sélectionner une catégorie</option>
-              <option value="diagnostic">Diagnostic</option>
-              <option value="performance">Performance</option>
-              <option value="securite">Sécurité</option>
-              <option value="utilitaire">Utilitaire</option>
-              <option value="autre">Autre</option>
-            </select>
-          </div>
-          
-          {/* Statut */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Statut</label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as ToolStatus })}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
-            >
-              <option value={ToolStatus.ACTIVE}>Actif</option>
-              <option value={ToolStatus.INACTIVE}>Inactif</option>
-              <option value={ToolStatus.SOON}>Bientôt disponible</option>
-              <option value={ToolStatus.UPDATING}>En mise à jour</option>
-            </select>
-          </div>
-          
-          {/* ... existing code ... */}
-          
-          {/* Buttons */}
-          <div className="flex items-center space-x-4 pt-4">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? <Loader size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
-              {editingTool ? 'Mettre à jour' : 'Ajouter'}
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md"
-            >
-              Annuler
-            </button>
-          </div>
-        </form>
-      </div>
-    );
-  };
-  
   // Modal pour sélectionner un média
   const MediaSelectorModal = () => {
     const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
-    const [mockMedias, setMockMedias] = useState<{name: string, url: string, type: string}[]>([
+    const mockMedias = [
       // Images
       { name: 'tool-placeholder.jpg', url: '/media/images/tool-placeholder.jpg', type: 'image/jpeg' },
       { name: 'diagnostic-tool.png', url: '/media/images/diagnostic-tool.png', type: 'image/png' },
       // Fichiers
       { name: 'linux-scanner.zip', url: '/tools/linux-scanner.zip', type: 'application/zip' },
       { name: 'performance-monitor.exe', url: '/tools/performance-monitor.exe', type: 'application/exe' },
-    ]);
+    ];
     
     // Filtrer les médias par type
     const filteredMedias = mockMedias.filter(media => 
