@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Award, Check, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Award, Check, Clock, AlertTriangle, Download } from 'lucide-react';
 import { 
   getCertification, 
   Certification, 
@@ -247,13 +247,50 @@ const ExamPage: React.FC = () => {
                 </div>
               </div>
               
-              <div className="flex justify-center mt-8">
+              {isPassing && (
+                <div className="mt-12 border border-gray-700 rounded-xl overflow-hidden">
+                  <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 p-8">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="text-center mb-6">
+                        <h2 className="text-3xl font-bold mb-2">Certificat de Réussite</h2>
+                        <div className="h-1 w-48 mx-auto bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                      </div>
+                      
+                      <div className="text-center mb-8">
+                        <p className="text-lg text-gray-300 mb-1">Ce certificat est décerné à</p>
+                        <h3 className="text-2xl font-bold">{currentUser?.displayName || 'Apprenant'}</h3>
+                        <p className="text-gray-400 mt-6 mb-2">pour avoir réussi avec succès</p>
+                        <h4 className="text-xl font-bold text-blue-400">{certification.title}</h4>
+                        <p className="text-sm text-gray-400 mt-6">
+                          Date d'obtention: {new Date().toLocaleDateString('fr-FR')}
+                        </p>
+                      </div>
+                      
+                      <div className="mt-4 w-full flex justify-center">
+                        <Award className="text-yellow-400" size={60} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-center mt-8 space-x-4">
                 <Link 
                   to={`/certification/${certificationId}`}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
                 >
-                  {isPassing ? 'Voir ma certification' : 'Retourner à la certification'}
+                  {isPassing ? 'Retour à la certification' : 'Retourner à la certification'}
                 </Link>
+                
+                {isPassing && (
+                  <button 
+                    onClick={() => window.print()}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
+                  >
+                    <Download size={18} className="mr-2" />
+                    Télécharger mon certificat
+                  </button>
+                )}
               </div>
             </div>
           </div>
