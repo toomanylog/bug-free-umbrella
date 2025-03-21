@@ -46,7 +46,9 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const handleResize = () => {
       const isMobile = window.innerWidth < 768;
-      setSidebarCollapsed(isMobile && !mobileMenuOpen);
+      if (isMobile) {
+        setSidebarCollapsed(!mobileMenuOpen);
+      }
     };
     
     window.addEventListener('resize', handleResize);
@@ -109,8 +111,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-    setMobileMenuOpen(!sidebarCollapsed);
+    setMobileMenuOpen(!mobileMenuOpen);
+    setSidebarCollapsed(!mobileMenuOpen);
   };
 
   return (
@@ -128,7 +130,7 @@ const AdminDashboard: React.FC = () => {
       
       {/* Sidebar */}
       <div 
-        className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-gray-800 border-r border-gray-700 p-4 transition-all duration-300 fixed md:static left-0 top-0 h-full z-30 ${
+        className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-gray-800 border-r border-gray-700 p-4 transition-all duration-300 fixed md:relative left-0 top-0 bottom-0 h-screen overflow-y-auto z-30 ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
@@ -206,13 +208,7 @@ const AdminDashboard: React.FC = () => {
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           
-          {/* Bouton pour plier/déplier la sidebar sur desktop */}
-          <button 
-            className="hidden md:block mr-4 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          >
-            {sidebarCollapsed ? <Menu size={20} /> : <X size={20} />}
-          </button>
+          {/* Suppression du bouton pour plier/déplier la sidebar sur desktop */}
           
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
