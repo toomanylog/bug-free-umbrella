@@ -55,9 +55,6 @@ const CertificationDetail: React.FC = () => {
   };
 
   const handleStartCertification = () => {
-    if (!certificationId || !currentUser) return;
-    
-    // Rediriger vers la page d'examen avec l'ID de la certification
     navigate(`/exam/${certificationId}`);
   };
 
@@ -136,7 +133,7 @@ const CertificationDetail: React.FC = () => {
             <div className="mb-8">
               <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Prérequis</h2>
               
-              {certification.requirements.length > 0 ? (
+              {certification.requirements && certification.requirements.length > 0 ? (
                 <ul className="space-y-4">
                   {certification.requirements.map((requirement, index) => (
                     <li key={index} className="bg-gray-700/60 backdrop-blur-sm border border-gray-600 rounded-lg p-4">

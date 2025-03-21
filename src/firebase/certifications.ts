@@ -1,17 +1,30 @@
 import { ref, set, get, push, remove, update } from 'firebase/database';
 import { database } from './config';
+import { 
+  collection, 
+  addDoc, 
+  doc, 
+  updateDoc, 
+  arrayUnion, 
+  Timestamp,
+  serverTimestamp,
+  getDoc
+} from 'firebase/firestore';
+import { db } from './config';
 
 // Types
 export interface Certification {
   id: string;
   title: string;
   description: string;
-  createdAt: string;
-  updatedAt?: string;
-  requirements: CertificationRequirement[];
-  examQuestions?: ExamQuestion[];
+  formation?: string; // ID de la formation associée
   imageUrl?: string;
-  published: boolean;
+  createdAt: Timestamp | string;
+  updatedAt: Timestamp | string;
+  examQuestions?: ExamQuestion[];
+  passingScore?: number; // Score minimum pour réussir (en pourcentage, par défaut 70%)
+  requirements: CertificationRequirement[]; // Change from optional to required with default empty array
+  published?: boolean; // Added to fix errors in CertificationManager
 }
 
 export interface CertificationRequirement {
@@ -33,14 +46,15 @@ export interface ExamQuestion {
   question: string;
   type: QuestionType;
   options?: string[];
-  correctAnswer: string | string[]; // Réponse unique ou multiple selon le type
+  correctAnswer: string | string[];
+  explanation?: string;
 }
 
 export enum QuestionType {
   MULTIPLE_CHOICE = 'multiple_choice',
   MULTIPLE_ANSWER = 'multiple_answer',
   TRUE_FALSE = 'true_false',
-  SHORT_ANSWER = 'short_answer',
+  SHORT_ANSWER = 'short_answer'
 }
 
 export interface UserCertification {
@@ -153,7 +167,8 @@ export const checkCertificationEligibility = async (userId: string, certificatio
     
     const certification = {
       id: certificationId,
-      ...certificationSnapshot.val()
+      ...certificationSnapshot.val(),
+      requirements: certificationSnapshot.val().requirements || [] // Ensure requirements is always an array
     } as Certification;
     
     // Récupérer les données utilisateur
@@ -180,7 +195,7 @@ export const checkCertificationEligibility = async (userId: string, certificatio
               .map((progress: any) => progress.formationId);
             
             const missingFormations = requirement.formationIds
-              .filter(id => !completedFormations.includes(id));
+              .filter((id: string) => !completedFormations.includes(id));
             
             if (missingFormations.length > 0) {
               allRequirementsMet = false;
@@ -259,116 +274,115 @@ export const awardCertification = async (userId: string, certificationId: string
   }
 };
 
-// Fonction pour soumettre un examen
+/**
+ * Soumet un examen de certification
+ * @param userId ID de l'utilisateur
+ * @param certificationId ID de la certification
+ * @param userAnswers Réponses de l'utilisateur
+ * @returns Résultat de l'examen
+ */
 export const submitExam = async (
-  userId: string, 
-  certificationId: string, 
-  answers: {questionId: string, answer: string | string[]}[]
-): Promise<ExamResult> => {
+  userId: string,
+  certificationId: string,
+  userAnswers: { questionId: string; answer: string | string[] }[]
+) => {
   try {
-    // Récupérer la certification pour obtenir les questions d'examen
-    const certificationRef = ref(database, `certifications/${certificationId}`);
-    const certificationSnapshot = await get(certificationRef);
-    
-    if (!certificationSnapshot.exists()) {
-      throw new Error(`La certification ${certificationId} n'existe pas`);
-    }
-    
-    const certification = {
-      id: certificationId,
-      ...certificationSnapshot.val()
-    } as Certification;
+    // Récupérer la certification
+    const certification = await getCertification(certificationId);
     
     if (!certification.examQuestions || certification.examQuestions.length === 0) {
-      throw new Error(`Cette certification n'a pas d'examen configuré`);
+      throw new Error("Cette certification ne contient pas de questions d'examen");
     }
     
-    // Évaluer les réponses
+    // Vérifier les réponses
     let correctAnswers = 0;
-    const questionMap = new Map(certification.examQuestions.map(q => [q.id, q]));
-    const evaluatedAnswers = answers.map(answer => {
-      const question = questionMap.get(answer.questionId);
+    const totalQuestions = certification.examQuestions.length;
+    
+    userAnswers.forEach(userAnswer => {
+      const question = certification.examQuestions!.find(q => q.id === userAnswer.questionId);
+      
+      if (!question) return;
+      
       let isCorrect = false;
       
-      if (question) {
-        // Gestion différente selon le type de question
-        if (question.type === QuestionType.MULTIPLE_ANSWER) {
-          // Pour les questions à choix multiples
-          if (Array.isArray(question.correctAnswer) && Array.isArray(answer.answer)) {
-            // Vérifier que toutes les bonnes réponses sont sélectionnées et qu'il n'y a pas de réponses en trop
-            isCorrect = question.correctAnswer.length === answer.answer.length && 
-                       question.correctAnswer.every(a => answer.answer.includes(a));
-          }
-        } else if (question.type === QuestionType.MULTIPLE_CHOICE || question.type === QuestionType.TRUE_FALSE) {
-          // Pour les questions à choix unique ou vrai/faux
-          isCorrect = question.correctAnswer === answer.answer;
-        } else if (question.type === QuestionType.SHORT_ANSWER) {
-          // Pour les questions à réponse courte, normaliser pour la comparaison
-          const normalizedCorrect = Array.isArray(question.correctAnswer) 
-            ? question.correctAnswer[0].toLowerCase().trim() 
-            : question.correctAnswer.toLowerCase().trim();
-          const normalizedAnswer = Array.isArray(answer.answer) 
-            ? answer.answer[0].toLowerCase().trim() 
-            : answer.answer.toLowerCase().trim();
-          isCorrect = normalizedCorrect === normalizedAnswer;
-        }
+      // Vérifier si la réponse est correcte selon le type de question
+      if (question.type === QuestionType.MULTIPLE_CHOICE || question.type === QuestionType.TRUE_FALSE) {
+        isCorrect = userAnswer.answer === question.correctAnswer;
+      } 
+      else if (question.type === QuestionType.MULTIPLE_ANSWER) {
+        // Pour les questions à choix multiples, vérifier que toutes les bonnes réponses sont sélectionnées
+        // et qu'aucune mauvaise réponse n'est sélectionnée
+        const userAnswerArray = userAnswer.answer as string[];
+        const correctAnswerArray = question.correctAnswer as string[];
         
-        if (isCorrect) {
-          correctAnswers++;
-        }
+        // Toutes les bonnes réponses doivent être sélectionnées
+        const allCorrectSelected = correctAnswerArray.every(answer => 
+          userAnswerArray.includes(answer)
+        );
+        
+        // Aucune mauvaise réponse ne doit être sélectionnée
+        const noIncorrectSelected = userAnswerArray.every(answer => 
+          correctAnswerArray.includes(answer)
+        );
+        
+        isCorrect = allCorrectSelected && noIncorrectSelected;
+      }
+      else if (question.type === QuestionType.SHORT_ANSWER) {
+        // Pour les réponses courtes, on peut implémenter une logique plus flexible
+        // comme vérifier si la réponse contient certains mots-clés
+        const userAnswerText = (userAnswer.answer as string).toLowerCase().trim();
+        const correctAnswerText = (question.correctAnswer as string).toLowerCase().trim();
+        
+        // Vérification simple d'égalité
+        isCorrect = userAnswerText === correctAnswerText;
+        
+        // Option: implémenter une vérification plus flexible basée sur des mots-clés
+        // const keywords = correctAnswerText.split(',').map(k => k.trim());
+        // isCorrect = keywords.some(keyword => userAnswerText.includes(keyword));
       }
       
-      return {
-        questionId: answer.questionId,
-        userAnswer: answer.answer,
-        isCorrect
-      };
+      if (isCorrect) {
+        correctAnswers++;
+      }
     });
     
     // Calculer le score
-    const totalQuestions = certification.examQuestions.length;
-    const score = Math.round((correctAnswers / totalQuestions) * 100);
+    const score = (correctAnswers / totalQuestions) * 100;
+    const passingScore = certification.passingScore || 70; // Par défaut 70%
+    const passed = score >= passingScore;
     
-    // Déterminer le statut
-    const result: ExamResult = {
+    // Enregistrer le résultat dans Firestore
+    const resultRef = collection(db, 'certificationResults');
+    await addDoc(resultRef, {
+      userId,
+      certificationId,
       score,
-      totalQuestions,
       correctAnswers,
-      submittedAt: new Date().toISOString(),
-      answers: evaluatedAnswers
-    };
-    
-    // Mettre à jour la certification de l'utilisateur avec le résultat de l'examen
-    const userCertificationRef = ref(database, `userCertifications/${userId}/${certificationId}`);
-    
-    // Déterminer le statut en fonction du score et des exigences
-    let status = CertificationStatus.FAILED;
-    
-    // Trouver l'exigence d'examen s'il y en a une
-    const examRequirement = certification.requirements.find(r => r.type === RequirementType.PASS_EXAM);
-    const minScore = examRequirement?.minScore || 70; // Score par défaut de 70%
-    
-    if (score >= minScore) {
-      // Vérifier les autres conditions
-      const { eligible } = await checkCertificationEligibility(userId, certificationId);
-      status = eligible ? CertificationStatus.COMPLETED : CertificationStatus.IN_PROGRESS;
-      
-      // Si éligible, définir les dates d'obtention et d'expiration
-      if (eligible) {
-        await awardCertification(userId, certificationId);
-        return result;
-      }
-    }
-    
-    // Mettre à jour uniquement le résultat de l'examen et le statut
-    await update(userCertificationRef, {
-      status,
-      examResults: result
+      totalQuestions,
+      passed,
+      submittedAt: serverTimestamp(),
+      answers: userAnswers
     });
     
-    return result;
+    // Si l'utilisateur a réussi, attribuer la certification
+    if (passed) {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        certifications: arrayUnion(certificationId),
+        updatedAt: serverTimestamp()
+      });
+    }
+    
+    // Retourner le résultat
+    return {
+      passed,
+      score,
+      correctAnswers,
+      totalQuestions,
+      passingScore
+    };
   } catch (error) {
-    console.error(`Erreur lors de la soumission de l'examen pour la certification ${certificationId}:`, error);
+    console.error('Erreur lors de la soumission de l\'examen:', error);
     throw error;
   }
 };
@@ -469,18 +483,17 @@ export const getCertification = async (certificationId: string): Promise<Certifi
     const snapshot = await get(certificationRef);
     
     if (!snapshot.exists()) {
-      throw new Error(`Certification with ID ${certificationId} not found`);
+      throw new Error(`La certification avec l'ID ${certificationId} n'existe pas.`);
     }
     
     const certificationData = snapshot.val();
     return {
       id: certificationId,
       ...certificationData,
-      requirements: certificationData.requirements || [],
-      examQuestions: certificationData.examQuestions || []
+      requirements: certificationData.requirements || []
     };
   } catch (error) {
-    console.error("Error getting certification:", error);
+    console.error(`Erreur lors de la récupération de la certification ${certificationId}:`, error);
     throw error;
   }
 }; 
