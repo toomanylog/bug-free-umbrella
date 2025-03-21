@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
 import { Link } from 'react-router-dom';
+import { getAllTools, checkToolAccess, ToolStatus } from '../firebase/tools';
 
 interface DashboardProps {
   onClose: () => void;
@@ -45,6 +46,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   });
   const [formations, setFormations] = useState<any[]>([]);
   const [allFormations, setAllFormations] = useState<any[]>([]);
+  const [tools, setTools] = useState<any[]>([]);
+  const [toolsAccess, setToolsAccess] = useState<{[key: string]: {hasAccess: boolean, missingConditions: string[]}}>({});
 
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
@@ -195,6 +198,32 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     loadUserCertifications();
   }, [activeSection, currentUser]);
 
+  // Charger les outils dynamiquement
+  useEffect(() => {
+    const loadTools = async () => {
+      if (activeSection === 'tools' && currentUser) {
+        try {
+          const toolsData = await getAllTools();
+          setTools(toolsData);
+          
+          // Vérifier les accès pour chaque outil
+          const accessChecks: {[key: string]: {hasAccess: boolean, missingConditions: string[]}} = {};
+          
+          for (const tool of toolsData) {
+            const access = await checkToolAccess(currentUser.uid, tool.id);
+            accessChecks[tool.id] = access;
+          }
+          
+          setToolsAccess(accessChecks);
+        } catch (error) {
+          console.error("Erreur lors du chargement des outils:", error);
+        }
+      }
+    };
+    
+    loadTools();
+  }, [activeSection, currentUser]);
+
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -340,40 +369,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     { id: 3, message: 'Mise à jour des outils "Vérificateur de Leads" disponible', date: '19/03/2025', isRead: true }
   ];
 
-  // Outils disponibles
-  const tools = [
-    {
-      id: 1,
-      name: "Vérificateur de Leads",
-      description: "Analysez vos listes d'emails et de numéros pour déterminer le taux de bounce, les leads détectés comme leaks, spam traps ou à risque.",
-      icon: <Wrench className="text-blue-400" size={24} />,
-      status: "active",
-      features: ["Détection de bounce", "Identification de spam traps", "Analyse de risques", "Statistiques détaillées", "Export de rapports"]
-    },
-    {
-      id: 2,
-      name: "Email Sender Pro",
-      description: "Système d'envoi d'emails rotatif avancé avec rotation de sujets, noms d'expéditeur, adresses, templates HTML et variables personnalisées.",
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>,
-      status: "active",
-      features: ["Rotation de SMTP", "Templates HTML dynamiques", "Variables personnalisables", "Gestion de bouncing", "Limitation de débit"]
-    },
-    {
-      id: 3,
-      name: "Credential Cracker",
-      description: "Détectez les identifiants de connexion exposés dans des listes d'IP ou de domaines pour identifier les SMTP vulnérables et les clés API.",
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-              <rect x="8" y="16" width="8" height="6" rx="1"></rect>
-            </svg>,
-      status: "soon",
-      features: ["Scan d'IP et domaines", "Détection de SMTP", "Recherche de clés API", "Analyse de vulnérabilités", "Export de résultats"]
+  // Fonction pour rendre l'icône d'un outil
+  const renderToolIcon = (tool: any) => {
+    if (tool.iconType === 'lucide') {
+      // Utiliser une icône Lucide si disponible
+      switch (tool.icon) {
+        case 'Wrench':
+          return <Wrench className="text-blue-400" size={24} />;
+        // Ajoutez d'autres cas pour d'autres icônes
+        default:
+          return <Wrench className="text-blue-400" size={24} />;
+      }
+    } else {
+      // Rendre un SVG personnalisé
+      return (
+        <div dangerouslySetInnerHTML={{ __html: tool.icon }} />
+      );
     }
-  ];
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
@@ -524,39 +537,93 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               <h1 className="text-3xl font-bold">Outils spécialisés</h1>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tools.map(tool => (
-                  <div key={tool.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="p-3 bg-blue-900/20 rounded-lg">
-                        {tool.icon}
+                {tools.map(tool => {
+                  const access = toolsAccess[tool.id] || { hasAccess: false, missingConditions: ['Chargement en cours...'] };
+                  
+                  return (
+                    <div key={tool.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg hover:shadow-blue-900/10 transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-blue-900/20 rounded-lg">
+                          {renderToolIcon(tool)}
+                        </div>
+                        {tool.status === ToolStatus.ACTIVE ? (
+                          <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
+                        ) : tool.status === ToolStatus.SOON ? (
+                          <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
+                        ) : tool.status === ToolStatus.UPDATING ? (
+                          <span className="px-2 py-1 bg-blue-900/30 text-blue-400 text-xs rounded-full">Mise à jour</span>
+                        ) : (
+                          <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs rounded-full">Inactif</span>
+                        )}
                       </div>
-                      {tool.status === "active" ? (
-                        <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
+                      <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
+                      <p className="text-gray-400 mb-4">{tool.description}</p>
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-300 mb-2">Fonctionnalités:</p>
+                        <ul className="text-sm text-gray-400 list-disc pl-5 space-y-1">
+                          {tool.features.map((feature: string, index: number) => (
+                            <li key={index}>{feature}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {tool.status === ToolStatus.ACTIVE ? (
+                        access.hasAccess ? (
+                          <a 
+                            href={tool.downloadLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center"
+                          >
+                            <Download size={18} className="mr-2" />
+                            Télécharger
+                          </a>
+                        ) : (
+                          <div>
+                            <button 
+                              disabled 
+                              className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70 mb-3"
+                            >
+                              Accès verrouillé
+                            </button>
+                            <div className="text-sm text-yellow-400 bg-yellow-900/20 border border-yellow-800/30 rounded-lg p-3">
+                              <p className="font-medium mb-1">Conditions requises:</p>
+                              <ul className="list-disc pl-5 space-y-1 text-xs">
+                                {access.missingConditions.map((condition, index) => (
+                                  <li key={index}>{condition}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )
+                      ) : tool.status === ToolStatus.SOON ? (
+                        <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
+                          Disponible prochainement
+                        </button>
+                      ) : tool.status === ToolStatus.UPDATING ? (
+                        <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
+                          En cours de mise à jour
+                        </button>
                       ) : (
-                        <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
+                        <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
+                          Non disponible
+                        </button>
                       )}
                     </div>
-                    <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
-                    <p className="text-gray-400 mb-4">{tool.description}</p>
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-300 mb-2">Fonctionnalités:</p>
-                      <ul className="text-sm text-gray-400 list-disc pl-5 space-y-1">
-                        {tool.features.map((feature, index) => (
-                          <li key={index}>{feature}</li>
-                        ))}
-                      </ul>
+                  );
+                })}
+                
+                {tools.length === 0 && (
+                  <div className="col-span-3 bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-10 text-center">
+                    <div className="flex flex-col items-center">
+                      <Wrench className="h-16 w-16 text-blue-500 mb-4" />
+                      <h2 className="text-xl font-bold mb-2">Aucun outil disponible</h2>
+                      <p className="text-gray-400 max-w-lg mx-auto">
+                        Les outils seront disponibles prochainement. Revenez plus tard pour découvrir nos solutions spécialisées.
+                      </p>
                     </div>
-                    {tool.status === "active" ? (
-                      <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30">
-                        Télécharger
-                      </button>
-                    ) : (
-                      <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
-                        Disponible prochainement
-                      </button>
-                    )}
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}
@@ -876,65 +943,67 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                             : 0;
                           
                           return (
-                            <div key={formation.id} className="bg-gray-800 rounded-lg p-4 shadow-md">
-                              <div className="flex flex-col md:flex-row gap-4">
-                                {formation.imageUrl && (
-                                  <div className="w-full md:w-48 h-32 rounded-lg overflow-hidden">
-                                    <img 
-                                      src={formation.imageUrl} 
-                                      alt={formation.title} 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                )}
+                            <div key={formation.id} className="group bg-gray-800/60 hover:bg-gray-800/80 rounded-xl overflow-hidden shadow-lg hover:shadow-blue-600/10 border border-gray-700 hover:border-blue-500/30 transition-all duration-300">
+                              {formation.imageUrl ? (
+                                <div className="h-40 w-full overflow-hidden">
+                                  <img 
+                                    src={formation.imageUrl} 
+                                    alt={formation.title} 
+                                    className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-40 w-full bg-gradient-to-br from-blue-900/30 to-indigo-900/50 flex items-center justify-center">
+                                  <BookOpen className="h-16 w-16 text-blue-400 opacity-60" />
+                                </div>
+                              )}
+                              
+                              <div className="p-5">
+                                <h3 className="text-xl font-bold mb-2 text-white group-hover:text-blue-400 transition-colors">{formation.title}</h3>
+                                <p className="text-gray-400 text-sm mb-4 line-clamp-2">{formation.description}</p>
                                 
-                                <div className="flex-1">
-                                  <h3 className="text-xl font-semibold mb-1">{formation.title}</h3>
-                                  <p className="text-gray-400 text-sm mb-2">{formation.description.substring(0, 150)}...</p>
-                                  
-                                  <div className="mb-2">
-                                    <div className="flex justify-between text-sm mb-1">
-                                      <span>Progression: {progress}%</span>
-                                      <span>{completedModules.length}/{modulesLength} modules</span>
-                                    </div>
-                                    <div className="w-full bg-gray-700 rounded-full h-2">
-                                      <div 
-                                        className="bg-blue-600 h-2 rounded-full" 
-                                        style={{ width: `${progress}%` }}
-                                      ></div>
-                                    </div>
+                                <div className="mb-4">
+                                  <div className="flex justify-between text-sm mb-1">
+                                    <span className="font-medium text-blue-400">{progress}% complété</span>
+                                    <span className="text-gray-400">{completedModules.length}/{modulesLength} modules</span>
                                   </div>
-                                  
-                                  <div className="flex flex-wrap gap-2">
-                                    <Link 
-                                      to={`/formation/${formation.id}`} 
-                                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                        isCompleted 
-                                          ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                          : progress > 0 
-                                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                                            : 'bg-blue-600 hover:bg-blue-700 text-white'
-                                      }`}
-                                    >
-                                      {isCompleted 
-                                        ? 'Revoir la formation' 
+                                  <div className="w-full bg-gray-700/50 rounded-full h-2.5">
+                                    <div 
+                                      className="bg-gradient-to-r from-blue-600 to-indigo-700 h-2.5 rounded-full" 
+                                      style={{ width: `${progress}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex flex-wrap gap-2 mt-auto">
+                                  <Link 
+                                    to={`/formation/${formation.id}`} 
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                      isCompleted 
+                                        ? 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-green-600/30' 
                                         : progress > 0 
-                                          ? "Continuer l'apprentissage" 
-                                          : 'Commencer la formation'
-                                      }
+                                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-blue-600/30' 
+                                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-blue-600/30'
+                                    }`}
+                                  >
+                                    {isCompleted 
+                                      ? 'Revoir la formation' 
+                                      : progress > 0 
+                                        ? "Continuer" 
+                                        : 'Commencer'
+                                    }
+                                  </Link>
+                                  
+                                  {/* Bouton pour passer la certification */}
+                                  {isCompleted && formation.certificationId && !formation.userHasCertification && (
+                                    <Link 
+                                      to={`/certification/${formation.certificationId}`} 
+                                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center shadow-md hover:shadow-purple-600/30 transition-all"
+                                    >
+                                      <Award size={16} className="mr-1" />
+                                      Certification
                                     </Link>
-                                    
-                                    {/* Bouton pour passer la certification */}
-                                    {isCompleted && formation.certificationId && !formation.userHasCertification && (
-                                      <Link 
-                                        to={`/certification/${formation.certificationId}`} 
-                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center"
-                                      >
-                                        <Award size={16} className="mr-1" />
-                                        Passer la certification
-                                      </Link>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
                               </div>
                             </div>

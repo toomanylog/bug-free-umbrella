@@ -4,10 +4,12 @@ import { UserRole } from '../../firebase/auth';
 import FormationManager from './FormationManager';
 import UserManager from './UserManager';
 import CertificationManager from './CertificationManager';
-import { Users, BookOpen, Home, Settings, ArrowLeft, Award } from 'lucide-react';
+import ToolManager from './ToolManager';
+import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
 import { getAllCertifications } from '../../firebase/certifications';
+import { getAllTools } from '../../firebase/tools';
 
 // Sidebar Item Component
 const SidebarItem: React.FC<{
@@ -33,7 +35,8 @@ const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
     formations: 0,
     users: 0,
-    certifications: 0
+    certifications: 0,
+    tools: 0
   });
   
   // Charger les statistiques
@@ -49,10 +52,14 @@ const AdminDashboard: React.FC = () => {
         // Charger le nombre de certifications
         const certifications = await getAllCertifications();
         
+        // Charger le nombre d'outils
+        const tools = await getAllTools();
+        
         setStats({
           formations: formations.length,
           users: users.length,
-          certifications: certifications.length
+          certifications: certifications.length,
+          tools: tools.length
         });
       } catch (error) {
         console.error("Erreur lors du chargement des statistiques:", error);
@@ -114,6 +121,12 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveSection('certifications')}
           />
           <SidebarItem 
+            icon={<Wrench size={20} />}
+            label="Outils"
+            active={activeSection === 'tools'}
+            onClick={() => setActiveSection('tools')}
+          />
+          <SidebarItem 
             icon={<Users size={20} />}
             label="Utilisateurs"
             active={activeSection === 'users'}
@@ -146,6 +159,7 @@ const AdminDashboard: React.FC = () => {
             {activeSection === 'dashboard' && 'Tableau de bord'}
             {activeSection === 'formations' && 'Gestion des formations'}
             {activeSection === 'certifications' && 'Gestion des certifications'}
+            {activeSection === 'tools' && 'Gestion des outils'}
             {activeSection === 'users' && 'Gestion des utilisateurs'}
             {activeSection === 'settings' && 'Paramètres'}
           </h1>
@@ -156,7 +170,7 @@ const AdminDashboard: React.FC = () => {
         
         {/* Dynamic Content */}
         {activeSection === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-semibold mb-4">Formations</h2>
               <div className="flex items-center justify-between">
@@ -177,19 +191,15 @@ const AdminDashboard: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">Certifications</h2>
               <div className="flex items-center justify-between">
                 <span className="text-3xl font-bold">{stats.certifications}</span>
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  className="text-yellow-500 w-7 h-7"
-                >
-                  <circle cx="12" cy="8" r="7" />
-                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
-                </svg>
+                <Award size={28} className="text-yellow-500" />
+              </div>
+            </div>
+            
+            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+              <h2 className="text-xl font-semibold mb-4">Outils</h2>
+              <div className="flex items-center justify-between">
+                <span className="text-3xl font-bold">{stats.tools}</span>
+                <Wrench size={28} className="text-purple-500" />
               </div>
             </div>
           </div>
@@ -197,6 +207,7 @@ const AdminDashboard: React.FC = () => {
         
         {activeSection === 'formations' && <FormationManager />}
         {activeSection === 'certifications' && <CertificationManager />}
+        {activeSection === 'tools' && <ToolManager />}
         {activeSection === 'users' && <UserManager />}
         {activeSection === 'settings' && (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
