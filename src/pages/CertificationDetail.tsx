@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Award, ArrowLeft, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getCertification, Certification as CertificationType } from '../firebase/certifications';
+import { getCertification, Certification as CertificationType, RequirementType } from '../firebase/certifications';
 
 const CertificationDetail: React.FC = () => {
   const { certificationId } = useParams<{ certificationId: string }>();
@@ -110,9 +110,9 @@ const CertificationDetail: React.FC = () => {
                   {certification.requirements.map((requirement, index) => (
                     <li key={index} className="bg-gray-700/60 backdrop-blur-sm border border-gray-600 rounded-lg p-4">
                       <h3 className="font-semibold mb-2">
-                        {requirement.type === 'COMPLETE_FORMATIONS' ? 'Formations à compléter' :
-                         requirement.type === 'PASS_EXAM' ? 'Examen à réussir' :
-                         requirement.type === 'ADMIN_APPROVAL' ? 'Approbation administrative' : 
+                        {requirement.type === RequirementType.COMPLETE_FORMATIONS ? 'Formations à compléter' :
+                         requirement.type === RequirementType.PASS_EXAM ? 'Examen à réussir' :
+                         requirement.type === RequirementType.ADMIN_APPROVAL ? 'Approbation administrative' : 
                          'Autre prérequis'}
                       </h3>
                       <p className="text-gray-300">{requirement.description}</p>
