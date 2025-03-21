@@ -1,0 +1,39 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    },
+    
+    "wallets": {
+      "$uid": {
+        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".write": "($uid === auth.uid && newData.child('userId').val() === auth.uid) || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    },
+    
+    "transactions": {
+      ".indexOn": ["userId", "status", "createdAt", "type"],
+      
+      "$transactionId": {
+        ".read": "data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    },
+    
+    "formations": {
+      ".read": "auth !== null",
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    
+    "tools": {
+      ".read": "auth !== null",
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    }
+  }
+} 

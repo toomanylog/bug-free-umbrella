@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Par défaut, refuser tous les accès
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Règles pour les utilisateurs
+    match /users/{userId} {
+      // Un utilisateur peut lire et modifier son propre document
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Les admins peuvent lire et modifier tous les documents utilisateur
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Règles pour les wallets
+    match /wallets/{userId} {
+      // Un utilisateur peut lire son propre portefeuille
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Un utilisateur peut recharger son portefeuille (via la fonction Cloud)
+      allow create, update: if request.auth != null && request.auth.uid == userId 
+                             && request.resource.data.userId == userId;
+      // Les admins peuvent lire et modifier tous les portefeuilles
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Règles pour les transactions
+    match /transactions/{transactionId} {
+      // Un utilisateur peut lire ses propres transactions
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Seuls les admins ou un Cloud Function peuvent créer/modifier des transactions
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Règles pour les formations
+    match /formations/{formationId} {
+      // Tout utilisateur authentifié peut lire
+      allow read: if request.auth != null;
+      // Seuls les admins peuvent créer/modifier des formations
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Règles pour les outils
+    match /tools/{toolId} {
+      // Tout utilisateur authentifié peut lire
+      allow read: if request.auth != null;
+      // Seuls les admins peuvent créer/modifier des outils
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+} 

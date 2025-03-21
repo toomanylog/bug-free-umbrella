@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { getUserData, UserData, UserRole } from '../firebase/auth';
 import { ref, onValue } from 'firebase/database';
@@ -11,6 +11,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   refreshUserData: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,7 +19,8 @@ const AuthContext = createContext<AuthContextType>({
   userData: null,
   isAdmin: false,
   isLoading: true,
-  refreshUserData: async () => {}
+  refreshUserData: async () => {},
+  logout: async () => {}
 });
 
 export const useAuth = () => {
@@ -81,12 +83,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return unsubscribe;
   }, [handleAuthChange]);
 
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      throw error;
+    }
+  };
+
   const value = {
     currentUser,
     userData,
     isAdmin,
     isLoading,
-    refreshUserData
+    refreshUserData,
+    logout
   };
 
   return (

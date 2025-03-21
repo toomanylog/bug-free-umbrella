@@ -1,35 +1,77 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { logoutUser, updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress } from '../firebase/auth';
+import { updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress, logoutUser } from '../firebase/auth';
 import { Link } from 'react-router-dom';
 import { getAllTools, checkToolAccess, ToolStatus } from '../firebase/tools';
+import WalletComponent from './WalletComponent';
+import { 
+  createFormationPurchase, 
+  createToolPurchase, 
+  getUserWallet, 
+  Transaction,
+  TransactionStatus,
+  TransactionType 
+} from '../firebase/services/nowpayments';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 interface DashboardProps {
   onClose: () => void;
 }
 
+interface UserProfileType {
+  displayName: string;
+  email: string;
+  photoURL: string;
+  bio: string;
+  phone: string;
+  newPassword: string;
+  confirmPassword: string;
+  currentPassword: string;
+  telegram: string;
+}
+
+interface UserStatsType {
+  formationsCompleted: number;
+  certificationsObtained: number;
+  formationsInProgress: number;
+  formationsTotal: number;
+  totalFormations: number;
+  lastLogin: string;
+}
+
+interface ButtonPosition {
+  top: number;
+  right: number;
+}
+
+interface ToolAccess {
+  hasAccess: boolean;
+  missingConditions: string[];
+}
+
+interface PasswordState {
+  current: string;
+  new: string;
+  confirm: string;
+}
+
+interface DashboardState {
+  activeSection: string;
+  transactions: Transaction[];
+}
+
 const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
-  const { currentUser, userData } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { currentUser, userData, isAdmin, logout } = useAuth();
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [userProfile, setUserProfile] = useState({
-    displayName: currentUser?.displayName || '',
-    telegram: ''
-  });
-  const [password, setPassword] = useState({
-    current: '',
-    new: '',
-    confirm: ''
-  });
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [buttonPosition, setButtonPosition] = useState({ top: 0, right: 0 });
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isEditingSettings, setIsEditingSettings] = useState(false);
+  const [isViewingInvoices, setIsViewingInvoices] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
@@ -38,29 +80,69 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
-  const [userStats, setUserStats] = useState({
-    totalFormations: 0,
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [buttonPosition, setButtonPosition] = useState<ButtonPosition>({ top: 0, right: 0 });
+  const [toolsAccess, setToolsAccess] = useState<{[key: string]: ToolAccess}>({});
+  const [password, setPassword] = useState<PasswordState>({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [userProfile, setUserProfile] = useState<UserProfileType>({
+    displayName: '',
+    email: '',
+    photoURL: '',
+    bio: '',
+    phone: '',
+    newPassword: '',
+    confirmPassword: '',
+    currentPassword: '',
+    telegram: ''
+  });
+  const [userStats, setUserStats] = useState<UserStatsType>({
     formationsCompleted: 0,
     certificationsObtained: 0,
+    formationsInProgress: 0,
+    formationsTotal: 0,
+    totalFormations: 0,
     lastLogin: new Date().toLocaleDateString('fr-FR')
   });
-  const [formations, setFormations] = useState<any[]>([]);
-  const [allFormations, setAllFormations] = useState<any[]>([]);
-  const [tools, setTools] = useState<any[]>([]);
-  const [toolsAccess, setToolsAccess] = useState<{[key: string]: {hasAccess: boolean, missingConditions: string[]}}>({});
+  const [userFormations, setUserFormations] = useState<any[]>([]);
+  const [catalogFormations, setCatalogFormations] = useState<any[]>([]);
+  const [userCertifications, setUserCertifications] = useState<any[]>([]);
+  const [userTools, setUserTools] = useState<any[]>([]);
+  const [activePayment, setActivePayment] = useState(false);
+  const [currentPaymentItem, setCurrentPaymentItem] = useState<{id: string, type: 'formation' | 'tool', name: string, price: number} | null>(null);
+  const [userWallet, setUserWallet] = useState<{balance: number, currency: string} | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  // État pour le paiement
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [paymentError, setPaymentError] = useState('');
+
+  const [userCryptoWallets, setUserCryptoWallets] = useState({
+    btc: '',
+    eth: '',
+    ltc: '',
+    xrp: '',
+    doge: ''
+  });
 
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
     const loadUserData = async () => {
       if (currentUser) {
         try {
-          const userData = await getUserData(currentUser.uid);
-          if (userData) {
-            setUserProfile({
-              displayName: currentUser.displayName || userData.displayName || '',
-              telegram: userData.telegram || ''
-            });
-            setIsAdmin(userData.role === UserRole.ADMIN);
+          const userDataInfo = await getUserData(currentUser.uid);
+          if (userDataInfo) {
+            setUserProfile(prev => ({
+              ...prev,
+              displayName: currentUser.displayName || userDataInfo.displayName || '',
+              telegram: userDataInfo.telegram || ''
+            }));
+            // L'état isAdmin est déjà géré par le contexte d'authentification
           }
         } catch (error) {
           console.error('Erreur lors du chargement des données utilisateur:', error);
@@ -82,7 +164,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               totalFormations: userData.formationsProgress.length,
               formationsCompleted: userData.formationsProgress.filter((f: UserFormationProgress) => f.completed).length,
               certificationsObtained: userData.formationsProgress.filter((f: UserFormationProgress) => f.certificateUrl).length,
-              lastLogin: new Date().toLocaleDateString('fr-FR')
+              lastLogin: new Date().toLocaleDateString('fr-FR'),
+              formationsInProgress: userData.formationsProgress.filter((f: UserFormationProgress) => !f.completed).length,
+              formationsTotal: userData.formationsProgress.length
             };
             setUserStats(stats);
           }
@@ -119,18 +203,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                 .filter((item): item is {formation: any; progress: any} => 
                   item !== null && item.formation !== null
                 );
-              setFormations(validFormations.map(item => item.formation));
+              setUserFormations(validFormations.map(item => item.formation));
             } else {
               console.warn("Les formations récupérées ne sont pas un tableau:", userFormations);
-              setFormations([]);
+              setUserFormations([]);
             }
           } catch (error) {
             console.warn("Erreur lors de la récupération des formations:", error);
-            setFormations([]);
+            setUserFormations([]);
           }
         } catch (error) {
           console.warn("Erreur lors du chargement du module formations:", error);
-          setFormations([]);
+          setUserFormations([]);
         }
       }
     };
@@ -147,12 +231,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           const publishedFormations = await getPublishedFormations();
           
           // Filtrer pour exclure les formations déjà assignées à l'utilisateur
-          const userFormationIds = formations.map(f => f.id);
+          const userFormationIds = userFormations.map(f => f.id);
           const filteredFormations = publishedFormations.filter(
             formation => !userFormationIds.includes(formation.id)
           );
           
-          setAllFormations(filteredFormations);
+          setCatalogFormations(filteredFormations);
         } catch (error) {
           console.error("Erreur lors du chargement du catalogue de formations:", error);
         }
@@ -160,7 +244,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     };
     
     loadCatalogFormations();
-  }, [isCatalogOpen, formations, currentUser]);
+  }, [isCatalogOpen, userFormations, currentUser]);
 
   // Après les useEffects existants, corriger l'useEffect pour charger les certifications
   useEffect(() => {
@@ -204,7 +288,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
       if (activeSection === 'tools' && currentUser) {
         try {
           const toolsData = await getAllTools();
-          setTools(toolsData);
+          setUserTools(toolsData);
           
           // Vérifier les accès pour chaque outil
           const accessChecks: {[key: string]: {hasAccess: boolean, missingConditions: string[]}} = {};
@@ -223,6 +307,56 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     
     loadTools();
   }, [activeSection, currentUser]);
+
+  // Charger le portefeuille de l'utilisateur
+  useEffect(() => {
+    const loadWallet = async () => {
+      if (currentUser) {
+        try {
+          const wallet = await getUserWallet(currentUser.uid);
+          if (wallet) {
+            setUserWallet({
+              balance: wallet.balance,
+              currency: wallet.currency
+            });
+          } else {
+            setUserWallet({
+              balance: 0,
+              currency: 'EUR'
+            });
+          }
+        } catch (error) {
+          console.error("Erreur lors du chargement du portefeuille:", error);
+        }
+      }
+    };
+    
+    loadWallet();
+  }, [currentUser, activeSection]);
+
+  // Charger les wallets crypto de l'utilisateur
+  useEffect(() => {
+    const loadUserCryptoWallets = async () => {
+      if (currentUser && (activeSection === 'profile' || activeSection === 'settings')) {
+        try {
+          const userData = await getUserData(currentUser.uid);
+          if (userData && userData.cryptoWallets) {
+            setUserCryptoWallets({
+              btc: userData.cryptoWallets.btc || '',
+              eth: userData.cryptoWallets.eth || '',
+              ltc: userData.cryptoWallets.ltc || '',
+              xrp: userData.cryptoWallets.xrp || '',
+              doge: userData.cryptoWallets.doge || ''
+            });
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des wallets crypto:', error);
+        }
+      }
+    };
+    
+    loadUserCryptoWallets();
+  }, [currentUser, activeSection]);
 
   // Fermer le menu quand on clique en dehors
   useEffect(() => {
@@ -256,7 +390,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
 
   const handleLogout = async () => {
     try {
-      await logoutUser();
+      await logout();
       onClose();
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
@@ -352,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
       await deleteUserAccount(currentUser, deletePassword);
       
       // Déconnexion après suppression réussie
-      await logoutUser();
+      await logout();
       onClose();
       
     } catch (error: any) {
@@ -388,6 +522,194 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     }
   };
 
+  // Fonction pour acheter une formation
+  const handleBuyFormation = async (formation: any) => {
+    if (!currentUser) return;
+    
+    try {
+      setIsProcessingPayment(true);
+      setPaymentError('');
+      setCurrentPaymentItem({
+        id: formation.id,
+        type: 'formation',
+        name: formation.title,
+        price: formation.price || 0
+      });
+      
+      const result = await createFormationPurchase(
+        currentUser, 
+        formation.id, 
+        formation.price || 0
+      );
+      
+      if (result.paymentUrl) {
+        // Si une URL de paiement est retournée, afficher le modal
+        setPaymentUrl(result.paymentUrl);
+      } else {
+        // Si pas d'URL, la formation a été achetée avec le solde du portefeuille
+        // Rafraîchir les données et montrer un message de succès
+        setActiveSection('formations');
+        // Rafraîchir le portefeuille
+        const wallet = await getUserWallet(currentUser.uid);
+        if (wallet) {
+          setUserWallet({
+            balance: wallet.balance,
+            currency: wallet.currency
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de l'achat de la formation:", error);
+      setPaymentError(error.message || "Une erreur s'est produite lors de l'achat");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+  
+  // Fonction pour acheter un outil
+  const handleBuyTool = async (tool: any) => {
+    if (!currentUser) return;
+    
+    try {
+      setIsProcessingPayment(true);
+      setPaymentError('');
+      setCurrentPaymentItem({
+        id: tool.id,
+        type: 'tool',
+        name: tool.name,
+        price: tool.price || 0
+      });
+      
+      const result = await createToolPurchase(
+        currentUser, 
+        tool.id, 
+        tool.price || 0
+      );
+      
+      if (result.paymentUrl) {
+        // Si une URL de paiement est retournée, afficher le modal
+        setPaymentUrl(result.paymentUrl);
+      } else {
+        // Si pas d'URL, l'outil a été acheté avec le solde du portefeuille
+        // Rafraîchir les données
+        setActiveSection('tools');
+        // Rafraîchir le portefeuille
+        const wallet = await getUserWallet(currentUser.uid);
+        if (wallet) {
+          setUserWallet({
+            balance: wallet.balance,
+            currency: wallet.currency
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de l'achat de l'outil:", error);
+      setPaymentError(error.message || "Une erreur s'est produite lors de l'achat");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+  
+  // Réinitialiser le paiement
+  const resetPayment = () => {
+    setPaymentUrl('');
+    setPaymentError('');
+    setCurrentPaymentItem(null);
+  };
+
+  // Gérer la modification des wallets crypto
+  const handleCryptoWalletChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setUserCryptoWallets(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Enregistrer les wallets crypto
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentUser) return;
+    
+    try {
+      // Référence au document utilisateur
+      const userRef = doc(db, 'users', currentUser.uid);
+      
+      // Mise à jour des wallets crypto
+      await updateDoc(userRef, {
+        cryptoWallets: userCryptoWallets
+      });
+      
+      // Afficher un message de succès
+      alert('Paramètres mis à jour avec succès');
+      setIsEditingSettings(false);
+      
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des paramètres:', error);
+      alert('Une erreur s\'est produite lors de la mise à jour des paramètres');
+    }
+  };
+
+  // Fonction pour charger l'historique des transactions
+  useEffect(() => {
+    const loadTransactions = async () => {
+      if (currentUser && activeSection === 'profile') {
+        try {
+          const { getUserTransactions } = await import('../firebase/services/nowpayments');
+          const userTransactions = await getUserTransactions(currentUser.uid);
+          setTransactions(userTransactions);
+        } catch (error) {
+          console.error('Erreur lors du chargement des transactions:', error);
+        }
+      }
+    };
+    
+    loadTransactions();
+  }, [currentUser, activeSection]);
+
+  // Formater le type de transaction
+  const getTransactionTypeLabel = (type: TransactionType): string => {
+    switch(type) {
+      case TransactionType.FORMATION_PURCHASE:
+        return 'Achat de formation';
+      case TransactionType.TOOL_PURCHASE:
+        return 'Achat d\'outil';
+      case TransactionType.DEPOSIT:
+        return 'Rechargement du portefeuille';
+      case TransactionType.OTHER_PURCHASE:
+        return 'Autre achat';
+      default:
+        return 'Transaction';
+    }
+  };
+  
+  // Helper pour formater les dates
+  const formatDate = (date: any): string => {
+    if (!date) return '';
+    
+    try {
+      // Gérer les dates Firestore
+      if (typeof date === 'object' && date !== null && 'toDate' in date && typeof date.toDate === 'function') {
+        return date.toDate().toLocaleDateString('fr-FR', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+      
+      // Gérer les dates standard
+      return new Date(date).toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Erreur lors du formatage de la date:', error);
+      return 'Date invalide';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       <div className="container px-4 py-12 mx-auto flex-grow">
@@ -420,7 +742,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           )}
         </div>
         
-        {/* Navigation - Avec Aperçu, Outils et Mes formations */}
+        {/* Navigation - Avec Aperçu, Outils, Mes formations et Portefeuille */}
         <div className="flex flex-wrap gap-4 mb-8 border-b border-gray-800 pb-4">
           <button 
             onClick={() => setActiveSection('overview')}
@@ -454,6 +776,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           >
             <BookOpen size={18} className="mr-2" />
             Mes formations
+          </button>
+          <button 
+            onClick={() => setActiveSection('wallet')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'wallet' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <Wallet size={18} className="mr-2" />
+            Portefeuille
           </button>
           
           {/* Menu mobile */}
@@ -504,6 +837,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   <h3 className="text-lg font-semibold text-gray-400 mb-2">Dernière connexion</h3>
                   <p className="text-xl font-bold">{userStats.lastLogin}</p>
                 </div>
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-400 mb-2">Solde portefeuille</h3>
+                  <p className="text-3xl font-bold">{userWallet ? `${userWallet.balance.toFixed(2)} ${userWallet.currency}` : '0.00 EUR'}</p>
+                  <button 
+                    onClick={() => setActiveSection('wallet')}
+                    className="mt-2 text-blue-400 text-sm hover:underline"
+                  >
+                    Voir mon portefeuille
+                  </button>
+                </div>
               </div>
               
               {/* Notifications récentes */}
@@ -537,7 +880,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               <h1 className="text-3xl font-bold">Outils spécialisés</h1>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tools.map(tool => {
+                {userTools.map(tool => {
                   const access = toolsAccess[tool.id] || { hasAccess: false, missingConditions: ['Chargement en cours...'] };
                   
                   return (
@@ -546,15 +889,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                         <div className="p-3 bg-blue-900/20 rounded-lg">
                           {renderToolIcon(tool)}
                         </div>
-                        {tool.status === ToolStatus.ACTIVE ? (
-                          <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
-                        ) : tool.status === ToolStatus.SOON ? (
-                          <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
-                        ) : tool.status === ToolStatus.UPDATING ? (
-                          <span className="px-2 py-1 bg-blue-900/30 text-blue-400 text-xs rounded-full">Mise à jour</span>
-                        ) : (
-                          <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs rounded-full">Inactif</span>
-                        )}
+                        <div className="flex items-center">
+                          {tool.status === ToolStatus.ACTIVE ? (
+                            <span className="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Actif</span>
+                          ) : tool.status === ToolStatus.SOON ? (
+                            <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full">Bientôt</span>
+                          ) : tool.status === ToolStatus.UPDATING ? (
+                            <span className="px-2 py-1 bg-blue-900/30 text-blue-400 text-xs rounded-full">Mise à jour</span>
+                          ) : (
+                            <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs rounded-full">Inactif</span>
+                          )}
+                          {tool.price > 0 && (
+                            <span className="ml-2 px-2 py-1 bg-purple-900/30 text-purple-400 text-xs rounded-full">
+                              {tool.price} €
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
                       <p className="text-gray-400 mb-4">{tool.description}</p>
@@ -579,22 +929,47 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                             Télécharger
                           </a>
                         ) : (
-                          <div>
-                            <button 
-                              disabled 
-                              className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70 mb-3"
-                            >
-                              Accès verrouillé
-                            </button>
-                            <div className="text-sm text-yellow-400 bg-yellow-900/20 border border-yellow-800/30 rounded-lg p-3">
-                              <p className="font-medium mb-1">Conditions requises:</p>
-                              <ul className="list-disc pl-5 space-y-1 text-xs">
-                                {access.missingConditions.map((condition, index) => (
-                                  <li key={index}>{condition}</li>
-                                ))}
-                              </ul>
+                          tool.price && tool.price > 0 ? (
+                            <div>
+                              <button 
+                                onClick={() => handleBuyTool(tool)}
+                                disabled={isProcessingPayment}
+                                className="w-full bg-gradient-to-r from-green-600 to-blue-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-green-600/30 flex items-center justify-center disabled:opacity-70"
+                              >
+                                <ShoppingCart size={18} className="mr-2" />
+                                {userWallet && userWallet.balance >= tool.price 
+                                  ? `Acheter (Solde: ${userWallet.balance.toFixed(2)} €)` 
+                                  : `Acheter (${tool.price} €)`}
+                              </button>
+                              {userWallet && userWallet.balance < tool.price && (
+                                <div className="text-sm text-yellow-400 mt-2 text-center">
+                                  <button 
+                                    onClick={() => setActiveSection('wallet')}
+                                    className="hover:underline"
+                                  >
+                                    Recharger votre portefeuille
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          </div>
+                          ) : (
+                            <div>
+                              <button 
+                                disabled 
+                                className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70 mb-3"
+                              >
+                                Accès verrouillé
+                              </button>
+                              <div className="text-sm text-yellow-400 bg-yellow-900/20 border border-yellow-800/30 rounded-lg p-3">
+                                <p className="font-medium mb-1">Conditions requises:</p>
+                                <ul className="list-disc pl-5 space-y-1 text-xs">
+                                  {access.missingConditions.map((condition, index) => (
+                                    <li key={index}>{condition}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          )
                         )
                       ) : tool.status === ToolStatus.SOON ? (
                         <button className="w-full bg-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 cursor-not-allowed opacity-70">
@@ -613,7 +988,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   );
                 })}
                 
-                {tools.length === 0 && (
+                {userTools.length === 0 && (
                   <div className="col-span-3 bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-10 text-center">
                     <div className="flex flex-col items-center">
                       <Wrench className="h-16 w-16 text-blue-500 mb-4" />
@@ -633,15 +1008,216 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               <h1 className="text-3xl font-bold">Paramètres</h1>
               
               <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                <div className="flex items-center justify-center p-8">
-                  <div className="text-center">
-                    <div className="bg-blue-900/20 p-4 rounded-full inline-block mb-4">
-                      <Settings className="text-blue-400 h-12 w-12" />
+                <h2 className="text-xl font-bold mb-4">Wallets Crypto</h2>
+                <p className="text-gray-400 mb-6">
+                  Configurez vos adresses de portefeuille crypto pour recevoir des remboursements ou des récompenses.
+                </p>
+                
+                {isEditingSettings ? (
+                  <form onSubmit={handleSaveSettings} className="space-y-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                          <span className="flex items-center">
+                            <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=022" alt="BTC" className="w-5 h-5 mr-2" />
+                            Bitcoin (BTC)
+                          </span>
+                        </label>
+                        <input 
+                          type="text" 
+                          name="btc"
+                          value={userCryptoWallets.btc}
+                          onChange={handleCryptoWalletChange}
+                          placeholder="Adresse Bitcoin"
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                          <span className="flex items-center">
+                            <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png?v=022" alt="ETH" className="w-5 h-5 mr-2" />
+                            Ethereum (ETH)
+                          </span>
+                        </label>
+                        <input 
+                          type="text" 
+                          name="eth"
+                          value={userCryptoWallets.eth}
+                          onChange={handleCryptoWalletChange}
+                          placeholder="Adresse Ethereum"
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                          <span className="flex items-center">
+                            <img src="https://cryptologos.cc/logos/litecoin-ltc-logo.png?v=022" alt="LTC" className="w-5 h-5 mr-2" />
+                            Litecoin (LTC)
+                          </span>
+                        </label>
+                        <input 
+                          type="text" 
+                          name="ltc"
+                          value={userCryptoWallets.ltc}
+                          onChange={handleCryptoWalletChange}
+                          placeholder="Adresse Litecoin"
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                          <span className="flex items-center">
+                            <img src="https://cryptologos.cc/logos/xrp-xrp-logo.png?v=022" alt="XRP" className="w-5 h-5 mr-2" />
+                            Ripple (XRP)
+                          </span>
+                        </label>
+                        <input 
+                          type="text" 
+                          name="xrp"
+                          value={userCryptoWallets.xrp}
+                          onChange={handleCryptoWalletChange}
+                          placeholder="Adresse XRP"
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                          <span className="flex items-center">
+                            <img src="https://cryptologos.cc/logos/dogecoin-doge-logo.png?v=022" alt="DOGE" className="w-5 h-5 mr-2" />
+                            Dogecoin (DOGE)
+                          </span>
+                        </label>
+                        <input 
+                          type="text" 
+                          name="doge"
+                          value={userCryptoWallets.doge}
+                          onChange={handleCryptoWalletChange}
+                          placeholder="Adresse Dogecoin"
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                        />
+                      </div>
                     </div>
-                    <h2 className="text-2xl font-bold mb-2">Fonctionnalité à venir</h2>
-                    <p className="text-gray-400 max-w-md mx-auto">
-                      Les paramètres de l'application seront bientôt disponibles. Vous pourrez personnaliser votre expérience, gérer vos notifications et configurer vos préférences.
-                    </p>
+                    
+                    <div className="flex space-x-4">
+                      <button 
+                        type="submit"
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                      >
+                        Enregistrer les modifications
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditingSettings(false)}
+                        className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-gray-300">
+                            <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=022" alt="BTC" className="w-5 h-5 mr-2" />
+                            Bitcoin (BTC)
+                          </span>
+                          <span className="font-mono text-sm text-gray-400">
+                            {userCryptoWallets.btc ? userCryptoWallets.btc : 'Non configuré'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-gray-300">
+                            <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png?v=022" alt="ETH" className="w-5 h-5 mr-2" />
+                            Ethereum (ETH)
+                          </span>
+                          <span className="font-mono text-sm text-gray-400">
+                            {userCryptoWallets.eth ? userCryptoWallets.eth : 'Non configuré'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-gray-300">
+                            <img src="https://cryptologos.cc/logos/litecoin-ltc-logo.png?v=022" alt="LTC" className="w-5 h-5 mr-2" />
+                            Litecoin (LTC)
+                          </span>
+                          <span className="font-mono text-sm text-gray-400">
+                            {userCryptoWallets.ltc ? userCryptoWallets.ltc : 'Non configuré'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-gray-300">
+                            <img src="https://cryptologos.cc/logos/xrp-xrp-logo.png?v=022" alt="XRP" className="w-5 h-5 mr-2" />
+                            Ripple (XRP)
+                          </span>
+                          <span className="font-mono text-sm text-gray-400">
+                            {userCryptoWallets.xrp ? userCryptoWallets.xrp : 'Non configuré'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-gray-300">
+                            <img src="https://cryptologos.cc/logos/dogecoin-doge-logo.png?v=022" alt="DOGE" className="w-5 h-5 mr-2" />
+                            Dogecoin (DOGE)
+                          </span>
+                          <span className="font-mono text-sm text-gray-400">
+                            {userCryptoWallets.doge ? userCryptoWallets.doge : 'Non configuré'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => setIsEditingSettings(true)}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                    >
+                      Modifier les wallets
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4">Préférences de notification</h2>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                    <span className="text-gray-300">Notifications par email</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                    <span className="text-gray-300">Notifications de paiement</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                    <span className="text-gray-300">Nouvelles formations disponibles</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -885,6 +1461,96 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   </button>
                 </form>
               </div>
+
+              {/* Ajout de la section facturation */}
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Facturation</h2>
+                  <button
+                    onClick={() => setIsViewingInvoices(!isViewingInvoices)}
+                    className="text-blue-400 hover:underline text-sm flex items-center"
+                  >
+                    {isViewingInvoices ? 'Masquer' : 'Voir toutes les factures'}
+                    <ChevronDown className={`ml-1 w-4 h-4 transform ${isViewingInvoices ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+                
+                {isViewingInvoices ? (
+                  // Liste complète des factures
+                  <div className="space-y-4">
+                    {transactions
+                      .filter(tx => 
+                        tx.status === TransactionStatus.FINISHED && 
+                        (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                      )
+                      .map((tx, index) => (
+                        <div key={tx.id || index} className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          <div className="flex justify-between mb-2">
+                            <div>
+                              <p className="font-medium">{getTransactionTypeLabel(tx.type)}</p>
+                              <p className="text-sm text-gray-400">{formatDate(tx.completedAt || tx.createdAt)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium text-red-400">-{tx.amount} {tx.currency}</p>
+                              <button className="text-blue-400 text-sm hover:underline flex items-center">
+                                <Download size={14} className="mr-1" />
+                                Télécharger
+                              </button>
+                            </div>
+                          </div>
+                          <div className="pt-2 border-t border-gray-700 mt-2 text-sm text-gray-400">
+                            <span>N° Facture: INV-{tx.id.substring(0, 8)}</span>
+                          </div>
+                        </div>
+                      ))}
+                      
+                    {transactions.filter(tx => 
+                      tx.status === TransactionStatus.FINISHED && 
+                      (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                    ).length === 0 && (
+                      <p className="text-center text-gray-400 py-8">
+                        Aucune facture disponible
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  // Aperçu des dernières factures
+                  <div className="space-y-4">
+                    {transactions
+                      .filter(tx => 
+                        tx.status === TransactionStatus.FINISHED && 
+                        (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                      )
+                      .slice(0, 3)
+                      .map((tx, index) => (
+                        <div key={tx.id || index} className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          <div className="flex justify-between">
+                            <div>
+                              <p className="font-medium">{getTransactionTypeLabel(tx.type)}</p>
+                              <p className="text-sm text-gray-400">{formatDate(tx.completedAt || tx.createdAt)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium text-red-400">-{tx.amount} {tx.currency}</p>
+                              <button className="text-blue-400 text-sm hover:underline flex items-center">
+                                <Download size={14} className="mr-1" />
+                                Télécharger
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                    {transactions.filter(tx => 
+                      tx.status === TransactionStatus.FINISHED && 
+                      (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                    ).length === 0 && (
+                      <p className="text-center text-gray-400 py-8">
+                        Aucune facture disponible
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -894,7 +1560,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               
               {(() => {
                 try {
-                  return formations.length === 0 ? (
+                  return userFormations.length === 0 ? (
                     <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center">
                       <div className="flex flex-col items-center">
                         <BookOpen className="h-16 w-16 text-blue-500 mb-4" />
@@ -929,7 +1595,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {formations.map(formation => {
+                        {userFormations.map(formation => {
                           // Récupérer les infos de progression pour cette formation
                           const userProgress = userData?.formationsProgress?.find(
                             (p: UserFormationProgress) => p.formationId === formation.id
@@ -1046,6 +1712,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               })()}
             </div>
           )}
+          
+          {activeSection === 'wallet' && (
+            <WalletComponent />
+          )}
         </main>
       </div>
       
@@ -1141,14 +1811,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               
               {/* Content */}
               <div className="p-6">
-                {allFormations.length === 0 ? (
+                {catalogFormations.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="text-gray-400 mb-4">Aucune nouvelle formation n'est disponible pour le moment.</div>
                     <div className="text-sm text-gray-500">Revenez bientôt pour découvrir nos nouvelles formations.</div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {allFormations.map(formation => (
+                    {catalogFormations.map(formation => (
                       <div 
                         key={formation.id} 
                         className="bg-gray-700/50 rounded-lg overflow-hidden flex flex-col hover:shadow-lg hover:shadow-blue-500/10 transition-all border border-gray-600"
@@ -1174,17 +1844,124 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                               ? `${formation.description.slice(0, 100)}...`
                               : formation.description}
                           </p>
-                          <button 
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors w-full mt-auto"
-                          >
-                            Voir les détails
-                          </button>
+                          <div className="flex justify-between items-center mt-auto">
+                            {formation.price && formation.price > 0 ? (
+                              <span className="text-sm font-medium text-green-400">
+                                {formation.price} €
+                              </span>
+                            ) : (
+                              <span className="text-sm font-medium text-green-400">
+                                Gratuit
+                              </span>
+                            )}
+                            <button 
+                              onClick={() => {
+                                setIsCatalogOpen(false);
+                                if (formation.price && formation.price > 0) {
+                                  handleBuyFormation(formation);
+                                } else {
+                                  // Assigner gratuitement
+                                  // Implémentation à ajouter
+                                }
+                              }}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              {formation.price && formation.price > 0 ? 'Acheter' : 'Obtenir gratuitement'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de paiement */}
+      {(paymentUrl || paymentError) && currentPaymentItem && (
+        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+              <h2 className="text-xl font-bold">Paiement</h2>
+              <button 
+                className="p-2 hover:bg-gray-700 rounded-full"
+                onClick={resetPayment}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {paymentError ? (
+                <div className="text-center">
+                  <div className="bg-red-500/20 p-3 rounded-full inline-block mb-4">
+                    <X className="h-8 w-8 text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-3">Erreur de paiement</h3>
+                  <p className="text-gray-300 mb-6">{paymentError}</p>
+                  <button 
+                    onClick={resetPayment}
+                    className="w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="bg-green-500/20 p-3 rounded-full inline-block mb-4">
+                    <ShoppingCart className="h-8 w-8 text-green-400" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">
+                    {paymentUrl ? 'Continuer le paiement' : 'Paiement effectué'}
+                  </h3>
+                  <p className="text-gray-300 mb-4">
+                    {paymentUrl ? 
+                      `Procédez au paiement pour ${currentPaymentItem.name}` : 
+                      `Votre achat de ${currentPaymentItem.name} a été effectué avec succès via votre portefeuille.`
+                    }
+                  </p>
+                  
+                  {paymentUrl ? (
+                    <div className="space-y-4">
+                      <div className="bg-gray-700/50 p-3 rounded-lg mb-2 text-left">
+                        <p className="text-sm text-gray-400 mb-1">Article</p>
+                        <p className="font-medium">{currentPaymentItem.name}</p>
+                      </div>
+                      <div className="bg-gray-700/50 p-3 rounded-lg text-left">
+                        <p className="text-sm text-gray-400 mb-1">Prix</p>
+                        <p className="font-medium">{currentPaymentItem.price} €</p>
+                      </div>
+                      
+                      <div className="pt-4 space-y-3">
+                        <a 
+                          href={paymentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full py-3 bg-gradient-to-r from-green-600 to-blue-700 rounded-lg font-medium transition-colors hover:shadow-lg hover:shadow-green-600/30"
+                        >
+                          Continuer vers la page de paiement
+                        </a>
+                        <button 
+                          onClick={resetPayment}
+                          className="block w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={resetPayment}
+                      className="w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                    >
+                      Fermer
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

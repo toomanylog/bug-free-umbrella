@@ -5,7 +5,8 @@ import FormationManager from './FormationManager';
 import UserManager from './UserManager';
 import CertificationManager from './CertificationManager';
 import ToolManager from './ToolManager';
-import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Menu, X } from 'lucide-react';
+import AdminWalletManager from './AdminWalletManager';
+import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Menu, X, CreditCard } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
 import { getAllCertifications } from '../../firebase/certifications';
@@ -130,9 +131,9 @@ const AdminDashboard: React.FC = () => {
       
       {/* Sidebar */}
       <div 
-        className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-gray-800 border-r border-gray-700 p-4 transition-all duration-300 fixed md:relative left-0 top-0 bottom-0 h-screen overflow-y-auto z-30 ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}
+        className={`fixed md:static inset-y-0 left-0 z-50 bg-gray-800 text-white transition-all duration-300 ease-in-out ${
+          sidebarCollapsed ? 'w-20' : 'w-64'
+        } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
         <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-2'} mb-8`}>
           <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
@@ -141,50 +142,61 @@ const AdminDashboard: React.FC = () => {
           {!sidebarCollapsed && <h1 className="text-xl font-bold">Admin Dashboard</h1>}
         </div>
         
-        <ul className="space-y-2">
-          <SidebarItem 
-            icon={<Home size={20} />}
-            label="Tableau de bord"
-            active={activeSection === 'dashboard'}
-            onClick={() => setActiveSection('dashboard')}
-            collapsed={sidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<BookOpen size={20} />}
-            label="Formations"
-            active={activeSection === 'formations'}
-            onClick={() => setActiveSection('formations')}
-            collapsed={sidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<Award size={20} />}
-            label="Certifications"
-            active={activeSection === 'certifications'}
-            onClick={() => setActiveSection('certifications')}
-            collapsed={sidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<Wrench size={20} />}
-            label="Outils"
-            active={activeSection === 'tools'}
-            onClick={() => setActiveSection('tools')}
-            collapsed={sidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<Users size={20} />}
-            label="Utilisateurs"
-            active={activeSection === 'users'}
-            onClick={() => setActiveSection('users')}
-            collapsed={sidebarCollapsed}
-          />
-          <SidebarItem 
-            icon={<Settings size={20} />}
-            label="Paramètres"
-            active={activeSection === 'settings'}
-            onClick={() => setActiveSection('settings')}
-            collapsed={sidebarCollapsed}
-          />
-        </ul>
+        <nav className="mt-10 px-2">
+          <div className={`space-y-2 ${sidebarCollapsed ? 'items-center' : ''}`}>
+            <SidebarItem 
+              icon={<Home size={20} />}
+              label="Tableau de bord"
+              active={activeSection === 'dashboard'}
+              onClick={() => setActiveSection('dashboard')}
+              collapsed={sidebarCollapsed}
+            />
+            <SidebarItem 
+              icon={<BookOpen size={20} />}
+              label="Formations"
+              active={activeSection === 'formations'}
+              onClick={() => setActiveSection('formations')}
+              collapsed={sidebarCollapsed}
+            />
+            <SidebarItem 
+              icon={<Award size={20} />}
+              label="Certifications"
+              active={activeSection === 'certifications'}
+              onClick={() => setActiveSection('certifications')}
+              collapsed={sidebarCollapsed}
+            />
+            <SidebarItem 
+              icon={<Wrench size={20} />}
+              label="Outils"
+              active={activeSection === 'tools'}
+              onClick={() => setActiveSection('tools')}
+              collapsed={sidebarCollapsed}
+            />
+            <SidebarItem 
+              icon={<Users size={20} />}
+              label="Utilisateurs"
+              active={activeSection === 'users'}
+              onClick={() => setActiveSection('users')}
+              collapsed={sidebarCollapsed}
+            />
+            <SidebarItem 
+              icon={<Settings size={20} />}
+              label="Paramètres"
+              active={activeSection === 'settings'}
+              onClick={() => setActiveSection('settings')}
+              collapsed={sidebarCollapsed}
+            />
+            <button
+              className={`w-full flex items-center py-3 px-4 rounded-lg ${
+                activeSection === 'wallet' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+              } transition-colors`}
+              onClick={() => setActiveSection('wallet')}
+            >
+              <CreditCard size={24} className={`${sidebarCollapsed ? 'mx-auto' : 'mr-3'}`} />
+              {!sidebarCollapsed && <span>Portefeuilles</span>}
+            </button>
+          </div>
+        </nav>
         
         <div className={`mt-8 pt-4 border-t border-gray-700 ${sidebarCollapsed ? 'text-center' : ''}`}>
           <button 
@@ -198,7 +210,7 @@ const AdminDashboard: React.FC = () => {
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <div className="flex-1 overflow-auto">
         {/* Header avec bouton de menu */}
         <header className="mb-8 flex items-center">
           <button 
@@ -218,6 +230,7 @@ const AdminDashboard: React.FC = () => {
               {activeSection === 'tools' && 'Gestion des outils'}
               {activeSection === 'users' && 'Gestion des utilisateurs'}
               {activeSection === 'settings' && 'Paramètres'}
+              {activeSection === 'wallet' && 'Gestion des portefeuilles'}
             </h1>
             <p className="text-gray-400 text-sm md:text-base">
               Connecté en tant que {userData.displayName} (Admin)
@@ -266,6 +279,7 @@ const AdminDashboard: React.FC = () => {
         {activeSection === 'certifications' && <CertificationManager />}
         {activeSection === 'tools' && <ToolManager />}
         {activeSection === 'users' && <UserManager />}
+        {activeSection === 'wallet' && <AdminWalletManager />}
         {activeSection === 'settings' && (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-xl font-semibold mb-4">Paramètres du site</h2>

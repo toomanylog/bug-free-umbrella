@@ -61,3 +61,65 @@ cp .env.example .env
 ```
 
 Consultez le fichier [AUTH_README.md](./AUTH_README.md) pour plus de détails sur le système d'authentification.
+
+# NOWPayments Integration
+
+Ce projet intègre l'API de paiement en cryptomonnaie NOWPayments pour permettre aux utilisateurs de recharger leur compte et d'acheter des formations, des outils et d'autres produits.
+
+## Configuration
+
+1. Copiez le fichier `.env.example` en `.env` et remplissez les variables d'environnement:
+```bash
+cp .env.example .env
+```
+
+2. Configurez votre projet Firebase:
+```bash
+# Installation des dépendances
+npm install
+
+# Connexion à Firebase
+firebase login
+
+# Initialisation du projet (si ce n'est pas déjà fait)
+firebase init
+```
+
+3. Configuration de NOWPayments:
+   - Créez un compte sur [NOWPayments](https://nowpayments.io/)
+   - Obtenez votre clé API et configurez-la dans le fichier `.env`
+   - Configurez la clé IPN secrète dans votre tableau de bord NOWPayments et ajoutez-la dans le fichier `.env`
+
+## Développement
+
+Exécutez l'application en mode développement:
+```bash
+npm start
+```
+
+## Gestion des paiements sans Firebase Functions
+
+Comme l'utilisation de Firebase Functions n'est pas possible sans le plan Pay-as-you-go, une solution alternative a été mise en place :
+
+1. Le système intègre maintenant une vérification manuelle et automatique des paiements depuis le côté client
+2. Les utilisateurs peuvent vérifier manuellement le statut de leurs paiements en cliquant sur le bouton "Vérifier l'état du paiement" dans le détail de leur transaction
+3. Une option de vérification automatique est disponible pour les transactions en attente (toutes les 30 secondes)
+
+Cette approche présente quelques limitations :
+- La vérification ne se fait que lorsque l'utilisateur est présent sur le site
+- La clé API est exposée côté client (bien que masquée dans les variables d'environnement)
+- NOWPayments limite le nombre de requêtes API selon votre plan
+
+Pour une application en production, il est recommandé d'utiliser :
+- Un serveur backend séparé pour les webhooks (Netlify Functions, Vercel Functions, etc.)
+- Ou de passer à Firebase Pay-as-you-go pour utiliser les Firebase Functions
+
+## Structure du projet
+
+- `src/firebase/services/nowpayments.ts`: Service pour interagir avec l'API NOWPayments
+- `src/firebase/functions/`: Fonctions Cloud Firebase (non utilisées actuellement)
+- `src/components/WalletComponent.tsx`: Composant de portefeuille pour la gestion des fonds
+
+## Licence
+
+MIT
