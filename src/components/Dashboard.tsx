@@ -996,13 +996,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                                   ) : (
                                     <Link 
                                       to={`/formation/${formation.id}`} 
-                                      className="w-full px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center transition-all shadow-md 
+                                      className={`w-full px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center transition-all shadow-md 
                                         ${isCompleted 
                                           ? 'bg-green-600 hover:bg-green-700 text-white hover:shadow-green-600/30' 
                                           : progress > 0 
                                             ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-600/30' 
                                             : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-600/30'
-                                        }"
+                                        }`}
                                     >
                                       {isCompleted 
                                         ? 'Revoir la formation' 
