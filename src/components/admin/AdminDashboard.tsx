@@ -5,7 +5,8 @@ import FormationManager from './FormationManager';
 import UserManager from './UserManager';
 import CertificationManager from './CertificationManager';
 import ToolManager from './ToolManager';
-import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench } from 'lucide-react';
+import MediaManager from './MediaManager';
+import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Database } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
 import { getAllCertifications } from '../../firebase/certifications';
@@ -127,6 +128,12 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveSection('tools')}
           />
           <SidebarItem 
+            icon={<Database size={20} />}
+            label="Médias"
+            active={activeSection === 'media'}
+            onClick={() => setActiveSection('media')}
+          />
+          <SidebarItem 
             icon={<Users size={20} />}
             label="Utilisateurs"
             active={activeSection === 'users'}
@@ -160,6 +167,7 @@ const AdminDashboard: React.FC = () => {
             {activeSection === 'formations' && 'Gestion des formations'}
             {activeSection === 'certifications' && 'Gestion des certifications'}
             {activeSection === 'tools' && 'Gestion des outils'}
+            {activeSection === 'media' && 'Gestion des médias'}
             {activeSection === 'users' && 'Gestion des utilisateurs'}
             {activeSection === 'settings' && 'Paramètres'}
           </h1>
@@ -208,6 +216,7 @@ const AdminDashboard: React.FC = () => {
         {activeSection === 'formations' && <FormationManager />}
         {activeSection === 'certifications' && <CertificationManager />}
         {activeSection === 'tools' && <ToolManager />}
+        {activeSection === 'media' && <MediaManager />}
         {activeSection === 'users' && <UserManager />}
         {activeSection === 'settings' && (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">

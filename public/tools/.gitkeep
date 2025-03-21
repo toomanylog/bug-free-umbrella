@@ -1,0 +1,5 @@
+# Dossier de stockage pour les outils
+Ce dossier contient les fichiers d'outils téléchargeables par les utilisateurs. 
+
+# Ce répertoire contient les fichiers des outils que les utilisateurs peuvent télécharger
+# Il est maintenu dans git pour garantir sa création lors du déploiement 

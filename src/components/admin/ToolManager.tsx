@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   getAllTools, 
   createTool, 
@@ -11,7 +11,31 @@ import {
 } from '../../firebase/tools';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllCertifications } from '../../firebase/certifications';
-import { Plus, Edit, Trash, Save, X, Download, UploadCloud } from 'lucide-react';
+import { Plus, Edit, Trash, Save, X, Download, UploadCloud, Loader, File, Database } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
+// Constantes pour GitHub
+const GITHUB_REPO = 'bug-free-umbrella';
+const GITHUB_OWNER = 'toomanylog'; // À remplacer par votre organisation/username
+const GITHUB_PATH = 'public/tools';
+
+// Types pour le formulaire
+interface ToolFormData {
+  name: string;
+  description: string;
+  downloadLink: string;
+  imageUrl: string;
+  category: string;
+  features: string[];
+  status: ToolStatus;
+  iconType: 'lucide' | 'custom';
+  icon: string;
+  conditions: {
+    type: ConditionType;
+    value: string;
+    description: string;
+  }[];
+}
 
 const ToolManager: React.FC = () => {
   const [tools, setTools] = useState<Tool[]>([]);
@@ -22,6 +46,9 @@ const ToolManager: React.FC = () => {
   const [showForm, setShowForm] = useState<boolean>(false);
   const [formations, setFormations] = useState<any[]>([]);
   const [certifications, setCertifications] = useState<any[]>([]);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // État du formulaire
   const [form, setForm] = useState<{
@@ -43,6 +70,143 @@ const ToolManager: React.FC = () => {
     downloadLink: '',
     conditions: []
   });
+
+  // État pour le formulaire de création ou d'édition
+  const [formData, setFormData] = useState<ToolFormData>({
+    name: '',
+    description: '',
+    downloadLink: '',
+    imageUrl: '',
+    category: '',
+    features: [],
+    status: ToolStatus.ACTIVE,
+    iconType: 'lucide',
+    icon: 'Wrench',
+    conditions: []
+  });
+
+  // État pour la soumission du formulaire
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // État pour la modal de sélection de médias
+  const [showMediaSelector, setShowMediaSelector] = useState(false);
+  const [mediaType, setMediaType] = useState<'image' | 'file'>('image');
+  
+  // Fonction pour ouvrir le sélecteur de médias
+  const openMediaSelector = (type: 'image' | 'file') => {
+    setMediaType(type);
+    setShowMediaSelector(true);
+  };
+  
+  // Fonction pour gérer la sélection d'un média
+  const handleMediaSelected = (url: string) => {
+    if (mediaType === 'image') {
+      setFormData((prev: ToolFormData) => ({ ...prev, imageUrl: url }));
+    } else {
+      setFormData((prev: ToolFormData) => ({ ...prev, downloadLink: url }));
+    }
+    setShowMediaSelector(false);
+  };
+
+  // Fonction pour uploader un fichier vers GitHub
+  const uploadFileToGithub = async (file: File): Promise<string> => {
+    try {
+      setUploading(true);
+      setUploadProgress(10);
+      
+      // 1. Convertir le fichier en base64
+      const base64Content = await fileToBase64(file);
+      setUploadProgress(30);
+      
+      // 2. Générer un nom de fichier unique
+      const timestamp = new Date().getTime();
+      const fileName = `${timestamp}-${file.name.replace(/\s+/g, '-')}`;
+      const filePath = `${GITHUB_PATH}/${fileName}`;
+      setUploadProgress(50);
+      
+      // 3. Simuler une requête API (remplacer par une vraie implémentation)
+      // Dans une vraie implémentation, vous utiliseriez l'API GitHub:
+      // https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#create-or-update-file-contents
+      
+      // Simulation pour démonstration
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setUploadProgress(80);
+      
+      // 4. Construire l'URL de téléchargement
+      // Dans une application réelle, GitHub renverrait l'URL
+      const downloadUrl = `/tools/${fileName}`;
+      setUploadProgress(100);
+      
+      // Attendre un peu pour l'interface utilisateur
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      return downloadUrl;
+    } catch (error) {
+      console.error('Erreur lors de l\'upload:', error);
+      throw new Error('Erreur lors de l\'upload du fichier');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+  
+  // Utilitaire pour convertir un fichier en base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          // Extraire seulement la partie base64
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        } else {
+          reject(new Error('Erreur de conversion en base64'));
+        }
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+  
+  // Gérer le clic sur le bouton d'upload
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  // Gérer la sélection de fichier
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    try {
+      const file = files[0];
+      
+      // Vérification de la taille du fichier (limite à 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        setFormError('Le fichier est trop volumineux (max 50MB)');
+        return;
+      }
+      
+      // Uploader le fichier
+      const downloadUrl = await uploadFileToGithub(file);
+      
+      // Mettre à jour le formulaire avec le lien de téléchargement
+      setForm({
+        ...form,
+        downloadLink: downloadUrl
+      });
+      
+      // Réinitialiser l'input file
+      e.target.value = '';
+      
+      setFormSuccess('Fichier uploadé avec succès!');
+      setTimeout(() => setFormSuccess(''), 3000);
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'upload:', error);
+      setFormError('Erreur lors de l\'upload du fichier');
+    }
+  };
   
   // Chargement initial des données
   useEffect(() => {
@@ -264,6 +428,246 @@ const ToolManager: React.FC = () => {
     }
   };
 
+  // Rendu du formulaire d'édition/création
+  const renderToolForm = () => {
+    return (
+      <div className="bg-gray-800 p-6 rounded-lg">
+        <h3 className="text-xl font-bold mb-4">
+          {editingTool ? 'Modifier l\'outil' : 'Ajouter un outil'}
+        </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Nom */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Nom de l'outil</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
+              required
+            />
+          </div>
+          
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md h-24"
+              required
+            />
+          </div>
+          
+          {/* URL de l'image */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Image de l'outil</label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                name="imageUrl"
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
+                placeholder="URL de l'image ou chemin relatif"
+              />
+              <button
+                type="button"
+                onClick={() => openMediaSelector('image')}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center"
+              >
+                <UploadCloud size={16} className="mr-1" />
+                Choisir
+              </button>
+            </div>
+            {formData.imageUrl && (
+              <div className="mt-2 p-2 bg-gray-700 rounded-md flex items-center justify-center h-32">
+                <img 
+                  src={formData.imageUrl} 
+                  alt="Aperçu de l'image" 
+                  className="max-h-full max-w-full object-contain" 
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://via.placeholder.com/150?text=Image+invalide';
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* Lien de téléchargement */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Lien de téléchargement</label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                name="downloadLink"
+                value={formData.downloadLink}
+                onChange={(e) => setFormData({ ...formData, downloadLink: e.target.value })}
+                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
+                placeholder="Lien direct de téléchargement ou page web"
+              />
+              <button
+                type="button"
+                onClick={() => openMediaSelector('file')}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center"
+              >
+                <UploadCloud size={16} className="mr-1" />
+                Choisir
+              </button>
+            </div>
+          </div>
+          
+          {/* Catégorie */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Catégorie</label>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
+              required
+            >
+              <option value="">Sélectionner une catégorie</option>
+              <option value="diagnostic">Diagnostic</option>
+              <option value="performance">Performance</option>
+              <option value="securite">Sécurité</option>
+              <option value="utilitaire">Utilitaire</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          
+          {/* Statut */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Statut</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as ToolStatus })}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md"
+            >
+              <option value={ToolStatus.ACTIVE}>Actif</option>
+              <option value={ToolStatus.INACTIVE}>Inactif</option>
+              <option value={ToolStatus.SOON}>Bientôt disponible</option>
+              <option value={ToolStatus.UPDATING}>En mise à jour</option>
+            </select>
+          </div>
+          
+          {/* ... existing code ... */}
+          
+          {/* Buttons */}
+          <div className="flex items-center space-x-4 pt-4">
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+              {editingTool ? 'Mettre à jour' : 'Ajouter'}
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md"
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  };
+  
+  // Modal pour sélectionner un média
+  const MediaSelectorModal = () => {
+    const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+    const [mockMedias, setMockMedias] = useState<{name: string, url: string, type: string}[]>([
+      // Images
+      { name: 'tool-placeholder.jpg', url: '/media/images/tool-placeholder.jpg', type: 'image/jpeg' },
+      { name: 'diagnostic-tool.png', url: '/media/images/diagnostic-tool.png', type: 'image/png' },
+      // Fichiers
+      { name: 'linux-scanner.zip', url: '/tools/linux-scanner.zip', type: 'application/zip' },
+      { name: 'performance-monitor.exe', url: '/tools/performance-monitor.exe', type: 'application/exe' },
+    ]);
+    
+    // Filtrer les médias par type
+    const filteredMedias = mockMedias.filter(media => 
+      mediaType === 'image' 
+        ? media.type.startsWith('image/') 
+        : !media.type.startsWith('image/')
+    );
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div className="bg-gray-800 rounded-lg w-full max-w-2xl">
+          <div className="flex justify-between items-center p-4 border-b border-gray-700">
+            <h3 className="text-lg font-semibold">
+              Sélectionner un {mediaType === 'image' ? 'image' : 'fichier'}
+            </h3>
+            <button 
+              onClick={() => setShowMediaSelector(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="p-4 max-h-96 overflow-y-auto">
+            {filteredMedias.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {filteredMedias.map((media) => (
+                  <div 
+                    key={media.url}
+                    className={`p-2 border rounded-lg cursor-pointer transition-colors ${
+                      selectedMedia === media.url 
+                        ? 'border-blue-500 bg-blue-900 bg-opacity-20' 
+                        : 'border-gray-700 hover:border-gray-500'
+                    }`}
+                    onClick={() => setSelectedMedia(media.url)}
+                  >
+                    {media.type.startsWith('image/') ? (
+                      <div className="h-24 flex items-center justify-center mb-2 bg-gray-700 rounded overflow-hidden">
+                        <img src={media.url} alt={media.name} className="max-h-full max-w-full object-contain" />
+                      </div>
+                    ) : (
+                      <div className="h-24 flex items-center justify-center mb-2 bg-gray-700 rounded">
+                        <File size={32} className="text-gray-400" />
+                      </div>
+                    )}
+                    <p className="text-sm truncate">{media.name}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <Database size={32} className="mx-auto mb-2 opacity-30" />
+                <p>Aucun {mediaType === 'image' ? 'image' : 'fichier'} disponible</p>
+                <p className="text-sm mt-2">Utilisez le gestionnaire de médias pour ajouter des fichiers</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end p-4 border-t border-gray-700 space-x-3">
+            <button 
+              onClick={() => setShowMediaSelector(false)}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+            >
+              Annuler
+            </button>
+            <button 
+              onClick={() => selectedMedia && handleMediaSelected(selectedMedia)}
+              disabled={!selectedMedia}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sélectionner
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -410,8 +814,8 @@ const ToolManager: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-300 mb-1">Nom de l'outil</label>
                   <input 
                     type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({...form, name: e.target.value})}
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Ex: Vérificateur de Leads"
                   />
@@ -420,14 +824,14 @@ const ToolManager: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Statut</label>
                   <select 
-                    value={form.status}
-                    onChange={(e) => setForm({...form, status: e.target.value as ToolStatus})}
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value as ToolStatus})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value={ToolStatus.ACTIVE}>Actif</option>
-                    <option value={ToolStatus.SOON}>Bientôt disponible</option>
                     <option value={ToolStatus.INACTIVE}>Inactif</option>
-                    <option value={ToolStatus.UPDATING}>En cours de mise à jour</option>
+                    <option value={ToolStatus.SOON}>Bientôt disponible</option>
+                    <option value={ToolStatus.UPDATING}>En mise à jour</option>
                   </select>
                 </div>
               </div>
@@ -436,8 +840,8 @@ const ToolManager: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
                 <textarea 
-                  value={form.description}
-                  onChange={(e) => setForm({...form, description: e.target.value})}
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
                   rows={3}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Description de l'outil..."
@@ -449,8 +853,8 @@ const ToolManager: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Type d'icône</label>
                   <select 
-                    value={form.iconType}
-                    onChange={(e) => setForm({...form, iconType: e.target.value as 'lucide' | 'custom'})}
+                    value={formData.iconType}
+                    onChange={(e) => setFormData({...formData, iconType: e.target.value as 'lucide' | 'custom'})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="lucide">Lucide (SVG intégré)</option>
@@ -460,38 +864,68 @@ const ToolManager: React.FC = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
-                    {form.iconType === 'lucide' ? 'Nom de l\'icône Lucide' : 'Code SVG personnalisé'}
+                    {formData.iconType === 'lucide' ? 'Nom de l\'icône Lucide' : 'Code SVG personnalisé'}
                   </label>
                   <input 
                     type="text"
-                    value={form.icon}
-                    onChange={(e) => setForm({...form, icon: e.target.value})}
+                    value={formData.icon}
+                    onChange={(e) => setFormData({...formData, icon: e.target.value})}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder={form.iconType === 'lucide' ? 'Ex: Wrench' : '<svg>...</svg>'}
+                    placeholder={formData.iconType === 'lucide' ? 'Ex: Wrench' : '<svg>...</svg>'}
                   />
                 </div>
               </div>
               
-              {/* Lien de téléchargement */}
+              {/* Lien de téléchargement avec upload */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Lien de téléchargement</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Téléchargement de l'outil</label>
                 <div className="flex">
                   <input 
                     type="text"
-                    value={form.downloadLink}
-                    onChange={(e) => setForm({...form, downloadLink: e.target.value})}
+                    value={formData.downloadLink}
+                    onChange={(e) => setFormData({...formData, downloadLink: e.target.value})}
                     className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/download/tool.zip"
+                    placeholder="/tools/nom-du-fichier.zip"
+                    disabled={uploading}
                   />
                   <button 
                     type="button"
-                    className="px-4 py-2 bg-gray-600 rounded-r-lg text-gray-300 hover:bg-gray-500"
+                    onClick={handleUploadClick}
+                    disabled={uploading}
+                    className={`px-4 py-2 rounded-r-lg text-gray-300 hover:bg-gray-500 flex items-center justify-center ${uploading ? 'bg-blue-600' : 'bg-gray-600'}`}
                   >
-                    <UploadCloud size={16} />
+                    {uploading ? (
+                      <Loader size={16} className="animate-spin" />
+                    ) : (
+                      <UploadCloud size={16} />
+                    )}
                   </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange}
+                    className="hidden" 
+                    accept=".zip,.exe,.rar,.7z,.tar,.gz,.pdf" 
+                  />
                 </div>
+                
+                {/* Barre de progression */}
+                {uploading && (
+                  <div className="mt-2">
+                    <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 transition-all duration-300" 
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-400 text-right mt-1">
+                      {uploadProgress}% téléversé
+                    </p>
+                  </div>
+                )}
+                
                 <p className="text-xs text-gray-400 mt-1">
-                  Lien direct de téléchargement ou de la page web où l'outil est disponible
+                  Uploadez un fichier (max 50MB) ou entrez manuellement une URL de téléchargement
                 </p>
               </div>
               
@@ -510,7 +944,7 @@ const ToolManager: React.FC = () => {
                 </div>
                 
                 <div className="space-y-2 max-h-60 overflow-y-auto p-1">
-                  {form.features.map((feature, index) => (
+                  {formData.features.map((feature, index) => (
                     <div key={index} className="flex items-center">
                       <input 
                         type="text"
@@ -546,7 +980,7 @@ const ToolManager: React.FC = () => {
                 </div>
                 
                 <div className="space-y-4 max-h-80 overflow-y-auto p-1">
-                  {form.conditions.map((condition, index) => (
+                  {formData.conditions.map((condition, index) => (
                     <div key={index} className="p-3 bg-gray-700/50 rounded-lg border border-gray-600">
                       <div className="flex justify-between mb-2">
                         <label className="text-sm font-medium text-gray-300">Type de condition</label>
@@ -601,6 +1035,7 @@ const ToolManager: React.FC = () => {
                               const certificationId = e.target.value;
                               const certification = certifications.find(c => c.id === certificationId);
                               updateCondition(index, 'value', certificationId);
+                              // Vérifier si le titre existe avant de l'assigner
                               const certificationTitle = certification && certification.title ? certification.title : 'Certification requise';
                               updateCondition(index, 'description', certificationTitle);
                             }}
@@ -631,7 +1066,7 @@ const ToolManager: React.FC = () => {
                     </div>
                   ))}
                   
-                  {form.conditions.length === 0 && (
+                  {formData.conditions.length === 0 && (
                     <p className="text-sm text-gray-500 py-2">
                       Aucune condition d'accès définie. L'outil sera accessible à tous les utilisateurs.
                     </p>
@@ -662,6 +1097,8 @@ const ToolManager: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {showMediaSelector && <MediaSelectorModal />}
     </div>
   );
 };
