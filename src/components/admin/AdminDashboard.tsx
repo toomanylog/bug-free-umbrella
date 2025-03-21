@@ -5,7 +5,7 @@ import FormationManager from './FormationManager';
 import UserManager from './UserManager';
 import CertificationManager from './CertificationManager';
 import ToolManager from './ToolManager';
-import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench } from 'lucide-react';
+import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Menu, X } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
 import { getAllCertifications } from '../../firebase/certifications';
@@ -17,27 +17,45 @@ const SidebarItem: React.FC<{
   label: string;
   active: boolean;
   onClick: () => void;
-}> = ({ icon, label, active, onClick }) => (
+  collapsed?: boolean;
+}> = ({ icon, label, active, onClick, collapsed }) => (
   <li 
-    className={`flex items-center space-x-2 p-3 rounded-lg cursor-pointer transition-colors ${
+    className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-2'} p-3 rounded-lg cursor-pointer transition-colors ${
       active ? 'bg-blue-600 text-white' : 'hover:bg-gray-700 text-gray-300'
     }`}
     onClick={onClick}
   >
     <div className="text-xl">{icon}</div>
-    <span>{label}</span>
+    {!collapsed && <span>{label}</span>}
   </li>
 );
 
 const AdminDashboard: React.FC = () => {
   const { userData, isAdmin } = useAuth();
   const [activeSection, setActiveSection] = useState<string>('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(window.innerWidth < 768);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [stats, setStats] = useState({
     formations: 0,
     users: 0,
     certifications: 0,
     tools: 0
   });
+  
+  // Surveiller les changements de taille d'écran
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768;
+      setSidebarCollapsed(isMobile && !mobileMenuOpen);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [mobileMenuOpen]);
   
   // Charger les statistiques
   useEffect(() => {
@@ -90,15 +108,35 @@ const AdminDashboard: React.FC = () => {
     window.location.href = '/';
   };
 
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+    setMobileMenuOpen(!sidebarCollapsed);
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white flex">
+      {/* Overlay pour fermer le menu sur mobile */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => {
+            setMobileMenuOpen(false);
+            setSidebarCollapsed(true);
+          }}
+        ></div>
+      )}
+      
       {/* Sidebar */}
-      <div className="w-64 bg-gray-800 border-r border-gray-700 p-4">
-        <div className="flex items-center space-x-2 mb-8">
+      <div 
+        className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-gray-800 border-r border-gray-700 p-4 transition-all duration-300 fixed md:static left-0 top-0 h-full z-30 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-2'} mb-8`}>
           <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
             <span className="font-bold">ML</span>
           </div>
-          <h1 className="text-xl font-bold">Admin Dashboard</h1>
+          {!sidebarCollapsed && <h1 className="text-xl font-bold">Admin Dashboard</h1>}
         </div>
         
         <ul className="space-y-2">
@@ -107,65 +145,88 @@ const AdminDashboard: React.FC = () => {
             label="Tableau de bord"
             active={activeSection === 'dashboard'}
             onClick={() => setActiveSection('dashboard')}
+            collapsed={sidebarCollapsed}
           />
           <SidebarItem 
             icon={<BookOpen size={20} />}
             label="Formations"
             active={activeSection === 'formations'}
             onClick={() => setActiveSection('formations')}
+            collapsed={sidebarCollapsed}
           />
           <SidebarItem 
             icon={<Award size={20} />}
             label="Certifications"
             active={activeSection === 'certifications'}
             onClick={() => setActiveSection('certifications')}
+            collapsed={sidebarCollapsed}
           />
           <SidebarItem 
             icon={<Wrench size={20} />}
             label="Outils"
             active={activeSection === 'tools'}
             onClick={() => setActiveSection('tools')}
+            collapsed={sidebarCollapsed}
           />
           <SidebarItem 
             icon={<Users size={20} />}
             label="Utilisateurs"
             active={activeSection === 'users'}
             onClick={() => setActiveSection('users')}
+            collapsed={sidebarCollapsed}
           />
           <SidebarItem 
             icon={<Settings size={20} />}
             label="Paramètres"
             active={activeSection === 'settings'}
             onClick={() => setActiveSection('settings')}
+            collapsed={sidebarCollapsed}
           />
         </ul>
         
-        <div className="mt-8 pt-4 border-t border-gray-700">
+        <div className={`mt-8 pt-4 border-t border-gray-700 ${sidebarCollapsed ? 'text-center' : ''}`}>
           <button 
             onClick={goToClientDashboard}
-            className="flex items-center text-gray-400 hover:text-white transition-colors w-full py-2"
+            className={`flex items-center text-gray-400 hover:text-white transition-colors ${sidebarCollapsed ? 'justify-center w-full' : 'w-full py-2'}`}
           >
-            <ArrowLeft size={18} className="mr-2" />
-            <span>Retour au dashboard client</span>
+            <ArrowLeft size={18} className={sidebarCollapsed ? '' : 'mr-2'} />
+            {!sidebarCollapsed && <span>Retour au dashboard client</span>}
           </button>
         </div>
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold">
-            {activeSection === 'dashboard' && 'Tableau de bord'}
-            {activeSection === 'formations' && 'Gestion des formations'}
-            {activeSection === 'certifications' && 'Gestion des certifications'}
-            {activeSection === 'tools' && 'Gestion des outils'}
-            {activeSection === 'users' && 'Gestion des utilisateurs'}
-            {activeSection === 'settings' && 'Paramètres'}
-          </h1>
-          <p className="text-gray-400">
-            Connecté en tant que {userData.displayName} (Admin)
-          </p>
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+        {/* Header avec bouton de menu */}
+        <header className="mb-8 flex items-center">
+          <button 
+            className="md:hidden mr-4 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+            onClick={toggleSidebar}
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          
+          {/* Bouton pour plier/déplier la sidebar sur desktop */}
+          <button 
+            className="hidden md:block mr-4 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            {sidebarCollapsed ? <Menu size={20} /> : <X size={20} />}
+          </button>
+          
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">
+              {activeSection === 'dashboard' && 'Tableau de bord'}
+              {activeSection === 'formations' && 'Gestion des formations'}
+              {activeSection === 'certifications' && 'Gestion des certifications'}
+              {activeSection === 'tools' && 'Gestion des outils'}
+              {activeSection === 'users' && 'Gestion des utilisateurs'}
+              {activeSection === 'settings' && 'Paramètres'}
+            </h1>
+            <p className="text-gray-400 text-sm md:text-base">
+              Connecté en tant que {userData.displayName} (Admin)
+            </p>
+          </div>
         </header>
         
         {/* Dynamic Content */}

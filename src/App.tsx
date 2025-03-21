@@ -9,6 +9,7 @@ import CGV from './pages/CGV';
 import Privacy from './pages/Privacy';
 import AdminDashboard from './components/admin/AdminDashboard';
 import FormationDetail from './pages/FormationDetail';
+import CertificationDetail from './pages/CertificationDetail';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -24,7 +25,7 @@ function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/formation/:formationId" element={<FormationDetail />} />
-              <Route path="/certification/:certificationId" element={<NotFound />} />
+              <Route path="/certification/:certificationId" element={<CertificationDetail />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

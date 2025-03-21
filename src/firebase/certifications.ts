@@ -460,4 +460,27 @@ export const getCertificationById = async (certificationId: string): Promise<Cer
     console.error(`Erreur lors de la récupération de la certification ${certificationId}:`, error);
     throw error;
   }
+};
+
+// Récupérer une certification par ID
+export const getCertification = async (certificationId: string): Promise<Certification> => {
+  try {
+    const certificationRef = ref(database, `certifications/${certificationId}`);
+    const snapshot = await get(certificationRef);
+    
+    if (!snapshot.exists()) {
+      throw new Error(`Certification with ID ${certificationId} not found`);
+    }
+    
+    const certificationData = snapshot.val();
+    return {
+      id: certificationId,
+      ...certificationData,
+      requirements: certificationData.requirements || [],
+      examQuestions: certificationData.examQuestions || []
+    };
+  } catch (error) {
+    console.error("Error getting certification:", error);
+    throw error;
+  }
 }; 
