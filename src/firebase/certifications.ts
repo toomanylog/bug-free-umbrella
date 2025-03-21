@@ -7,8 +7,7 @@ import {
   updateDoc, 
   arrayUnion, 
   Timestamp,
-  serverTimestamp,
-  getDoc
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from './config';
 
@@ -335,10 +334,6 @@ export const submitExam = async (
         
         // Vérification simple d'égalité
         isCorrect = userAnswerText === correctAnswerText;
-        
-        // Option: implémenter une vérification plus flexible basée sur des mots-clés
-        // const keywords = correctAnswerText.split(',').map(k => k.trim());
-        // isCorrect = keywords.some(keyword => userAnswerText.includes(keyword));
       }
       
       if (isCorrect) {
@@ -351,25 +346,38 @@ export const submitExam = async (
     const passingScore = certification.passingScore || 70; // Par défaut 70%
     const passed = score >= passingScore;
     
-    // Enregistrer le résultat dans Firestore
-    const resultRef = collection(db, 'certificationResults');
-    await addDoc(resultRef, {
-      userId,
-      certificationId,
-      score,
-      correctAnswers,
-      totalQuestions,
-      passed,
-      submittedAt: serverTimestamp(),
-      answers: userAnswers
+    // Enregistrer le résultat dans Realtime Database au lieu de Firestore
+    const userCertificationRef = ref(database, `userCertifications/${userId}/${certificationId}`);
+    const submittedAt = new Date().toISOString();
+    
+    await update(userCertificationRef, {
+      status: passed ? CertificationStatus.COMPLETED : CertificationStatus.FAILED,
+      examResults: {
+        score,
+        correctAnswers,
+        totalQuestions,
+        submittedAt,
+        answers: userAnswers.map(answer => ({
+          questionId: answer.questionId,
+          userAnswer: answer.answer,
+          isCorrect: certification.examQuestions!.find(q => q.id === answer.questionId)?.correctAnswer === answer.answer
+        }))
+      }
     });
     
-    // Si l'utilisateur a réussi, attribuer la certification
+    // Si l'utilisateur a réussi, mettre à jour ses données
     if (passed) {
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        certifications: arrayUnion(certificationId),
-        updatedAt: serverTimestamp()
+      // Mettre à jour le statut de la certification
+      await update(userCertificationRef, {
+        earnedAt: submittedAt,
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 an de validité
+      });
+      
+      // Ajouter la certification à la liste des certifications de l'utilisateur
+      const userCertificationsRef = ref(database, `users/${userId}/certifications/${certificationId}`);
+      await set(userCertificationsRef, {
+        earnedAt: submittedAt,
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
       });
     }
     
