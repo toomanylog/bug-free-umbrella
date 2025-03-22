@@ -162,9 +162,9 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
               const formationRef = ref(database, `formations/${formationId}`);
               const formationSnapshot = await get(formationRef);
               
-              let formationTitle = 'non spécifiée';
+              let formationTitle = 'requise';
               if (formationSnapshot.exists()) {
-                formationTitle = formationSnapshot.val().title || 'non spécifiée';
+                formationTitle = formationSnapshot.val().title || 'requise';
               }
               
               missingConditions.push(`Terminer la formation "${formationTitle}"`);
@@ -186,9 +186,9 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
               const certificationRef = ref(database, `certifications/${certificationId}`);
               const certificationSnapshot = await get(certificationRef);
               
-              let certificationTitle = 'non spécifiée';
+              let certificationTitle = 'requise';
               if (certificationSnapshot.exists()) {
-                certificationTitle = certificationSnapshot.val().title || 'non spécifiée';
+                certificationTitle = certificationSnapshot.val().title || 'requise';
               }
               
               missingConditions.push(`Obtenir la certification "${certificationTitle}"`);
