@@ -468,4 +468,42 @@ export const updateFormationProgress = async (userId: string, formationId: strin
     console.error('Erreur lors de la mise à jour de la progression:', error);
     throw error;
   }
+};
+
+// Fonction pour mettre à jour les préférences utilisateur
+export const updateUserPreferences = async (
+  userId: string,
+  preferences: {
+    theme?: string;
+    notifications?: boolean;
+    emailNotifications?: boolean;
+  }
+): Promise<void> => {
+  try {
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (!userSnapshot.exists()) {
+      throw new Error('Utilisateur non trouvé');
+    }
+    
+    const userData = userSnapshot.val();
+    
+    // Fusionner les préférences existantes avec les nouvelles
+    const updatedPreferences = {
+      ...(userData.preferences || {}),
+      ...preferences
+    };
+    
+    // Mettre à jour dans la base de données
+    await update(userRef, {
+      preferences: updatedPreferences,
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log(`Préférences mises à jour pour l'utilisateur ${userId}`);
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des préférences:', error);
+    throw error;
+  }
 }; 

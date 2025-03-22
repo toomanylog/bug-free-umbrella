@@ -31,6 +31,7 @@ interface Transaction extends BaseTransaction {
 // Interface pour les props du composant
 interface WalletComponentProps {
   isAdmin?: boolean;
+  onClose?: () => void;
 }
 
 const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) => {
