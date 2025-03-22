@@ -99,7 +99,8 @@ const REGIONS = [
   { value: 'ap', label: 'Asie-Pacifique' },
   { value: 'kr', label: 'Corée' },
   { value: 'latam', label: 'Amérique latine' },
-  { value: 'br', label: 'Brésil' }
+  { value: 'br', label: 'Brésil' },
+  { value: 'tr', label: 'Turquie' }
 ];
 
 // Clé API Riot
@@ -248,6 +249,8 @@ const RiotManager: React.FC = () => {
         throw new Error("Clé API Riot non disponible");
       }
       
+      console.log(`Tentative de récupération des données pour ${username}#${tag} dans la région ${region}`);
+      
       // Recherche du compte par nom et tag
       const accountResponse = await fetch(
         `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(username)}/${encodeURIComponent(tag)}`,
@@ -258,13 +261,45 @@ const RiotManager: React.FC = () => {
         }
       );
       
+      // Vérifier les erreurs spécifiques
       if (!accountResponse.ok) {
-        throw new Error(`Erreur API: ${accountResponse.status}`);
+        const status = accountResponse.status;
+        if (status === 400) {
+          console.error('Erreur 400: Vérifiez le format du nom d\'utilisateur et du tag');
+          throw new Error(`Erreur API Riot: Format de nom d'utilisateur ou tag invalide`);
+        } else if (status === 401) {
+          console.error('Erreur 401: Clé API Riot non valide ou expirée');
+          throw new Error(`Erreur API Riot: Clé API non valide ou expirée`);
+        } else if (status === 403) {
+          console.error('Erreur 403: Accès refusé à l\'API Riot');
+          throw new Error(`Erreur API Riot: Accès refusé`);
+        } else if (status === 404) {
+          console.error('Erreur 404: Compte non trouvé');
+          throw new Error(`Compte Riot non trouvé: ${username}#${tag}`);
+        } else {
+          console.error(`Erreur API Riot: ${status}`);
+          throw new Error(`Erreur API: ${status}`);
+        }
       }
       
       const accountData = await accountResponse.json();
+      console.log('Données du compte récupérées:', accountData);
       const puuid = accountData.puuid;
       
+      // Créer un objet de compte de base
+      const baseAccount = {
+        riotId: puuid,
+        username,
+        tag,
+        region,
+        lastUpdated: Date.now()
+      };
+      
+      // Pas besoin d'essayer de récupérer les données de rang pour le moment
+      // L'API leaderboards ne fonctionne pas correctement ici
+      return baseAccount;
+      
+      /* Désactivation temporaire de la récupération du rang
       // Convertir la région pour les API Valorant (différentes régions dans l'API Valorant)
       const valorantRegion = convertRegion(region);
       
@@ -309,7 +344,8 @@ const RiotManager: React.FC = () => {
         lastUpdated: Date.now(),
         rank: rankInfo
       };
-    } catch (err) {
+      */
+    } catch (err: any) {
       console.error('Erreur lors de la récupération des données du joueur:', err);
       throw err;
     }
@@ -324,6 +360,7 @@ const RiotManager: React.FC = () => {
       case 'kr': return 'kr';
       case 'latam': return 'latam';
       case 'br': return 'br';
+      case 'tr': return 'tr';
       default: return 'eu';
     }
   };
@@ -687,6 +724,8 @@ const RiotManager: React.FC = () => {
         throw new Error("Clé API Riot non disponible");
       }
       
+      console.log(`Tentative de connexion pour ${account.username}#${account.tag} dans la région ${account.region}`);
+      
       // Recherche du compte par nom et tag
       const accountResponse = await fetch(
         `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(account.username)}/${encodeURIComponent(account.tag)}`,
@@ -697,56 +736,36 @@ const RiotManager: React.FC = () => {
         }
       );
       
+      // Vérifier les erreurs spécifiques
       if (!accountResponse.ok) {
-        throw new Error(`Erreur API Riot: ${accountResponse.status} - Compte introuvable ou clé API invalide`);
+        const status = accountResponse.status;
+        if (status === 400) {
+          throw new Error(`Format de nom d'utilisateur ou tag invalide`);
+        } else if (status === 401) {
+          throw new Error(`Clé API Riot non valide ou expirée`);
+        } else if (status === 403) {
+          throw new Error(`Accès refusé à l'API Riot`);
+        } else if (status === 404) {
+          throw new Error(`Compte non trouvé: ${account.username}#${account.tag}`);
+        } else {
+          throw new Error(`Erreur API Riot: ${status}`);
+        }
       }
       
       const accountData = await accountResponse.json();
+      console.log('Données du compte récupérées:', accountData);
       const puuid = accountData.puuid;
       
       // Mettre à jour l'ID Riot dans le compte
       account.riotId = puuid;
       account.lastUpdated = Date.now();
       
-      // Récupérer les données de rang du joueur
-      const valorantRegion = convertRegion(account.region);
-      
-      try {
-        const mmrResponse = await fetch(
-          `https://${valorantRegion}.api.riotgames.com/val/ranked/v1/by-puuid/mmr/${encodeURIComponent(puuid)}`,
-          {
-            headers: {
-              'X-Riot-Token': RIOT_API_KEY
-            }
-          }
-        );
-        
-        if (mmrResponse.ok) {
-          const mmrData = await mmrResponse.json();
-          
-          if (mmrData && mmrData.data) {
-            const currentSeason = mmrData.data.current_data;
-            
-            account.rank = {
-              currentRank: currentSeason?.currenttierpatched || "Non classé",
-              currentTier: currentSeason?.currenttier?.toString() || "0",
-              rankIcon: getRankIcon(parseInt(currentSeason?.currenttier) || 0),
-              bestRank: currentSeason?.highesttierpatched || "Non classé",
-              bestTier: currentSeason?.highesttier?.toString() || "0"
-            };
-          }
-        }
-      } catch (rankErr) {
-        console.error("Erreur lors de la récupération du rang:", rankErr);
-        // Continue même en cas d'erreur pour le rang
-      }
-      
+      // Pour simplifier, ne pas récupérer le rang pour l'instant
       // Mettre à jour le compte dans la base de données
       const accountRef = ref(database, `riotAccounts/${account.id}`);
       await update(accountRef, {
         riotId: puuid,
-        lastUpdated: account.lastUpdated,
-        rank: account.rank || null
+        lastUpdated: account.lastUpdated
       });
       
       // Mettre à jour l'état local
@@ -760,13 +779,13 @@ const RiotManager: React.FC = () => {
         setSuccess(null);
       }, 3000);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur lors de la connexion au compte RIOT:', err);
-      setError('Impossible de connecter le compte RIOT. Vérifiez le nom d\'utilisateur et le tag.');
+      setError(`Impossible de connecter le compte RIOT: ${err.message}`);
       
       setTimeout(() => {
         setError(null);
-      }, 3000);
+      }, 5000);
     } finally {
       setLoading(false);
     }
