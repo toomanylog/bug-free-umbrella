@@ -21,6 +21,12 @@
       }
     },
     
+    "riotAccounts": {
+      ".indexOn": ["username", "tag", "region"],
+      ".read": "auth !== null",
+      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    
     "transactions": {
       ".indexOn": ["userId", "status", "createdAt", "type", "paymentId"],
       ".read": "auth !== null",

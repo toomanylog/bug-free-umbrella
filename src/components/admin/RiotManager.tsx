@@ -107,7 +107,7 @@ const RIOT_API_KEY = process.env.REACT_APP_RIOT_API_KEY || 'RGAPI-80c93110-b305-
 
 // Configuration de l'authentification OAuth (à implémenter réellement en production)
 const oauthConfig = {
-  clientId: "votre-client-id",  // À remplacer par votre client ID une fois inscrit au programme de développement Riot
+  clientId: "734997",  // ID de l'application Riot Games
   redirectUri: window.location.origin + "/auth/riot/callback",
   scope: "openid offline_access",
   authUrl: "https://auth.riotgames.com/authorize"
@@ -785,19 +785,10 @@ const RiotManager: React.FC = () => {
   
   // Rediriger vers l'authentification Riot Games
   const redirectToRiotAuth = () => {
-    // Cette fonction n'est qu'une simulation pour le moment
-    // L'implémentation réelle nécessiterait une inscription au programme de développement Riot
-    alert(`Pour une intégration OAuth complète comme Tracker.gg, nous devons:
+    // Note: L'application est en attente d'examen par Riot Games
+    // Une fois approuvée, ce code pourra être activé
     
-1. S'inscrire au programme de développement Riot Games
-2. Être approuvé pour accéder aux API de production
-3. Implémenter le flux d'authentification OAuth
-    
-Actuellement, nous utilisons une clé API de développement avec des fonctionnalités limitées.
-Pour plus d'informations, consultez https://developer.riotgames.com/`);
-    
-    // Le code réel ressemblerait à ceci:
-    /*
+    /* Décommenter ce code une fois l'application approuvée
     const params = new URLSearchParams({
       client_id: oauthConfig.clientId,
       redirect_uri: oauthConfig.redirectUri,
@@ -807,6 +798,13 @@ Pour plus d'informations, consultez https://developer.riotgames.com/`);
     
     window.location.href = `${oauthConfig.authUrl}?${params.toString()}`;
     */
+    
+    // Message temporaire pendant la période d'examen
+    alert(`Notre application est actuellement en cours d'examen par Riot Games (App ID: ${oauthConfig.clientId}).
+    
+Une fois approuvée, vous pourrez vous connecter directement avec votre compte Riot pour accéder à plus de données.
+    
+Pour l'instant, nous utilisons uniquement l'API publique avec notre clé API.`);
   };
   
   // Tenter d'obtenir des données plus détaillées via OAuth

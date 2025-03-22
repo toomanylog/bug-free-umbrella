@@ -187,3 +187,31 @@ REACT_APP_RIOT_API_KEY=votre-clé-api
 ```
 
 Vous pouvez obtenir une clé API de développement sur le [Portail Développeur Riot Games](https://developer.riotgames.com/).
+
+## Authentification OAuth avec Riot Games
+
+Pour une intégration complète avec Riot Games en utilisant OAuth, suivez ces étapes :
+
+1. Créez un compte développeur sur [Riot Developer Portal](https://developer.riotgames.com/)
+2. Enregistrez une nouvelle application avec les informations suivantes :
+   - Nom de l'application : Votre nom d'application
+   - Type d'application : Web
+   - URL de redirection : `https://misalinux.ru/auth/riot/callback`
+   - Droits d'API : Selon vos besoins (MMR, Match History, etc.)
+
+3. Vérifiez votre domaine en plaçant le fichier `riot.txt` à la racine de votre site. 
+   Ce fichier est déjà présent dans le dossier `public/` de ce projet.
+
+4. Une fois approuvé, remplacez les valeurs de configuration OAuth dans le fichier `RiotManager.tsx`:
+   ```typescript
+   const oauthConfig = {
+     clientId: "votre-client-id",  // Remplacer par votre vrai Client ID
+     redirectUri: window.location.origin + "/auth/riot/callback",
+     scope: "openid offline_access",
+     authUrl: "https://auth.riotgames.com/authorize"
+   };
+   ```
+
+5. Implémentez la route de callback dans votre application pour recevoir et traiter le code d'autorisation.
+
+Note: L'approbation complète pour l'API de production peut prendre du temps et nécessite une évaluation par Riot Games.
