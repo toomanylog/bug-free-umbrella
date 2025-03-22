@@ -28,44 +28,57 @@ const AdminWalletManager: React.FC = () => {
       try {
         setLoading(true);
         
+        // Récupérer tous les utilisateurs
+        const usersRef = ref(database, 'users');
+        const usersSnap = await get(usersRef);
+        
         // Récupérer tous les portefeuilles des utilisateurs
         const walletsRef = ref(database, 'wallets');
         const walletsSnap = await get(walletsRef);
+        const walletsData = walletsSnap.exists() ? walletsSnap.val() : {};
         
-        if (!walletsSnap.exists()) {
+        const walletsArray: (UserWallet & { userName: string; email: string })[] = [];
+        
+        // Si aucun utilisateur n'est trouvé
+        if (!usersSnap.exists()) {
           setUserWallets([]);
+          setLoading(false);
           return;
         }
         
-        const walletsData = walletsSnap.val();
-        const walletsArray: (UserWallet & { userName: string; email: string })[] = [];
-        
-        // Pour chaque portefeuille, récupérer les informations de l'utilisateur
-        for (const userId in walletsData) {
-          const walletData = walletsData[userId];
+        // Pour chaque utilisateur, récupérer son portefeuille ou en créer un virtuel
+        usersSnap.forEach((userSnap) => {
+          const userId = userSnap.key;
+          const userData = userSnap.val();
           
-          // Récupérer les données utilisateur
-          const userRef = ref(database, `users/${userId}`);
-          const userSnap = await get(userRef);
+          if (!userId) return;
           
-          let userName = 'Utilisateur inconnu';
-          let email = 'Pas d\'email';
+          const userName = userData.displayName || 'Sans nom';
+          const email = userData.email || 'Pas d\'email';
           
-          if (userSnap.exists()) {
-            const userData = userSnap.val();
-            userName = userData.displayName || 'Sans nom';
-            email = userData.email || 'Pas d\'email';
+          // Vérifier si l'utilisateur a déjà un portefeuille
+          if (walletsData && walletsData[userId]) {
+            // L'utilisateur a un portefeuille existant
+            walletsArray.push({
+              userId,
+              balance: walletsData[userId].balance || 0,
+              currency: walletsData[userId].currency || 'EUR',
+              lastUpdated: walletsData[userId].lastUpdated || new Date().toISOString(),
+              userName,
+              email
+            });
+          } else {
+            // L'utilisateur n'a pas encore de portefeuille, en créer un virtuel pour l'affichage
+            walletsArray.push({
+              userId,
+              balance: 0,
+              currency: 'EUR',
+              lastUpdated: new Date().toISOString(),
+              userName,
+              email
+            });
           }
-          
-          walletsArray.push({
-            userId,
-            balance: walletData.balance || 0,
-            currency: walletData.currency || 'EUR',
-            lastUpdated: walletData.lastUpdated || new Date().toISOString(),
-            userName,
-            email
-          });
-        }
+        });
         
         setUserWallets(walletsArray);
       } catch (error) {
@@ -134,11 +147,24 @@ const AdminWalletManager: React.FC = () => {
       // Récupérer la référence au portefeuille
       const walletRef = ref(database, `wallets/${userId}`);
       
-      // Mettre à jour le solde
-      await update(walletRef, {
-        balance: parseFloat(newBalance),
-        lastUpdated: new Date().toISOString()
-      });
+      // Vérifier si le portefeuille existe
+      const walletSnap = await get(walletRef);
+      
+      // Si le portefeuille n'existe pas, créer un nouveau
+      if (!walletSnap.exists()) {
+        await update(walletRef, {
+          userId,
+          balance: parseFloat(newBalance),
+          currency: 'EUR',
+          lastUpdated: new Date().toISOString()
+        });
+      } else {
+        // Sinon, mettre à jour le solde existant
+        await update(walletRef, {
+          balance: parseFloat(newBalance),
+          lastUpdated: new Date().toISOString()
+        });
+      }
       
       // Mettre à jour l'affichage
       setUserWallets(prev => 
@@ -228,8 +254,6 @@ const AdminWalletManager: React.FC = () => {
 
   return (
     <div className="bg-gray-900 p-6 rounded-lg">
-      <h1 className="text-2xl font-bold mb-6">Gestion des Portefeuilles</h1>
-      
       {error && (
         <div className="bg-red-900/20 border border-red-800 text-red-100 px-4 py-3 rounded-lg mb-4">
           {error}

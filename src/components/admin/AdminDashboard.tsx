@@ -186,22 +186,20 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveSection('settings')}
               collapsed={sidebarCollapsed}
             />
-            <button
-              className={`w-full flex items-center py-3 px-4 rounded-lg ${
-                activeSection === 'wallet' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-              } transition-colors`}
+            <SidebarItem 
+              icon={<CreditCard size={20} />}
+              label="Portefeuilles"
+              active={activeSection === 'wallet'}
               onClick={() => setActiveSection('wallet')}
-            >
-              <CreditCard size={24} className={`${sidebarCollapsed ? 'mx-auto' : 'mr-3'}`} />
-              {!sidebarCollapsed && <span>Portefeuilles</span>}
-            </button>
+              collapsed={sidebarCollapsed}
+            />
           </div>
         </nav>
         
         <div className={`mt-8 pt-4 border-t border-gray-700 ${sidebarCollapsed ? 'text-center' : ''}`}>
           <button 
             onClick={goToClientDashboard}
-            className={`flex items-center text-gray-400 hover:text-white transition-colors ${sidebarCollapsed ? 'justify-center w-full' : 'w-full py-2'}`}
+            className={`flex items-center px-3 py-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors ${sidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}
           >
             <ArrowLeft size={18} className={sidebarCollapsed ? '' : 'mr-2'} />
             {!sidebarCollapsed && <span>Retour au dashboard client</span>}
