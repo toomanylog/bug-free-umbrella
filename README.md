@@ -123,3 +123,25 @@ Pour une application en production, il est recommandé d'utiliser :
 ## Licence
 
 MIT
+
+## Configuration des variables d'environnement
+
+### Configuration locale
+Pour le développement local, créez un fichier `.env` à la racine du projet et ajoutez votre clé API Riot Games :
+
+```
+REACT_APP_RIOT_API_KEY=votre-clé-api-ici
+```
+
+Un fichier `.env.example` est fourni comme modèle pour les variables d'environnement nécessaires.
+
+### Configuration en production (Netlify)
+Pour déployer sur Netlify, configurez les variables d'environnement via l'interface de Netlify :
+
+1. Accédez au tableau de bord de votre site Netlify
+2. Allez dans **Site settings** > **Build & deploy** > **Environment**
+3. Cliquez sur **Edit variables** puis **Add variable**
+4. Ajoutez la variable `REACT_APP_RIOT_API_KEY` avec votre clé API Riot Games
+5. Cliquez sur **Save**
+
+⚠️ **Important** : Netlify ne lit pas automatiquement les fichiers `.env` lors du build. Les variables doivent être configurées directement dans les paramètres de l'environnement Netlify.
