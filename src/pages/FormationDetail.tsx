@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getFormationById } from '../firebase/formations';
 import { updateFormationProgress, Formation } from '../firebase/auth';
+import ReactMarkdown from 'react-markdown';
 
 const FormationDetail: React.FC = () => {
   const { formationId } = useParams<{ formationId: string }>();
@@ -210,7 +211,7 @@ const FormationDetail: React.FC = () => {
               {expandedModules.has(module.id) && (
                 <div className="p-4 bg-gray-800/30">
                   <div className="prose prose-invert max-w-none mb-4">
-                    <div className="whitespace-pre-wrap">{module.content}</div>
+                    <ReactMarkdown>{module.content}</ReactMarkdown>
                   </div>
                   
                   {!completedModules.has(module.id) && (

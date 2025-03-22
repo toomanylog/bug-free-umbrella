@@ -24,3 +24,68 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Styles supplémentaires pour le contenu Markdown */
+.prose {
+  @apply text-gray-300;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  @apply text-white font-bold mb-4;
+}
+
+.prose h1 {
+  @apply text-2xl;
+}
+
+.prose h2 {
+  @apply text-xl;
+}
+
+.prose h3 {
+  @apply text-lg;
+}
+
+.prose a {
+  @apply text-blue-400 hover:text-blue-300 underline;
+}
+
+.prose strong {
+  @apply text-white font-bold;
+}
+
+.prose ul, .prose ol {
+  @apply pl-6 mb-4;
+}
+
+.prose ul {
+  @apply list-disc;
+}
+
+.prose ol {
+  @apply list-decimal;
+}
+
+.prose blockquote {
+  @apply pl-4 border-l-4 border-gray-600 italic text-gray-400;
+}
+
+.prose code {
+  @apply bg-gray-800 px-1 py-0.5 rounded text-sm text-white;
+}
+
+.prose pre {
+  @apply bg-gray-800 p-4 rounded-lg mb-4 overflow-x-auto;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-white;
+}
+
+.prose img {
+  @apply max-w-full rounded-lg my-4;
+}
+
+.prose hr {
+  @apply my-6 border-gray-700;
+}
