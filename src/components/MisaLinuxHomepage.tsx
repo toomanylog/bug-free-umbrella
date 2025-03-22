@@ -27,6 +27,7 @@ const MisaLinuxHomepage = () => {
   const [redirectAfterLogin, setRedirectAfterLogin] = useState<RedirectTarget>({
     type: null
   });
+  const [servicesLoaded, setServicesLoaded] = useState(false);
   
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -65,6 +66,16 @@ const MisaLinuxHomepage = () => {
     return () => {
       elements.forEach(el => observer.unobserve(el));
     };
+  }, []);
+
+  // Forcer le chargement des services après le rendu initial
+  useEffect(() => {
+    // Court délai pour s'assurer que le composant est monté
+    const timer = setTimeout(() => {
+      setServicesLoaded(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Quand l'utilisateur est connecté, afficher le dashboard et gérer les redirections
@@ -248,9 +259,19 @@ const MisaLinuxHomepage = () => {
       await logoutUser();
       setShowDashboard(false);
       setRedirectAfterLogin({ type: null });
+      // Force reload of services section
+      setServicesLoaded(false);
+      setTimeout(() => setServicesLoaded(true), 100);
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     }
+  };
+
+  // Corriger le problème de fond qui bouge lors du défilement
+  const backgroundStyle = {
+    backgroundAttachment: 'fixed',
+    willChange: 'transform',
+    backfaceVisibility: 'hidden' as 'hidden',
   };
 
   // Si le dashboard est affiché, retourner le composant dashboard
@@ -260,8 +281,8 @@ const MisaLinuxHomepage = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 z-0">
+      {/* Animated Background - with optimized rendering */}
+      <div className="fixed inset-0 z-0" style={backgroundStyle}>
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 opacity-30"></div>
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
           {Array.from({ length: 20 }).map((_, i) => (
@@ -276,6 +297,7 @@ const MisaLinuxHomepage = () => {
                 animationDuration: `${Math.random() * 30 + 20}s`,
                 animation: `float ${Math.random() * 30 + 20}s infinite ease-in-out`,
                 transform: `translate(-50%, -50%)`,
+                willChange: 'transform',
               }}
             ></div>
           ))}
@@ -459,30 +481,32 @@ const MisaLinuxHomepage = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.map((service, index) => (
-              <div 
-                id={`service-${service.id}`}
-                key={service.id} 
-                className={`relative group bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700/50 overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-600/10 hover:-translate-y-2 animate-on-scroll`}
-                style={{ 
-                  animationDelay: `${index * 100}ms`,
-                  opacity: animatedElements[`service-${service.id}`] ? 1 : 0,
-                  transform: animatedElements[`service-${service.id}`] ? 'translateY(0)' : 'translateY(20px)',
-                  transition: 'opacity 0.5s ease, transform 0.5s ease'
-                }}
-              >
-                <div className="absolute -top-12 -right-12 w-24 h-24 bg-blue-600/10 rounded-full filter blur-xl group-hover:bg-blue-600/20 transition-all duration-300"></div>
-                
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center mb-6 transform transition-transform duration-300 group-hover:rotate-12">
-                  {service.icon}
+          {servicesLoaded && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {services.map((service, index) => (
+                <div 
+                  id={`service-${service.id}`}
+                  key={service.id} 
+                  className={`relative group bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700/50 overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-600/10 hover:-translate-y-2 animate-on-scroll`}
+                  style={{ 
+                    animationDelay: `${index * 100}ms`,
+                    opacity: animatedElements[`service-${service.id}`] ? 1 : 0,
+                    transform: animatedElements[`service-${service.id}`] ? 'translateY(0)' : 'translateY(20px)',
+                    transition: 'opacity 0.5s ease, transform 0.5s ease'
+                  }}
+                >
+                  <div className="absolute -top-12 -right-12 w-24 h-24 bg-blue-600/10 rounded-full filter blur-xl group-hover:bg-blue-600/20 transition-all duration-300"></div>
+                  
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center mb-6 transform transition-transform duration-300 group-hover:rotate-12">
+                    {service.icon}
+                  </div>
+                  
+                  <h3 className="text-xl font-bold mb-3">{service.title}</h3>
+                  <p className="text-gray-400 mb-6">{service.description}</p>
                 </div>
-                
-                <h3 className="text-xl font-bold mb-3">{service.title}</h3>
-                <p className="text-gray-400 mb-6">{service.description}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
       
@@ -820,6 +844,191 @@ const MisaLinuxHomepage = () => {
         </div>
       </section>
       
+      {/* Nouvelle section Anonymat */}
+      <section id="anonymity" className="py-24 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-blue-900/10 to-gray-900 z-0"></div>
+        
+        {/* Effet de fond spécial */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute w-full h-full">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div 
+                key={i}
+                className="absolute w-60 h-60 rounded-full opacity-5"
+                style={{
+                  background: 'radial-gradient(circle, rgba(59, 130, 246, 0.8) 0%, rgba(59, 130, 246, 0.2) 70%, transparent 100%)',
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  transform: `scale(${0.5 + Math.random() * 1.5})`,
+                  filter: 'blur(20px)',
+                  animation: `pulse ${5 + Math.random() * 10}s infinite alternate ease-in-out`,
+                  animationDelay: `${Math.random() * 5}s`,
+                }}
+              ></div>
+            ))}
+          </div>
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%233b82f6\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+            opacity: 0.2,
+          }}></div>
+        </div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div id="anonymity-header" className="max-w-3xl mx-auto mb-16 animate-on-scroll">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl font-bold mb-6 inline-block relative">
+                Votre Anonymat, Notre Priorité
+                <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ${animatedElements['anonymity-header'] ? 'w-32' : 'w-0'}`}></div>
+              </h2>
+              <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+                Chez Misa Linux, nous prenons votre confidentialité au sérieux avec des protections avancées à chaque niveau.
+              </p>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-8 mt-16">
+              {/* Carte Anonymat 1 */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl blur opacity-40 group-hover:opacity-70 transition-opacity duration-500"></div>
+                <div className="relative bg-gray-900 rounded-2xl p-6 h-full border border-blue-500/20 backdrop-blur-sm">
+                  <div className="w-14 h-14 rounded-xl bg-blue-600/10 flex items-center justify-center mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold mb-3 text-white">Données Chiffrées</h3>
+                  <p className="text-gray-300">Toutes vos données personnelles sont protégées par un chiffrement de bout en bout, garantissant qu'elles restent confidentielles.</p>
+                  
+                  <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-blue-600/20 rounded-full filter blur-xl opacity-70"></div>
+                </div>
+              </div>
+              
+              {/* Carte Anonymat 2 */}
+              <div className="relative group md:mt-8">
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-700 rounded-2xl blur opacity-40 group-hover:opacity-70 transition-opacity duration-500"></div>
+                <div className="relative bg-gray-900 rounded-2xl p-6 h-full border border-indigo-500/20 backdrop-blur-sm">
+                  <div className="w-14 h-14 rounded-xl bg-indigo-600/10 flex items-center justify-center mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold mb-3 text-white">Paiements Anonymes</h3>
+                  <p className="text-gray-300">Multiples options de paiement crypté disponibles, y compris les cryptomonnaies, pour une confidentialité totale de vos transactions.</p>
+                  
+                  <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-indigo-600/20 rounded-full filter blur-xl opacity-70"></div>
+                </div>
+              </div>
+              
+              {/* Carte Anonymat 3 */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur opacity-40 group-hover:opacity-70 transition-opacity duration-500"></div>
+                <div className="relative bg-gray-900 rounded-2xl p-6 h-full border border-blue-500/20 backdrop-blur-sm">
+                  <div className="w-14 h-14 rounded-xl bg-cyan-600/10 flex items-center justify-center mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold mb-3 text-white">Sans Trace</h3>
+                  <p className="text-gray-300">Notre système ne conserve aucun journal d'activité ni information pouvant vous identifier lors de l'utilisation de nos services.</p>
+                  
+                  <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-cyan-600/20 rounded-full filter blur-xl opacity-70"></div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Hexagone de protection */}
+            <div className="mt-24 relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-indigo-600/10 rounded-3xl"></div>
+              
+              <div className="py-16 px-6 relative border border-blue-500/10 backdrop-blur-sm rounded-3xl overflow-hidden">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-10">
+                  <div className="md:w-1/2 relative z-10">
+                    <h3 className="text-2xl md:text-3xl font-bold mb-6 text-white">Protection à Plusieurs Niveaux</h3>
+                    <p className="text-gray-300 mb-8">
+                      Notre infrastructure est conçue pour assurer la confidentialité totale de votre identité à travers plusieurs couches de protection. Chaque connexion est sécurisée et anonymisée.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      {[
+                        "Serveurs multijuridictions sans journalisation",
+                        "Réseau privé virtuel (VPN) intégré",
+                        "Authentification multi-facteurs",
+                        "Données auto-destructibles",
+                        "Paiements anonymisés"
+                      ].map((item, index) => (
+                        <div key={index} className="flex items-center gap-3">
+                          <div className="bg-blue-600/20 rounded-full p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <span className="text-gray-300">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="md:w-1/2 flex justify-center relative">
+                    {/* Hexagone animé avec des couches */}
+                    <div className="relative w-72 h-72">
+                      {/* Couches d'hexagones */}
+                      {[...Array(4)].map((_, i) => (
+                        <div 
+                          key={i} 
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            clipPath: 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)',
+                            border: `1px solid rgba(59, 130, 246, ${0.2 - i * 0.05})`,
+                            transform: `scale(${1 - i * 0.15})`,
+                            animation: `pulse ${2 + i}s infinite alternate ease-in-out`,
+                            backgroundColor: `rgba(30, 58, 138, ${0.1 - i * 0.02})`,
+                          }}
+                        ></div>
+                      ))}
+                      
+                      {/* Icône centrale */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-blue-900/30 p-6 rounded-full">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-blue-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                        </div>
+                      </div>
+                      
+                      {/* Lignes de connexion */}
+                      {[30, 90, 150, 210, 270, 330].map((angle, i) => (
+                        <div 
+                          key={i} 
+                          className="absolute top-1/2 left-1/2 w-36 h-px bg-gradient-to-r from-blue-500/70 to-transparent"
+                          style={{
+                            transform: `rotate(${angle}deg)`,
+                            transformOrigin: 'left center',
+                            animation: `glow ${3 + i * 0.5}s infinite alternate ease-in-out`,
+                          }}
+                        ></div>
+                      ))}
+                      
+                      {/* Points de connexion lumineux */}
+                      {[30, 90, 150, 210, 270, 330].map((angle, i) => (
+                        <div 
+                          key={i} 
+                          className="absolute w-2 h-2 rounded-full bg-blue-400"
+                          style={{
+                            top: `${50 + 36 * Math.sin(angle * Math.PI / 180)}%`,
+                            left: `${50 + 36 * Math.cos(angle * Math.PI / 180)}%`,
+                            boxShadow: '0 0 10px 2px rgba(59, 130, 246, 0.5)',
+                            animation: `blink ${2 + i * 0.5}s infinite alternate ease-in-out`,
+                          }}
+                        ></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
       {/* Login Modal */}
       <div className={`fixed inset-0 z-50 flex items-center justify-center ${isLoginModalOpen ? 'opacity-100 visible' : 'opacity-0 invisible'} transition-all duration-300`}>
         <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={toggleLoginModal}></div>
@@ -884,7 +1093,7 @@ const MisaLinuxHomepage = () => {
         </div>
       </div>
       
-      {/* Footer */}
+      {/* Footer - Correction des liens */}
       <footer className="py-10 bg-gray-900 border-t border-gray-800">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
@@ -896,9 +1105,9 @@ const MisaLinuxHomepage = () => {
             </div>
             
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <a href="/cgu" className="hover:text-blue-400 transition-colors">Conditions générales d'utilisation</a>
-              <a href="/cgv" className="hover:text-blue-400 transition-colors">Conditions générales de vente</a>
-              <a href="/privacy" className="hover:text-blue-400 transition-colors">Politique de confidentialité</a>
+              <a href="/cgu" className="hover:text-blue-400 transition-colors cursor-pointer">Conditions générales d'utilisation</a>
+              <a href="/cgv" className="hover:text-blue-400 transition-colors cursor-pointer">Conditions générales de vente</a>
+              <a href="/privacy" className="hover:text-blue-400 transition-colors cursor-pointer">Politique de confidentialité</a>
             </div>
             
             <div className="text-gray-400 text-sm">
@@ -907,6 +1116,32 @@ const MisaLinuxHomepage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Ajouter des keyframes pour les animations */}
+      <style>
+        {`
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          100% { transform: scale(1.05); }
+        }
+        
+        @keyframes glow {
+          0% { opacity: 0.3; }
+          100% { opacity: 0.8; }
+        }
+        
+        @keyframes blink {
+          0% { opacity: 0.3; }
+          100% { opacity: 1; }
+        }
+        
+        @keyframes float {
+          0% { transform: translate(-50%, -50%) translateY(0); }
+          50% { transform: translate(-50%, -50%) translateY(-20px); }
+          100% { transform: translate(-50%, -50%) translateY(0); }
+        }
+        `}
+      </style>
     </div>
   );
 };
