@@ -427,13 +427,13 @@ const CertificationManager: React.FC = () => {
           {currentCertification.requirements.map((req, index) => (
             <div key={index} className="bg-gray-700 p-3 rounded-md flex justify-between items-center">
               <div>
-                <div className="font-medium text-white mb-1">{
+                <div className="font-medium text-white">{
                   req.type === RequirementType.COMPLETE_FORMATIONS ? 'Formations à compléter' :
                   req.type === RequirementType.PASS_EXAM ? 'Examen à réussir' :
-                  req.type === RequirementType.ADMIN_APPROVAL ? 'Approbation administrative' :
+                  req.type === RequirementType.ADMIN_APPROVAL ? 'Approbation admin' :
                   'Modules spécifiques'
                 }</div>
-                <div className="text-gray-300">{req.description}</div>
+                <div className="text-sm text-gray-400">{req.description}</div>
               </div>
               <div className="flex space-x-2">
                 <button
@@ -669,7 +669,7 @@ const CertificationManager: React.FC = () => {
                   )}
                   
                   <div className="p-4">
-                    <h3 className="text-lg font-medium mb-2">{certification.title}</h3>
+                    <h3 className="text-lg font-medium mb-2 text-white">{certification.title}</h3>
                     <p className="text-gray-400 text-sm mb-4 line-clamp-2">
                       {certification.description}
                     </p>
@@ -730,7 +730,7 @@ const CertificationManager: React.FC = () => {
                 <div key={index} className="bg-gray-700 p-4 rounded-md">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-medium mb-1">{question.question}</h4>
+                      <h4 className="font-medium mb-1 text-white">{question.question}</h4>
                       <div className="text-sm text-gray-400">
                         Type: {
                           question.type === QuestionType.MULTIPLE_CHOICE ? 'Choix unique' :
@@ -856,19 +856,7 @@ const CertificationManager: React.FC = () => {
                           }}
                           className="h-4 w-4 bg-gray-700 border-gray-600 rounded text-blue-600 focus:ring-blue-500 mr-2"
                         />
-                        <input
-                          type="text"
-                          value={option}
-                          onChange={(e) => handleUpdateOption(index, e.target.value)}
-                          className="flex-1 bg-gray-800 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder={`Option ${index + 1}`}
-                        />
-                        <button
-                          onClick={() => handleDeleteOption(index)}
-                          className="ml-2 text-red-500 hover:text-red-400"
-                        >
-                          <X size={16} />
-                        </button>
+                        <span className="text-white">{option}</span>
                       </div>
                     ))}
                   </div>
@@ -878,31 +866,23 @@ const CertificationManager: React.FC = () => {
               {/* Options pour Vrai/Faux */}
               {currentQuestion.type === QuestionType.TRUE_FALSE && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">
-                    Réponse correcte
-                  </label>
+                  <div className="text-sm text-gray-400 mb-1">Vrai/Faux</div>
                   <div className="flex space-x-4">
                     <div className="flex items-center">
-                      <input
-                        type="radio"
-                        id="answer-true"
-                        name="correctAnswer"
-                        checked={currentQuestion.correctAnswer === 'true'}
-                        onChange={() => setCurrentQuestion(prev => ({...prev, correctAnswer: 'true'}))}
-                        className="h-4 w-4 bg-gray-700 border-gray-600 rounded-full text-blue-600 focus:ring-blue-500 mr-2"
-                      />
-                      <label htmlFor="answer-true" className="text-gray-300">Vrai</label>
+                      <div className={`w-4 h-4 mr-2 rounded-full flex items-center justify-center ${
+                        currentQuestion.correctAnswer === 'true' ? 'bg-green-500' : 'bg-gray-600'
+                      }`}>
+                        {currentQuestion.correctAnswer === 'true' && <Check size={12} />}
+                      </div>
+                      <span className="text-white">Vrai</span>
                     </div>
                     <div className="flex items-center">
-                      <input
-                        type="radio"
-                        id="answer-false"
-                        name="correctAnswer"
-                        checked={currentQuestion.correctAnswer === 'false'}
-                        onChange={() => setCurrentQuestion(prev => ({...prev, correctAnswer: 'false'}))}
-                        className="h-4 w-4 bg-gray-700 border-gray-600 rounded-full text-blue-600 focus:ring-blue-500 mr-2"
-                      />
-                      <label htmlFor="answer-false" className="text-gray-300">Faux</label>
+                      <div className={`w-4 h-4 mr-2 rounded-full flex items-center justify-center ${
+                        currentQuestion.correctAnswer === 'false' ? 'bg-green-500' : 'bg-gray-600'
+                      }`}>
+                        {currentQuestion.correctAnswer === 'false' && <Check size={12} />}
+                      </div>
+                      <span className="text-white">Faux</span>
                     </div>
                   </div>
                 </div>
@@ -911,16 +891,10 @@ const CertificationManager: React.FC = () => {
               {/* Réponse courte */}
               {currentQuestion.type === QuestionType.SHORT_ANSWER && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">
-                    Réponse correcte
-                  </label>
-                  <input
-                    type="text"
-                    value={typeof currentQuestion.correctAnswer === 'string' ? currentQuestion.correctAnswer : ''}
-                    onChange={(e) => setCurrentQuestion(prev => ({...prev, correctAnswer: e.target.value}))}
-                    className="w-full bg-gray-800 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Saisissez la réponse correcte"
-                  />
+                  <div className="text-sm text-white mb-1">Réponse courte</div>
+                  <div className="mt-1 text-green-400">
+                    Réponse correcte : {typeof currentQuestion.correctAnswer === 'string' ? currentQuestion.correctAnswer : 'Non définie'}
+                  </div>
                 </div>
               )}
               
@@ -980,8 +954,8 @@ const CertificationManager: React.FC = () => {
                 )}
                 
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-2">{previewCertification.title}</h3>
-                  <div className="text-white mb-4 markdown-content">
+                  <h3 className="text-2xl font-bold mb-2">{previewCertification.title}</h3>
+                  <div className="text-gray-300 mb-4 markdown-content">
                     <ReactMarkdown>{previewCertification.description}</ReactMarkdown>
                   </div>
                   
@@ -1013,7 +987,7 @@ const CertificationManager: React.FC = () => {
                   <ul className="space-y-4">
                     {previewCertification.requirements.map((req, index) => (
                       <li key={index} className="bg-gray-700 p-4 rounded-md">
-                        <div className="font-medium text-white mb-1">{
+                        <div className="font-medium mb-1 text-white">{
                           req.type === RequirementType.COMPLETE_FORMATIONS ? 'Formations à compléter' :
                           req.type === RequirementType.PASS_EXAM ? 'Examen à réussir' :
                           req.type === RequirementType.ADMIN_APPROVAL ? 'Approbation administrative' :
@@ -1024,7 +998,7 @@ const CertificationManager: React.FC = () => {
                         {req.type === RequirementType.COMPLETE_FORMATIONS && req.formationIds && req.formationIds.length > 0 && (
                           <div className="mt-2">
                             <div className="text-sm text-gray-400 mb-1">Formations requises :</div>
-                            <ul className="pl-5 list-disc text-white">
+                            <ul className="pl-5 list-disc text-gray-300">
                               {req.formationIds.map((id, i) => {
                                 const formation = formations.find(f => f.id === id);
                                 return (
@@ -1062,13 +1036,13 @@ const CertificationManager: React.FC = () => {
                   <ul className="space-y-4">
                     {previewCertification.examQuestions.map((question, index) => (
                       <li key={index} className="bg-gray-700 p-4 rounded-md">
-                        <div className="font-medium text-white mb-2">
+                        <div className="font-medium mb-2 text-white">
                           {index + 1}. {question.question}
                         </div>
                         
                         {(question.type === QuestionType.MULTIPLE_CHOICE || question.type === QuestionType.MULTIPLE_ANSWER) && (
                           <div>
-                            <div className="text-sm text-gray-400 mb-1">
+                            <div className="text-sm text-white mb-1">
                               {question.type === QuestionType.MULTIPLE_CHOICE ? 'Choix unique' : 'Choix multiples'}
                             </div>
                             <ul className="space-y-1">
@@ -1094,48 +1068,9 @@ const CertificationManager: React.FC = () => {
                         
                         {question.type === QuestionType.TRUE_FALSE && (
                           <div>
-                            <div className="text-sm text-gray-400 mb-1">Vrai/Faux</div>
+                            <div className="text-sm text-white mb-1">Vrai/Faux</div>
                             <div className="flex space-x-4">
                               <div className="flex items-center">
                                 <div className={`w-4 h-4 mr-2 rounded-full flex items-center justify-center ${
                                   question.correctAnswer === 'true' ? 'bg-green-500' : 'bg-gray-600'
-                                }`}>
-                                  {question.correctAnswer === 'true' && <Check size={12} />}
-                                </div>
-                                <span className="text-white">Vrai</span>
-                              </div>
-                              <div className="flex items-center">
-                                <div className={`w-4 h-4 mr-2 rounded-full flex items-center justify-center ${
-                                  question.correctAnswer === 'false' ? 'bg-green-500' : 'bg-gray-600'
-                                }`}>
-                                  {question.correctAnswer === 'false' && <Check size={12} />}
-                                </div>
-                                <span className="text-white">Faux</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {question.type === QuestionType.SHORT_ANSWER && (
-                          <div>
-                            <div className="text-sm text-gray-400 mb-1">Réponse courte</div>
-                            <div className="mt-1 text-green-400">
-                              Réponse correcte : {typeof question.correctAnswer === 'string' ? question.correctAnswer : 'Non définie'}
-                            </div>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-};
-
-export default CertificationManager; 
+                                }`
