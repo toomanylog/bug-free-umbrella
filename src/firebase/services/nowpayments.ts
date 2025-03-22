@@ -88,6 +88,12 @@ export const createWalletDeposit = async (user: User, amount: number): Promise<{
 
     // Si la création du paiement a réussi
     if (response.data && response.data.payment_id) {
+      // S'assurer que tous les champs nécessaires sont présents
+      const paymentUrl = response.data.invoice_url || '';
+      const payAddress = response.data.pay_address || '';
+      const payAmount = response.data.pay_amount || 0;
+      const payCurrency = response.data.pay_currency || 'btc';
+      
       // Créer une nouvelle transaction dans la base de données
       const transactionsRef = ref(database, 'transactions');
       const transactionRef = push(transactionsRef);
@@ -102,10 +108,10 @@ export const createWalletDeposit = async (user: User, amount: number): Promise<{
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         paymentDetails: {
-          pay_address: response.data.pay_address,
-          pay_amount: response.data.pay_amount,
-          pay_currency: response.data.pay_currency,
-          paymentUrl: response.data.invoice_url
+          pay_address: payAddress,
+          pay_amount: payAmount,
+          pay_currency: payCurrency,
+          paymentUrl: paymentUrl
         }
       };
 
@@ -113,11 +119,11 @@ export const createWalletDeposit = async (user: User, amount: number): Promise<{
       await set(transactionRef, newTransaction);
 
       return {
-        paymentUrl: response.data.invoice_url,
+        paymentUrl: paymentUrl,
         transactionId: transactionRef.key || ''
       };
     } else {
-      throw new Error('Erreur lors de la création du paiement');
+      throw new Error('Erreur lors de la création du paiement: réponse incomplète de l\'API');
     }
   } catch (error) {
     console.error('Erreur lors de la création du paiement:', error);
