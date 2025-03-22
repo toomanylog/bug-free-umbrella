@@ -1325,7 +1325,7 @@ const RiotManager: React.FC = () => {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Nom d'utilisateur</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Nom affiché en jeu</label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1336,7 +1336,7 @@ const RiotManager: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Tag</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Tag (après le #)</label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1370,36 +1370,36 @@ const RiotManager: React.FC = () => {
                     className="h-4 w-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
                   />
                   <label htmlFor="advancedMode" className="ml-2 text-sm text-gray-300">
-                    Mode avancé (stockage des identifiants et saisie manuelle du rang)
+                    Mode avancé (stockage des identifiants de connexion et saisie manuelle du rang)
                   </label>
                 </div>
                 
                 {advancedMode && (
                   <div className="border border-gray-600 rounded-lg p-4 mt-4 space-y-4 bg-gray-750">
-                    <h3 className="font-medium text-blue-400 mb-2">Informations supplémentaires</h3>
+                    <h3 className="font-medium text-blue-400 mb-2">Identifiants de connexion</h3>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Adresse E-mail</label>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">E-mail de connexion</label>
                       <input
                         type="email"
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newAccount.email}
                         onChange={(e) => setNewAccount({...newAccount, email: e.target.value})}
-                        placeholder="E-mail lié au compte RIOT"
+                        placeholder="Adresse e-mail pour se connecter au compte RIOT"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe</label>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe RIOT</label>
                       <input
                         type="password"
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={newAccount.password}
                         onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
-                        placeholder="Mot de passe (stocké de manière sécurisée)"
+                        placeholder="Mot de passe pour se connecter au compte RIOT"
                       />
                       <p className="text-xs text-gray-400 mt-1">
-                        Note: Les mots de passe sont stockés dans la base de données. Assurez-vous d'utiliser des règles de sécurité appropriées.
+                        Note: Les identifiants sont stockés dans la base de données et ne sont visibles que par les administrateurs.
                       </p>
                     </div>
                     
