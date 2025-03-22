@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { database } from '../../firebase/config';
 import { ref, get, set, remove, update } from 'firebase/database';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, X, Search, Edit, Trash2, RefreshCw, Shield, Users, AlertTriangle, Target, Crosshair, Link, LinkIcon, Swords } from 'lucide-react';
+import { Plus, X, Search, Edit, Trash2, RefreshCw, Shield, Users, AlertTriangle, Target, Crosshair, Link, LinkIcon, Swords, Play } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface RiotAccount {
@@ -105,6 +105,14 @@ const REGIONS = [
 // Clé API Riot
 const RIOT_API_KEY = process.env.REACT_APP_RIOT_API_KEY || 'RGAPI-80c93110-b305-4d8d-bbe1-b067038b1e54';
 
+// Configuration de l'authentification OAuth (à implémenter réellement en production)
+const oauthConfig = {
+  clientId: "votre-client-id",  // À remplacer par votre client ID une fois inscrit au programme de développement Riot
+  redirectUri: window.location.origin + "/auth/riot/callback",
+  scope: "openid offline_access",
+  authUrl: "https://auth.riotgames.com/authorize"
+};
+
 // Composant principal
 const RiotManager: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -140,6 +148,7 @@ const RiotManager: React.FC = () => {
   const [showLinkAccountsModal, setShowLinkAccountsModal] = useState<boolean>(false);
   const [accountsToLink, setAccountsToLink] = useState<string[]>([]);
   const [primaryAccountId, setPrimaryAccountId] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState<string>('');
   
   // Chargement des comptes depuis Firebase
   useEffect(() => {
@@ -489,11 +498,11 @@ const RiotManager: React.FC = () => {
     }
   };
   
-  // Charger les armes et leurs skins depuis l'API Valorant
+  // Charger les armes depuis l'API Valorant
   const loadWeapons = async () => {
     try {
-      setLoadingWeapons(true);
-      setWeaponError(null);
+      setLoading(true);
+      setError(null);
       
       const response = await fetch('https://valorant-api.com/v1/weapons');
       
@@ -504,16 +513,54 @@ const RiotManager: React.FC = () => {
       const data = await response.json();
       
       if (data.status === 200) {
-        setWeapons(data.data);
+        const weapons = data.data;
+        // Transformations pour l'affichage
+        const formattedWeapons = weapons.map((weapon: Weapon) => {
+          // Nettoyer la catégorie pour enlever "EEquippableCategory::"
+          const categoryDisplay = weapon.category.replace('EEquippableCategory::', '');
+          
+          // Filtrer les skins "Standard" et "Random"
+          const filteredSkins = weapon.skins.filter((skin: WeaponSkin) => 
+            !skin.displayName.includes('Standard') && 
+            !skin.displayName.includes('Random') &&
+            !skin.displayName.includes('Default')
+          );
+          
+          return {
+            uuid: weapon.uuid,
+            displayName: weapon.displayName,
+            category: formatWeaponCategory(categoryDisplay),
+            displayIcon: weapon.displayIcon,
+            killStreamIcon: weapon.killStreamIcon,
+            skins: filteredSkins
+          };
+        });
+        
+        setWeapons(formattedWeapons);
       } else {
         throw new Error('Erreur lors du chargement des armes');
       }
     } catch (err) {
       console.error('Erreur lors du chargement des armes:', err);
-      setWeaponError('Impossible de charger les armes Valorant. Veuillez réessayer plus tard.');
+      setError('Impossible de charger les armes Valorant. Veuillez réessayer plus tard.');
     } finally {
-      setLoadingWeapons(false);
+      setLoading(false);
     }
+  };
+  
+  // Formater la catégorie d'arme pour l'affichage
+  const formatWeaponCategory = (category: string): string => {
+    const categories: Record<string, string> = {
+      'Heavy': 'Armes lourdes',
+      'Rifle': 'Fusils d\'assaut',
+      'Shotgun': 'Fusils à pompe',
+      'Sidearm': 'Armes de poing',
+      'SMG': 'Mitraillettes',
+      'Sniper': 'Fusils de précision',
+      'Melee': 'Corps-à-corps'
+    };
+    
+    return categories[category] || category;
   };
   
   // Afficher les détails d'une arme
@@ -736,6 +783,40 @@ const RiotManager: React.FC = () => {
     }
   };
   
+  // Rediriger vers l'authentification Riot Games
+  const redirectToRiotAuth = () => {
+    // Cette fonction n'est qu'une simulation pour le moment
+    // L'implémentation réelle nécessiterait une inscription au programme de développement Riot
+    alert(`Pour une intégration OAuth complète comme Tracker.gg, nous devons:
+    
+1. S'inscrire au programme de développement Riot Games
+2. Être approuvé pour accéder aux API de production
+3. Implémenter le flux d'authentification OAuth
+    
+Actuellement, nous utilisons une clé API de développement avec des fonctionnalités limitées.
+Pour plus d'informations, consultez https://developer.riotgames.com/`);
+    
+    // Le code réel ressemblerait à ceci:
+    /*
+    const params = new URLSearchParams({
+      client_id: oauthConfig.clientId,
+      redirect_uri: oauthConfig.redirectUri,
+      response_type: "code",
+      scope: oauthConfig.scope
+    });
+    
+    window.location.href = `${oauthConfig.authUrl}?${params.toString()}`;
+    */
+  };
+  
+  // Tenter d'obtenir des données plus détaillées via OAuth
+  const getDetailedPlayerData = async (account: RiotAccount) => {
+    // Dans une implémentation réelle, nous vérifierions si nous avons un token
+    // et utiliserions ce token pour obtenir des données plus détaillées
+    
+    redirectToRiotAuth();
+  };
+  
   // Rendu du composant
   return (
     <div className="space-y-6">
@@ -913,10 +994,28 @@ const RiotManager: React.FC = () => {
                         </p>
                         
                         {/* Actions */}
-                        <div className="mt-4 flex space-x-2">
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button 
+                            onClick={() => connectRiotAccount(account)}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg flex items-center"
+                            disabled={loading}
+                          >
+                            <RefreshCw size={16} className="mr-1" />
+                            Connecter
+                          </button>
+                          
+                          <button 
+                            onClick={() => getDetailedPlayerData(account)}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
+                            disabled={loading}
+                          >
+                            <Shield size={16} className="mr-1" />
+                            Auth Riot
+                          </button>
+                          
                           <button 
                             onClick={() => openEditForm(account)}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
+                            className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
                           >
                             <Edit size={16} className="mr-1" />
                             Modifier
@@ -929,15 +1028,6 @@ const RiotManager: React.FC = () => {
                             <Trash2 size={16} className="mr-1" />
                             Supprimer
                           </button>
-
-                          <button 
-                            onClick={() => connectRiotAccount(account)}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg flex items-center"
-                            disabled={loading}
-                          >
-                            <RefreshCw size={16} className="mr-1" />
-                            Connecter
-                          </button>
                           
                           {account.linked ? (
                             <button 
@@ -945,7 +1035,7 @@ const RiotManager: React.FC = () => {
                               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center"
                             >
                               <LinkIcon size={16} className="mr-1" />
-                              Lier
+                              Comptes liés
                             </button>
                           ) : (
                             <button 
@@ -1260,15 +1350,18 @@ const RiotManager: React.FC = () => {
                         <div>
                           <p className="font-medium text-sm">{level.displayName}</p>
                           {level.streamedVideo && (
-                            <a 
-                              href={level.streamedVideo} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 mt-1 inline-block"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Voir la vidéo
-                            </a>
+                            <div className="mt-2">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowVideo(level.streamedVideo || '');
+                                }}
+                                className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
+                              >
+                                <Play size={14} className="mr-1" />
+                                Voir la vidéo
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1278,6 +1371,31 @@ const RiotManager: React.FC = () => {
                   <p className="text-gray-400">Aucun niveau disponible</p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal vidéo */}
+      {showVideo && (
+        <div 
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex justify-center items-center p-4" 
+          onClick={() => setShowVideo('')}
+        >
+          <div className="relative w-full max-w-4xl">
+            <button 
+              className="absolute -top-10 right-0 text-white hover:text-gray-300"
+              onClick={() => setShowVideo('')}
+            >
+              <X size={24} />
+            </button>
+            <div className="aspect-video w-full bg-black">
+              <iframe
+                src={showVideo}
+                className="w-full h-full"
+                allowFullScreen
+                title="Aperçu du skin"
+              ></iframe>
             </div>
           </div>
         </div>
