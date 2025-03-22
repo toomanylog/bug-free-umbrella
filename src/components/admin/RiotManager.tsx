@@ -105,14 +105,6 @@ const REGIONS = [
 // Clé API Riot
 const RIOT_API_KEY = process.env.REACT_APP_RIOT_API_KEY || 'RGAPI-80c93110-b305-4d8d-bbe1-b067038b1e54';
 
-// Configuration de l'authentification OAuth (à implémenter réellement en production)
-const oauthConfig = {
-  clientId: "734997",  // ID de l'application Riot Games
-  redirectUri: window.location.origin + "/auth/riot/callback",
-  scope: "openid offline_access",
-  authUrl: "https://auth.riotgames.com/authorize"
-};
-
 // Composant principal
 const RiotManager: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -642,16 +634,6 @@ const RiotManager: React.FC = () => {
     }
   };
   
-  // Charger les agents et armes lors du changement d'onglet
-  useEffect(() => {
-    if (activeTab === 'agents') {
-      // Charger les agents de Valorant 
-      loadAgents();
-    } else if (activeTab === 'skins') {
-      loadWeapons();
-    }
-  }, [activeTab]);
-  
   // Charger les agents depuis l'API Valorant
   const loadAgents = async () => {
     try {
@@ -668,15 +650,20 @@ const RiotManager: React.FC = () => {
       
       if (data.status === 200) {
         const agents = data.data;
-        // Stockage temporaire des agents dans la variable weapons pour l'affichage
-        setWeapons(agents.map((agent: Agent) => ({
+        // Pour diagnostic - afficher dans la console le nombre d'agents
+        console.log(`Agents chargés: ${agents.length}`);
+        
+        // Utiliser un format compatible avec l'affichage
+        const formattedAgents = agents.map((agent: Agent) => ({
           uuid: agent.uuid,
           displayName: agent.displayName,
-          category: agent.role?.displayName || "Agent",
+          category: agent.role ? agent.role.displayName : "Agent",
           displayIcon: agent.displayIcon,
           killStreamIcon: agent.displayIcon,
           skins: [] // Pas de skins pour les agents
-        })));
+        }));
+        
+        setWeapons(formattedAgents);
       } else {
         throw new Error('Erreur lors du chargement des agents');
       }
@@ -687,6 +674,16 @@ const RiotManager: React.FC = () => {
       setLoading(false);
     }
   };
+  
+  // Charger les agents et armes lors du changement d'onglet
+  useEffect(() => {
+    if (activeTab === 'agents') {
+      // Charger les agents de Valorant 
+      loadAgents();
+    } else if (activeTab === 'skins') {
+      loadWeapons();
+    }
+  }, [activeTab]);
   
   // Connexion au compte RIOT et récupération des données du joueur
   const connectRiotAccount = async (account: RiotAccount) => {
@@ -781,38 +778,6 @@ const RiotManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Rediriger vers l'authentification Riot Games
-  const redirectToRiotAuth = () => {
-    // Note: L'application est en attente d'examen par Riot Games
-    // Une fois approuvée, ce code pourra être activé
-    
-    /* Décommenter ce code une fois l'application approuvée
-    const params = new URLSearchParams({
-      client_id: oauthConfig.clientId,
-      redirect_uri: oauthConfig.redirectUri,
-      response_type: "code",
-      scope: oauthConfig.scope
-    });
-    
-    window.location.href = `${oauthConfig.authUrl}?${params.toString()}`;
-    */
-    
-    // Message temporaire pendant la période d'examen
-    alert(`Notre application est actuellement en cours d'examen par Riot Games (App ID: ${oauthConfig.clientId}).
-    
-Une fois approuvée, vous pourrez vous connecter directement avec votre compte Riot pour accéder à plus de données.
-    
-Pour l'instant, nous utilisons uniquement l'API publique avec notre clé API.`);
-  };
-  
-  // Tenter d'obtenir des données plus détaillées via OAuth
-  const getDetailedPlayerData = async (account: RiotAccount) => {
-    // Dans une implémentation réelle, nous vérifierions si nous avons un token
-    // et utiliserions ce token pour obtenir des données plus détaillées
-    
-    redirectToRiotAuth();
   };
   
   // Rendu du composant
@@ -1003,12 +968,12 @@ Pour l'instant, nous utilisons uniquement l'API publique avec notre clé API.`);
                           </button>
                           
                           <button 
-                            onClick={() => getDetailedPlayerData(account)}
+                            onClick={() => refreshAccountData(account)}
                             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
                             disabled={loading}
                           >
                             <Shield size={16} className="mr-1" />
-                            Auth Riot
+                            Actualiser
                           </button>
                           
                           <button 

@@ -12,7 +12,6 @@ import FormationDetail from './pages/FormationDetail';
 import CertificationDetail from './pages/CertificationDetail';
 import ExamPage from './pages/exam/ExamPage';
 import { AuthProvider } from './contexts/AuthContext';
-import RiotAuthCallback from './components/auth/RiotAuthCallback';
 
 function App() {
   return (
@@ -29,7 +28,6 @@ function App() {
               <Route path="/formation/:formationId" element={<FormationDetail />} />
               <Route path="/certification/:certificationId" element={<CertificationDetail />} />
               <Route path="/exam/:certificationId" element={<ExamPage />} />
-              <Route path="/auth/riot/callback" element={<RiotAuthCallback />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
