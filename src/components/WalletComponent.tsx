@@ -2,10 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, database } from '../firebase/config';
 import { ref, get, onValue, off } from 'firebase/database';
-import { createWalletDeposit, Transaction as BaseTransaction, TransactionStatus, UserWallet } from '../firebase/services/nowpayments';
+import { 
+  createWalletDeposit, 
+  cancelTransaction,
+  Transaction as BaseTransaction, 
+  TransactionStatus, 
+  UserWallet, 
+  SUPPORTED_CRYPTOCURRENCIES 
+} from '../firebase/services/nowpayments';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Trash, ArrowUp, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Trash, ArrowUp, CheckCircle, XCircle, Clock, X } from 'lucide-react';
 
 // Styles
 import './WalletComponent.css';
@@ -18,6 +25,7 @@ interface Transaction extends BaseTransaction {
     pay_currency: string;
     paymentUrl: string;
   };
+  expiresAt?: string;
 }
 
 // Interface pour les props du composant
@@ -35,6 +43,9 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
   const [depositUrl, setDepositUrl] = useState<string | null>(null);
   const [processingDeposit, setProcessingDeposit] = useState<boolean>(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [selectedCrypto, setSelectedCrypto] = useState<string>('btc');
+  const [cancellationLoading, setCancellationLoading] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Options de montants prédéfinis pour les dépôts
   const predefinedAmounts = [50, 100, 200, 500, 1000];
@@ -148,13 +159,38 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
       setProcessingDeposit(true);
       setError(null);
 
-      const result = await createWalletDeposit(user, amount);
+      const result = await createWalletDeposit(user, amount, selectedCrypto);
       setDepositUrl(result.paymentUrl);
     } catch (err) {
       console.error("Erreur lors de la création du dépôt:", err);
       setError("Une erreur est survenue lors de la création du dépôt.");
     } finally {
       setProcessingDeposit(false);
+    }
+  };
+
+  // Fonction pour annuler une transaction en attente
+  const handleCancelTransaction = async (transactionId: string) => {
+    if (!user) return;
+    
+    try {
+      setCancellationLoading(transactionId);
+      await cancelTransaction(user, transactionId);
+      setSuccessMessage("Transaction annulée avec succès.");
+      
+      // Le changement sera automatiquement reflété dans l'interface grâce à l'écouteur onValue
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+    } catch (err: any) {
+      console.error("Erreur lors de l'annulation de la transaction:", err);
+      setError(err.message || "Une erreur est survenue lors de l'annulation de la transaction.");
+      
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
+    } finally {
+      setCancellationLoading(null);
     }
   };
 
@@ -188,6 +224,8 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
         return "Remboursé";
       case TransactionStatus.EXPIRED:
         return "Expiré";
+      case TransactionStatus.CANCELLED:
+        return "Annulé";
       default:
         return status;
     }
@@ -200,6 +238,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
         return <CheckCircle className="status-icon success" />;
       case TransactionStatus.FAILED:
       case TransactionStatus.EXPIRED:
+      case TransactionStatus.CANCELLED:
         return <XCircle className="status-icon error" />;
       case TransactionStatus.WAITING:
       case TransactionStatus.CONFIRMING:
@@ -239,7 +278,29 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
 
   return (
     <div className="wallet-container">
-      {error && <div className="wallet-error">{error}</div>}
+      {error && (
+        <div className="wallet-error">
+          {error}
+          <button 
+            className="error-close-btn" 
+            onClick={() => setError(null)}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      
+      {successMessage && (
+        <div className="wallet-success">
+          {successMessage}
+          <button 
+            className="success-close-btn" 
+            onClick={() => setSuccessMessage(null)}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
       
       {/* Solde du portefeuille */}
       <div className="wallet-balance-container">
@@ -291,6 +352,24 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
             </div>
           </div>
           
+          <div className="crypto-selection">
+            <label>Choisissez votre crypto-monnaie:</label>
+            <div className="crypto-options">
+              {SUPPORTED_CRYPTOCURRENCIES.map(crypto => (
+                <button
+                  key={crypto.id}
+                  className={`crypto-button ${selectedCrypto === crypto.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedCrypto(crypto.id)}
+                >
+                  {crypto.symbol}
+                </button>
+              ))}
+            </div>
+            <p className="crypto-note">
+              Vous paierez en équivalent {SUPPORTED_CRYPTOCURRENCIES.find(c => c.id === selectedCrypto)?.name || selectedCrypto.toUpperCase()}
+            </p>
+          </div>
+          
           <button 
             className="deposit-button"
             onClick={handleDeposit}
@@ -323,7 +402,16 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
               <div key={tx.id} className="pending-payment-item">
                 <div className="payment-header">
                   <h4>Dépôt de {tx.amount} {tx.currency}</h4>
-                  <span className="status-tag">En attente</span>
+                  <div className="payment-actions">
+                    <span className="status-tag">En attente</span>
+                    <button
+                      className="cancel-tx-button"
+                      onClick={() => handleCancelTransaction(tx.id)}
+                      disabled={!!cancellationLoading}
+                    >
+                      {cancellationLoading === tx.id ? 'Annulation...' : 'Annuler'}
+                    </button>
+                  </div>
                 </div>
                 
                 {tx.paymentDetails && (
@@ -354,7 +442,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
                       </div>
                     </div>
                     
-                    {tx.paymentDetails && tx.paymentDetails.paymentUrl && (
+                    {tx.paymentDetails.paymentUrl && (
                       <div className="payment-url">
                         <a 
                           href={tx.paymentDetails.paymentUrl} 
@@ -366,6 +454,14 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
                         </a>
                       </div>
                     )}
+                    
+                    <div className="expiration-info">
+                      {tx.expiresAt && (
+                        <p className="expiration-text">
+                          Cette transaction expirera le {formatDate(tx.expiresAt)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { auth, database } from '../config';
-import { ref, set, get, push, update, query as dbQuery, orderByChild, equalTo } from 'firebase/database';
+import { ref, set, get, push, update, query as dbQuery, orderByChild, equalTo, remove } from 'firebase/database';
 import { User } from 'firebase/auth';
 
 // Clé API NOWPayments
@@ -10,6 +10,9 @@ const API_URL = 'https://api.nowpayments.io/v1';
 
 // Clé IPN pour la vérification des webhooks - à configurer dans les variables d'environnement
 const IPN_SECRET_KEY = process.env.REACT_APP_NOWPAYMENTS_IPN_KEY || 'aR65dL1KfqswL0Hmmke46GbDNvdlqggp';
+
+// Délai d'expiration des transactions (en millisecondes) - 24 heures par défaut
+export const TRANSACTION_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 heures
 
 // Types pour les transactions
 export enum TransactionStatus {
@@ -21,7 +24,8 @@ export enum TransactionStatus {
   FINISHED = 'finished',
   FAILED = 'failed',
   REFUNDED = 'refunded',
-  EXPIRED = 'expired'
+  EXPIRED = 'expired',
+  CANCELLED = 'cancelled'
 }
 
 export enum TransactionType {
@@ -45,6 +49,13 @@ export interface Transaction {
   type: TransactionType;
   itemId?: string; // ID de la formation, outil, etc.
   paymentUrl?: string;
+  paymentDetails?: {
+    pay_address: string;
+    pay_amount: number;
+    pay_currency: string;
+    paymentUrl: string;
+  };
+  expiresAt?: string;
 }
 
 export interface UserWallet {
@@ -54,17 +65,42 @@ export interface UserWallet {
   lastUpdated: string;
 }
 
+// Liste des cryptomonnaies supportées par NOWPayments
+export const SUPPORTED_CRYPTOCURRENCIES = [
+  { id: 'btc', name: 'Bitcoin', symbol: 'BTC' },
+  { id: 'eth', name: 'Ethereum', symbol: 'ETH' },
+  { id: 'ltc', name: 'Litecoin', symbol: 'LTC' },
+  { id: 'bch', name: 'Bitcoin Cash', symbol: 'BCH' },
+  { id: 'xrp', name: 'Ripple', symbol: 'XRP' },
+  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE' },
+  { id: 'trx', name: 'TRON', symbol: 'TRX' },
+  { id: 'usdt', name: 'Tether', symbol: 'USDT' },
+  { id: 'bnb', name: 'Binance Coin', symbol: 'BNB' },
+  { id: 'sol', name: 'Solana', symbol: 'SOL' }
+];
+
 /**
  * Crée un paiement pour recharger le portefeuille
  * @param user Utilisateur actuel
  * @param amount Montant en EUR
+ * @param payCurrency Crypto-monnaie choisie pour le paiement (btc par défaut)
  * @returns URL de paiement et informations sur le paiement
  */
-export const createWalletDeposit = async (user: User, amount: number): Promise<{ paymentUrl: string; transactionId: string }> => {
+export const createWalletDeposit = async (
+  user: User, 
+  amount: number, 
+  payCurrency: string = 'btc'
+): Promise<{ paymentUrl: string; transactionId: string }> => {
   try {
     // Vérifier si le montant est valide
     if (!amount || amount <= 0) {
       throw new Error('Le montant doit être supérieur à 0');
+    }
+
+    // Vérifier si la crypto est supportée
+    const isValidCrypto = SUPPORTED_CRYPTOCURRENCIES.some(crypto => crypto.id === payCurrency);
+    if (!isValidCrypto) {
+      throw new Error('Crypto-monnaie non supportée');
     }
 
     // Créer un paiement via l'API NOWPayments
@@ -73,7 +109,7 @@ export const createWalletDeposit = async (user: User, amount: number): Promise<{
       {
         price_amount: amount,
         price_currency: 'eur',
-        pay_currency: 'btc', // Devise de paiement par défaut
+        pay_currency: payCurrency,
         ipn_callback_url: process.env.REACT_APP_NOWPAYMENTS_IPN_CALLBACK_URL,
         order_id: `deposit_${user.uid}_${Date.now()}`,
         order_description: `Dépôt de ${amount} EUR pour ${user.email || ''}`
@@ -112,11 +148,17 @@ export const createWalletDeposit = async (user: User, amount: number): Promise<{
           pay_amount: payAmount,
           pay_currency: payCurrency,
           paymentUrl: paymentUrl
-        }
+        },
+        expiresAt: new Date(Date.now() + TRANSACTION_EXPIRATION_TIME).toISOString() // Ajouter date d'expiration
       };
 
       // Enregistrer la transaction dans la base de données
       await set(transactionRef, newTransaction);
+
+      // Planifier une vérification d'expiration
+      setTimeout(() => {
+        checkTransactionExpiration(transactionRef.key || '');
+      }, TRANSACTION_EXPIRATION_TIME);
 
       return {
         paymentUrl: paymentUrl,
@@ -498,4 +540,83 @@ export const verifyIPNSignature = (signature: string, body: string): boolean => 
   // Dans un environnement client, nous ne pouvons pas vérifier la signature de manière sécurisée
   console.warn('Vérification de signature IPN non disponible côté client');
   return true; // Cette logique devrait être implémentée côté serveur dans une Cloud Function
+};
+
+/**
+ * Annule une transaction en attente
+ * @param user Utilisateur actuel
+ * @param transactionId ID de la transaction à annuler
+ * @returns Un booléen indiquant si l'annulation a réussi
+ */
+export const cancelTransaction = async (user: User, transactionId: string): Promise<boolean> => {
+  try {
+    // Vérifier si la transaction existe et appartient à l'utilisateur
+    const transactionRef = ref(database, `transactions/${transactionId}`);
+    const transactionSnap = await get(transactionRef);
+    
+    if (!transactionSnap.exists()) {
+      throw new Error('Transaction non trouvée');
+    }
+    
+    const transaction = transactionSnap.val();
+    
+    // Vérifier que c'est bien la transaction de l'utilisateur
+    if (transaction.userId !== user.uid) {
+      throw new Error('Vous n\'êtes pas autorisé à annuler cette transaction');
+    }
+    
+    // Vérifier que la transaction est en attente
+    if (transaction.status !== TransactionStatus.WAITING) {
+      throw new Error('Seules les transactions en attente peuvent être annulées');
+    }
+    
+    // Mettre à jour le statut de la transaction
+    await update(transactionRef, {
+      status: TransactionStatus.CANCELLED,
+      updatedAt: new Date().toISOString()
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Erreur lors de l\'annulation de la transaction:', error);
+    throw error;
+  }
+};
+
+/**
+ * Vérifie si une transaction a expiré et met à jour son statut
+ * @param transactionId ID de la transaction à vérifier
+ */
+export const checkTransactionExpiration = async (transactionId: string): Promise<void> => {
+  try {
+    const transactionRef = ref(database, `transactions/${transactionId}`);
+    const transactionSnap = await get(transactionRef);
+    
+    if (!transactionSnap.exists()) {
+      return;
+    }
+    
+    const transaction = transactionSnap.val();
+    
+    // Ne vérifier que les transactions en attente
+    if (transaction.status !== TransactionStatus.WAITING) {
+      return;
+    }
+    
+    // Vérifier si la transaction a expiré
+    const now = new Date();
+    const expiryDate = transaction.expiresAt ? new Date(transaction.expiresAt) : null;
+    
+    if (expiryDate && now > expiryDate) {
+      // Mettre à jour le statut à expiré
+      await update(transactionRef, {
+        status: TransactionStatus.EXPIRED,
+        updatedAt: now.toISOString()
+      });
+      
+      console.log(`Transaction ${transactionId} marquée comme expirée`);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la vérification de l\'expiration de la transaction:', error);
+  }
 }; 

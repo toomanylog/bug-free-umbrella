@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions';
-import { verifyIPNSignature, updateTransactionStatus, TransactionStatus } from '../services/nowpayments';
+import { verifyIPNSignature, updateTransactionStatus, TransactionStatus } from './services/nowpayments';
 
 /**
  * Interface pour les données de callback NOWPayments

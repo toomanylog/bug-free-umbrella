@@ -435,4 +435,123 @@
 
 .payment-link:hover {
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Ajout des styles pour les messages de succès */
+.wallet-success {
+  position: relative;
+  background-color: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #10b981;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.error-close-btn,
+.success-close-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: currentColor;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.error-close-btn:hover,
+.success-close-btn:hover {
+  opacity: 1;
+}
+
+/* Styles pour la sélection de crypto-monnaie */
+.crypto-selection {
+  margin-bottom: 1.5rem;
+}
+
+.crypto-selection label {
+  display: block;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.crypto-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.crypto-button {
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(51, 65, 85, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  border-radius: 0.5rem;
+  color: #e2e8f0;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.crypto-button:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.crypto-button.selected {
+  background-color: rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.crypto-note {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.5rem;
+}
+
+/* Styles pour les actions de transaction */
+.payment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cancel-tx-button {
+  padding: 0.25rem 0.75rem;
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-tx-button:hover {
+  background-color: rgba(239, 68, 68, 0.3);
+}
+
+.cancel-tx-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Informations d'expiration */
+.expiration-info {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(71, 85, 105, 0.3);
+}
+
+.expiration-text {
+  font-size: 0.75rem;
+  color: #f59e0b;
 } 
