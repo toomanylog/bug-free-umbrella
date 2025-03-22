@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { loginUser, registerUser, resetPassword, getAuthErrorMessage } from '../firebase/auth';
+import Captcha from './Captcha';
 
 interface LoginFormProps {
   onSuccess: () => void;
@@ -11,12 +12,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
       setError('Veuillez remplir tous les champs.');
+      return;
+    }
+
+    if (!captchaVerified) {
+      setError('Veuillez compléter la vérification captcha.');
       return;
     }
 
@@ -28,6 +35,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       onSuccess();
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code));
+      setCaptchaVerified(false); // Reset captcha on error
     } finally {
       setIsSubmitting(false);
     }
@@ -70,9 +78,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         />
         <label htmlFor="remember" className="ml-2 text-sm text-gray-300">Se souvenir de moi</label>
       </div>
+
+      {/* CAPTCHA */}
+      <div className="mt-4 mb-2">
+        <Captcha onVerify={setCaptchaVerified} />
+      </div>
+
       <button 
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !captchaVerified}
         className="w-full relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
       >
         <span className="relative z-10">
@@ -96,6 +110,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const [telegramUsername, setTelegramUsername] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +125,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       return;
     }
 
+    if (!captchaVerified) {
+      setError('Veuillez compléter la vérification captcha.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -118,6 +138,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       onSuccess();
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code));
+      setCaptchaVerified(false); // Reset captcha on error
     } finally {
       setIsSubmitting(false);
     }
@@ -179,9 +200,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           required
         />
       </div>
+
+      {/* CAPTCHA */}
+      <div className="mt-4 mb-2">
+        <Captcha onVerify={setCaptchaVerified} />
+      </div>
+
       <button 
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !captchaVerified}
         className="w-full relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
       >
         <span className="relative z-10">
@@ -202,12 +229,18 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email) {
       setError('Veuillez entrer votre adresse email.');
+      return;
+    }
+
+    if (!captchaVerified) {
+      setError('Veuillez compléter la vérification captcha.');
       return;
     }
 
@@ -223,6 +256,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
       }, 3000);
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code));
+      setCaptchaVerified(false); // Reset captcha on error
     } finally {
       setIsSubmitting(false);
     }
@@ -250,16 +284,19 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSucces
           required
         />
       </div>
-      <p className="text-sm text-gray-400">
-        Nous vous enverrons un lien pour réinitialiser votre mot de passe.
-      </p>
+
+      {/* CAPTCHA */}
+      <div className="mt-4 mb-2">
+        <Captcha onVerify={setCaptchaVerified} />
+      </div>
+
       <button 
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !captchaVerified}
         className="w-full relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
       >
         <span className="relative z-10">
-          {isSubmitting ? 'Envoi en cours...' : 'Réinitialiser'}
+          {isSubmitting ? 'Envoi en cours...' : 'Réinitialiser le mot de passe'}
         </span>
         <span className="absolute inset-0 bg-gradient-to-r from-indigo-700 to-blue-600 opacity-0 hover:opacity-100 transition-opacity duration-300"></span>
       </button>
