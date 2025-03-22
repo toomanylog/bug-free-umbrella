@@ -1324,218 +1324,225 @@ const RiotManager: React.FC = () => {
             
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Nom affiché en jeu</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newAccount.username}
-                    onChange={(e) => setNewAccount({...newAccount, username: e.target.value})}
-                    placeholder="Ex: Valorant123"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Tag (après le #)</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newAccount.tag}
-                    onChange={(e) => setNewAccount({...newAccount, tag: e.target.value})}
-                    placeholder="Ex: EU1"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Région</label>
-                  <select
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newAccount.region}
-                    onChange={(e) => setNewAccount({...newAccount, region: e.target.value})}
-                  >
-                    {REGIONS.map(region => (
-                      <option key={region.value} value={region.value}>
-                        {region.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="flex items-center mt-2">
-                  <input
-                    type="checkbox"
-                    id="advancedMode"
-                    checked={advancedMode}
-                    onChange={() => setAdvancedMode(!advancedMode)}
-                    className="h-4 w-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="advancedMode" className="ml-2 text-sm text-gray-300">
-                    Mode avancé (stockage des identifiants de connexion et saisie manuelle du rang)
-                  </label>
-                </div>
-                
-                {advancedMode && (
-                  <div className="border border-gray-600 rounded-lg p-4 mt-4 space-y-4 bg-gray-750">
-                    <h3 className="font-medium text-blue-400 mb-2">Identifiants de connexion</h3>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">E-mail de connexion</label>
+                <div className="bg-gray-750 rounded-lg p-4 border border-blue-500/30">
+                  <h3 className="text-base font-medium text-blue-400 mb-3">Identifiants RIOT (en jeu)</h3>
+                  
+                  <div className="grid grid-cols-3 gap-4 mb-3">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Nom d'utilisateur</label>
                       <input
-                        type="email"
+                        type="text"
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newAccount.email}
-                        onChange={(e) => setNewAccount({...newAccount, email: e.target.value})}
-                        placeholder="Adresse e-mail pour se connecter au compte RIOT"
+                        value={newAccount.username}
+                        onChange={(e) => setNewAccount({...newAccount, username: e.target.value})}
+                        placeholder="Ex: Valorant123"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe RIOT</label>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Tag</label>
                       <input
-                        type="password"
+                        type="text"
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newAccount.password}
-                        onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
-                        placeholder="Mot de passe pour se connecter au compte RIOT"
+                        value={newAccount.tag}
+                        onChange={(e) => setNewAccount({...newAccount, tag: e.target.value})}
+                        placeholder="Ex: EU1"
                       />
-                      <p className="text-xs text-gray-400 mt-1">
-                        Note: Les identifiants sont stockés dans la base de données et ne sont visibles que par les administrateurs.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <div className="flex items-center mt-4 mb-2">
-                        <input
-                          type="checkbox"
-                          id="manualRank"
-                          checked={newAccount.manualRank}
-                          onChange={(e) => setNewAccount({...newAccount, manualRank: e.target.checked})}
-                          className="h-4 w-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="manualRank" className="ml-2 text-sm text-gray-300">
-                          Définir le rang manuellement
-                        </label>
-                      </div>
-                      
-                      {newAccount.manualRank && (
-                        <div className="mt-3 space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Rang actuel</label>
-                            <select
-                              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={newAccount.rank?.currentRank || "Non classé"}
-                              onChange={(e) => {
-                                const rankValue = e.target.value;
-                                const tierValue = getRankTier(rankValue);
-                                setNewAccount({
-                                  ...newAccount, 
-                                  rank: {
-                                    ...newAccount.rank,
-                                    currentRank: rankValue,
-                                    currentTier: tierValue.toString(),
-                                    rankIcon: getRankIcon(tierValue),
-                                    bestRank: newAccount.rank?.bestRank || rankValue,
-                                    bestTier: newAccount.rank?.bestTier || tierValue.toString()
-                                  }
-                                });
-                              }}
-                            >
-                              <option value="Non classé">Non classé</option>
-                              <option value="Iron 1">Iron 1</option>
-                              <option value="Iron 2">Iron 2</option>
-                              <option value="Iron 3">Iron 3</option>
-                              <option value="Bronze 1">Bronze 1</option>
-                              <option value="Bronze 2">Bronze 2</option>
-                              <option value="Bronze 3">Bronze 3</option>
-                              <option value="Silver 1">Silver 1</option>
-                              <option value="Silver 2">Silver 2</option>
-                              <option value="Silver 3">Silver 3</option>
-                              <option value="Gold 1">Gold 1</option>
-                              <option value="Gold 2">Gold 2</option>
-                              <option value="Gold 3">Gold 3</option>
-                              <option value="Platinum 1">Platinum 1</option>
-                              <option value="Platinum 2">Platinum 2</option>
-                              <option value="Platinum 3">Platinum 3</option>
-                              <option value="Diamond 1">Diamond 1</option>
-                              <option value="Diamond 2">Diamond 2</option>
-                              <option value="Diamond 3">Diamond 3</option>
-                              <option value="Ascendant 1">Ascendant 1</option>
-                              <option value="Ascendant 2">Ascendant 2</option>
-                              <option value="Ascendant 3">Ascendant 3</option>
-                              <option value="Immortal 1">Immortal 1</option>
-                              <option value="Immortal 2">Immortal 2</option>
-                              <option value="Immortal 3">Immortal 3</option>
-                              <option value="Radiant">Radiant</option>
-                            </select>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Meilleur rang</label>
-                            <select
-                              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={newAccount.rank?.bestRank || "Non classé"}
-                              onChange={(e) => {
-                                const rankValue = e.target.value;
-                                const tierValue = getRankTier(rankValue);
-                                setNewAccount({
-                                  ...newAccount, 
-                                  rank: {
-                                    ...newAccount.rank,
-                                    bestRank: rankValue,
-                                    bestTier: tierValue.toString()
-                                  }
-                                });
-                              }}
-                            >
-                              <option value="Non classé">Non classé</option>
-                              <option value="Iron 1">Iron 1</option>
-                              <option value="Iron 2">Iron 2</option>
-                              <option value="Iron 3">Iron 3</option>
-                              <option value="Bronze 1">Bronze 1</option>
-                              <option value="Bronze 2">Bronze 2</option>
-                              <option value="Bronze 3">Bronze 3</option>
-                              <option value="Silver 1">Silver 1</option>
-                              <option value="Silver 2">Silver 2</option>
-                              <option value="Silver 3">Silver 3</option>
-                              <option value="Gold 1">Gold 1</option>
-                              <option value="Gold 2">Gold 2</option>
-                              <option value="Gold 3">Gold 3</option>
-                              <option value="Platinum 1">Platinum 1</option>
-                              <option value="Platinum 2">Platinum 2</option>
-                              <option value="Platinum 3">Platinum 3</option>
-                              <option value="Diamond 1">Diamond 1</option>
-                              <option value="Diamond 2">Diamond 2</option>
-                              <option value="Diamond 3">Diamond 3</option>
-                              <option value="Ascendant 1">Ascendant 1</option>
-                              <option value="Ascendant 2">Ascendant 2</option>
-                              <option value="Ascendant 3">Ascendant 3</option>
-                              <option value="Immortal 1">Immortal 1</option>
-                              <option value="Immortal 2">Immortal 2</option>
-                              <option value="Immortal 3">Immortal 3</option>
-                              <option value="Radiant">Radiant</option>
-                            </select>
-                          </div>
-                          
-                          {newAccount.rank && (
-                            <div className="mt-3 p-3 bg-gray-700/50 rounded-lg flex items-center justify-center">
-                              <div className="text-center">
-                                <p className="text-xs text-gray-400 mb-1">Aperçu du rang</p>
-                                <div className="flex items-center justify-center">
-                                  <img 
-                                    src={getRankIconByName(newAccount.rank.currentRank || "Non classé")} 
-                                    alt={newAccount.rank.currentRank} 
-                                    className="w-12 h-12 mx-auto"
-                                  />
-                                </div>
-                                <p className="font-bold mt-1">{newAccount.rank.currentRank}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
-                )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Région</label>
+                    <select
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={newAccount.region}
+                      onChange={(e) => setNewAccount({...newAccount, region: e.target.value})}
+                    >
+                      {REGIONS.map(region => (
+                        <option key={region.value} value={region.value}>
+                          {region.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-300">Informations supplémentaires (optionnel)</label>
+                    <button 
+                      type="button"
+                      onClick={() => setAdvancedMode(!advancedMode)}
+                      className="text-sm text-blue-400 hover:text-blue-300 flex items-center"
+                    >
+                      {advancedMode ? "Masquer" : "Afficher"}
+                    </button>
+                  </div>
+                  
+                  {advancedMode && (
+                    <div className="mt-3 border border-gray-600 rounded-lg p-4 space-y-4 bg-gray-750">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">E-mail associé (optionnel)</label>
+                        <input
+                          type="email"
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={newAccount.email}
+                          onChange={(e) => setNewAccount({...newAccount, email: e.target.value})}
+                          placeholder="Adresse e-mail associée au compte RIOT"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Cette information vous aide à retrouver quel e-mail est associé à quel compte.
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe (optionnel)</label>
+                        <input
+                          type="password"
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={newAccount.password}
+                          onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
+                          placeholder="Mot de passe pour ce compte RIOT"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Note: Les identifiants sont stockés de manière sécurisée et visibles uniquement par les administrateurs.
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <div className="flex items-center mt-4 mb-2">
+                          <input
+                            type="checkbox"
+                            id="manualRank"
+                            checked={newAccount.manualRank}
+                            onChange={(e) => setNewAccount({...newAccount, manualRank: e.target.checked})}
+                            className="h-4 w-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label htmlFor="manualRank" className="ml-2 text-sm text-gray-300">
+                            Définir le rang manuellement
+                          </label>
+                        </div>
+                        
+                        {newAccount.manualRank && (
+                          <div className="mt-3 space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Rang actuel</label>
+                              <select
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={newAccount.rank?.currentRank || "Non classé"}
+                                onChange={(e) => {
+                                  const rankValue = e.target.value;
+                                  const tierValue = getRankTier(rankValue);
+                                  setNewAccount({
+                                    ...newAccount, 
+                                    rank: {
+                                      ...newAccount.rank,
+                                      currentRank: rankValue,
+                                      currentTier: tierValue.toString(),
+                                      rankIcon: getRankIcon(tierValue),
+                                      bestRank: newAccount.rank?.bestRank || rankValue,
+                                      bestTier: newAccount.rank?.bestTier || tierValue.toString()
+                                    }
+                                  });
+                                }}
+                              >
+                                <option value="Non classé">Non classé</option>
+                                <option value="Iron 1">Iron 1</option>
+                                <option value="Iron 2">Iron 2</option>
+                                <option value="Iron 3">Iron 3</option>
+                                <option value="Bronze 1">Bronze 1</option>
+                                <option value="Bronze 2">Bronze 2</option>
+                                <option value="Bronze 3">Bronze 3</option>
+                                <option value="Silver 1">Silver 1</option>
+                                <option value="Silver 2">Silver 2</option>
+                                <option value="Silver 3">Silver 3</option>
+                                <option value="Gold 1">Gold 1</option>
+                                <option value="Gold 2">Gold 2</option>
+                                <option value="Gold 3">Gold 3</option>
+                                <option value="Platinum 1">Platinum 1</option>
+                                <option value="Platinum 2">Platinum 2</option>
+                                <option value="Platinum 3">Platinum 3</option>
+                                <option value="Diamond 1">Diamond 1</option>
+                                <option value="Diamond 2">Diamond 2</option>
+                                <option value="Diamond 3">Diamond 3</option>
+                                <option value="Ascendant 1">Ascendant 1</option>
+                                <option value="Ascendant 2">Ascendant 2</option>
+                                <option value="Ascendant 3">Ascendant 3</option>
+                                <option value="Immortal 1">Immortal 1</option>
+                                <option value="Immortal 2">Immortal 2</option>
+                                <option value="Immortal 3">Immortal 3</option>
+                                <option value="Radiant">Radiant</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Meilleur rang</label>
+                              <select
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={newAccount.rank?.bestRank || "Non classé"}
+                                onChange={(e) => {
+                                  const rankValue = e.target.value;
+                                  const tierValue = getRankTier(rankValue);
+                                  setNewAccount({
+                                    ...newAccount, 
+                                    rank: {
+                                      ...newAccount.rank,
+                                      bestRank: rankValue,
+                                      bestTier: tierValue.toString()
+                                    }
+                                  });
+                                }}
+                              >
+                                <option value="Non classé">Non classé</option>
+                                <option value="Iron 1">Iron 1</option>
+                                <option value="Iron 2">Iron 2</option>
+                                <option value="Iron 3">Iron 3</option>
+                                <option value="Bronze 1">Bronze 1</option>
+                                <option value="Bronze 2">Bronze 2</option>
+                                <option value="Bronze 3">Bronze 3</option>
+                                <option value="Silver 1">Silver 1</option>
+                                <option value="Silver 2">Silver 2</option>
+                                <option value="Silver 3">Silver 3</option>
+                                <option value="Gold 1">Gold 1</option>
+                                <option value="Gold 2">Gold 2</option>
+                                <option value="Gold 3">Gold 3</option>
+                                <option value="Platinum 1">Platinum 1</option>
+                                <option value="Platinum 2">Platinum 2</option>
+                                <option value="Platinum 3">Platinum 3</option>
+                                <option value="Diamond 1">Diamond 1</option>
+                                <option value="Diamond 2">Diamond 2</option>
+                                <option value="Diamond 3">Diamond 3</option>
+                                <option value="Ascendant 1">Ascendant 1</option>
+                                <option value="Ascendant 2">Ascendant 2</option>
+                                <option value="Ascendant 3">Ascendant 3</option>
+                                <option value="Immortal 1">Immortal 1</option>
+                                <option value="Immortal 2">Immortal 2</option>
+                                <option value="Immortal 3">Immortal 3</option>
+                                <option value="Radiant">Radiant</option>
+                              </select>
+                            </div>
+                            
+                            {newAccount.rank && (
+                              <div className="mt-3 p-3 bg-gray-700/50 rounded-lg flex items-center justify-center">
+                                <div className="text-center">
+                                  <p className="text-xs text-gray-400 mb-1">Aperçu du rang</p>
+                                  <div className="flex items-center justify-center">
+                                    <img 
+                                      src={getRankIconByName(newAccount.rank.currentRank || "Non classé")} 
+                                      alt={newAccount.rank.currentRank} 
+                                      className="w-12 h-12 mx-auto"
+                                    />
+                                  </div>
+                                  <p className="font-bold mt-1">{newAccount.rank.currentRank}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="mt-6 flex space-x-2">
