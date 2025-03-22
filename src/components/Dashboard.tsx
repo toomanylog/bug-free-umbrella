@@ -225,7 +225,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   // Charger toutes les formations disponibles pour le catalogue
   useEffect(() => {
     const loadCatalogFormations = async () => {
-      if (isCatalogOpen && currentUser) {
+      if (activeSection === 'formations' && currentUser) {
         try {
           const { getPublishedFormations } = await import('../firebase/formations');
           const publishedFormations = await getPublishedFormations();
@@ -244,7 +244,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     };
     
     loadCatalogFormations();
-  }, [isCatalogOpen, userFormations, currentUser]);
+  }, [activeSection, userFormations, currentUser]);
 
   // Après les useEffects existants, corriger l'useEffect pour charger les certifications
   useEffect(() => {

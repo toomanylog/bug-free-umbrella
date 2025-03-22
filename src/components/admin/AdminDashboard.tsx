@@ -180,17 +180,17 @@ const AdminDashboard: React.FC = () => {
               collapsed={sidebarCollapsed}
             />
             <SidebarItem 
-              icon={<Settings size={20} />}
-              label="Paramètres"
-              active={activeSection === 'settings'}
-              onClick={() => setActiveSection('settings')}
-              collapsed={sidebarCollapsed}
-            />
-            <SidebarItem 
               icon={<CreditCard size={20} />}
               label="Portefeuilles"
               active={activeSection === 'wallet'}
               onClick={() => setActiveSection('wallet')}
+              collapsed={sidebarCollapsed}
+            />
+            <SidebarItem 
+              icon={<Settings size={20} />}
+              label="Paramètres"
+              active={activeSection === 'settings'}
+              onClick={() => setActiveSection('settings')}
               collapsed={sidebarCollapsed}
             />
           </div>
@@ -225,7 +225,7 @@ const AdminDashboard: React.FC = () => {
               {activeSection === 'dashboard' && 'Tableau de bord'}
               {activeSection === 'formations' && 'Gestion des formations'}
               {activeSection === 'certifications' && 'Gestion des certifications'}
-              {activeSection === 'tools' && 'Gestion des outils'}
+              {activeSection === 'tools' && 'Outils'}
               {activeSection === 'users' && 'Gestion des utilisateurs'}
               {activeSection === 'settings' && 'Paramètres'}
               {activeSection === 'wallet' && 'Gestion des portefeuilles'}

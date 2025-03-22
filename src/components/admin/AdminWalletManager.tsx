@@ -150,30 +150,75 @@ const AdminWalletManager: React.FC = () => {
       // Vérifier si le portefeuille existe
       const walletSnap = await get(walletRef);
       
+      // Calculer la différence entre l'ancien et le nouveau solde
+      let oldBalance = 0;
+      if (walletSnap.exists()) {
+        oldBalance = walletSnap.val().balance || 0;
+      }
+      const newBalanceValue = parseFloat(newBalance);
+      const difference = newBalanceValue - oldBalance;
+      
       // Si le portefeuille n'existe pas, créer un nouveau
       if (!walletSnap.exists()) {
         await update(walletRef, {
           userId,
-          balance: parseFloat(newBalance),
+          balance: newBalanceValue,
           currency: 'EUR',
           lastUpdated: new Date().toISOString()
         });
       } else {
         // Sinon, mettre à jour le solde existant
         await update(walletRef, {
-          balance: parseFloat(newBalance),
+          balance: newBalanceValue,
           lastUpdated: new Date().toISOString()
         });
+      }
+      
+      // Créer une transaction pour enregistrer la modification par l'admin
+      if (difference !== 0) {
+        const transactionsRef = ref(database, 'transactions');
+        const newTransactionRef = ref(database, `transactions/${Date.now()}`);
+        const now = new Date().toISOString();
+        
+        // Récupérer les informations de l'administrateur
+        const currentAdminId = localStorage.getItem('currentUserId') || 'unknown_admin';
+        const currentAdminName = localStorage.getItem('currentUserName') || 'Administrateur';
+        
+        // Créer la transaction
+        const transactionData = {
+          id: Date.now().toString(),
+          userId: userId,
+          amount: Math.abs(difference),
+          currency: 'EUR',
+          status: TransactionStatus.FINISHED,
+          type: TransactionType.DEPOSIT,
+          createdAt: now,
+          updatedAt: now,
+          completedAt: now,
+          adminAdjustment: true,
+          adminId: currentAdminId,
+          adminName: currentAdminName,
+          description: difference > 0 
+            ? `Ajout de ${Math.abs(difference)} EUR par l'administrateur ${currentAdminName}` 
+            : `Retrait de ${Math.abs(difference)} EUR par l'administrateur ${currentAdminName}`,
+          transactionType: difference > 0 ? 'credit' : 'debit'
+        };
+        
+        // Ajouter la transaction à la base de données
+        await update(newTransactionRef, transactionData);
       }
       
       // Mettre à jour l'affichage
       setUserWallets(prev => 
         prev.map(wallet => 
           wallet.userId === userId 
-            ? { ...wallet, balance: parseFloat(newBalance) } 
+            ? { ...wallet, balance: newBalanceValue, lastUpdated: new Date().toISOString() } 
             : wallet
         )
       );
+      
+      // Recharger les transactions pour l'utilisateur
+      await loadUserTransactions(userId);
       
       setSuccess('Solde mis à jour avec succès');
       setIsEditingBalance(false);
@@ -237,7 +282,15 @@ const AdminWalletManager: React.FC = () => {
   };
 
   // Formatter le type de transaction
-  const getTypeLabel = (type: TransactionType): string => {
+  const getTypeLabel = (type: TransactionType, transaction: any): string => {
+    // Vérifier si c'est un ajustement administratif
+    if (transaction.adminAdjustment) {
+      return transaction.amount > 0 
+        ? `Ajout de fonds par ${transaction.adminName || 'un administrateur'}`
+        : `Retrait de fonds par ${transaction.adminName || 'un administrateur'}`;
+    }
+    
+    // Traitement normal
     switch(type) {
       case TransactionType.DEPOSIT:
         return 'Dépôt';
@@ -330,7 +383,7 @@ const AdminWalletManager: React.FC = () => {
                     {userTransactions.map(transaction => (
                       <tr key={transaction.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
                         <td className="py-3 text-sm font-mono">{transaction.id?.substring(0, 8)}</td>
-                        <td className="py-3 text-sm">{getTypeLabel(transaction.type)}</td>
+                        <td className="py-3 text-sm">{getTypeLabel(transaction.type, transaction)}</td>
                         <td className="py-3 text-sm">
                           <span className={transaction.type === TransactionType.DEPOSIT ? 'text-green-400' : 'text-red-400'}>
                             {transaction.type === TransactionType.DEPOSIT ? '+' : '-'}{transaction.amount} {transaction.currency}

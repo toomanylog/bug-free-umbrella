@@ -433,7 +433,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
                         <button 
                           className="copy-button"
                           onClick={() => {
-                            navigator.clipboard.writeText(tx.paymentDetails.pay_address);
+                            navigator.clipboard.writeText(tx.paymentDetails?.pay_address || '');
                             alert('Adresse copiée dans le presse-papier');
                           }}
                         >

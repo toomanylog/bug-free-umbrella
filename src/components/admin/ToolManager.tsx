@@ -277,7 +277,7 @@ const ToolManager: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold mb-2">Gestion des outils</h2>
-          <p className="text-gray-400">Gérez les outils disponibles pour les utilisateurs</p>
+          <p className="text-gray-400 text-sm">Gérez les outils disponibles pour les utilisateurs</p>
         </div>
         
         <button 
