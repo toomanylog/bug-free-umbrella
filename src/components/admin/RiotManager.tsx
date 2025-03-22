@@ -345,30 +345,70 @@ const RiotManager: React.FC = () => {
     return `https://dash.valorant-api.com/assets/ranks/${rankName}.png`;
   };
   
-  // Rafraîchir les données d'un compte
+  // Actualiser les données du compte
   const refreshAccountData = async (account: RiotAccount) => {
     try {
+      if (!account.riotId) {
+        // Si le compte n'a pas d'ID RIOT, essayer de le connecter
+        await connectRiotAccount(account);
+        return;
+      }
+      
       setLoading(true);
+      setError(null);
       
-      // Récupérer les données mises à jour
-      const updatedData = await fetchPlayerData(account.username, account.tag, account.region);
+      // Récupérer les données de rang du joueur
+      const valorantRegion = convertRegion(account.region);
       
-      // Mettre à jour dans Firebase
-      const accountRef = ref(database, `riotAccounts/${account.id}`);
-      await update(accountRef, updatedData);
+      const mmrResponse = await fetch(
+        `https://${valorantRegion}.api.riotgames.com/val/ranked/v1/by-puuid/mmr/${encodeURIComponent(account.riotId)}`,
+        {
+          headers: {
+            'X-Riot-Token': RIOT_API_KEY
+          }
+        }
+      );
       
-      // Mettre à jour l'état local
-      setAccounts(accounts.map(acc => 
-        acc.id === account.id ? { ...acc, ...updatedData } : acc
-      ));
-      
-      setSuccess('Données du compte mises à jour avec succès.');
+      if (mmrResponse.ok) {
+        const mmrData = await mmrResponse.json();
+        
+        if (mmrData && mmrData.data) {
+          const currentSeason = mmrData.data.current_data;
+          
+          account.rank = {
+            currentRank: currentSeason?.currenttierpatched || "Non classé",
+            currentTier: currentSeason?.currenttier?.toString() || "0",
+            rankIcon: getRankIcon(parseInt(currentSeason?.currenttier) || 0),
+            bestRank: currentSeason?.highesttierpatched || "Non classé",
+            bestTier: currentSeason?.highesttier?.toString() || "0"
+          };
+          
+          account.lastUpdated = Date.now();
+          
+          // Mettre à jour le compte dans la base de données
+          const accountRef = ref(database, `riotAccounts/${account.id}`);
+          await update(accountRef, {
+            lastUpdated: account.lastUpdated,
+            rank: account.rank
+          });
+          
+          // Mettre à jour l'état local
+          setAccounts(accounts.map(acc => 
+            acc.id === account.id ? account : acc
+          ));
+          
+          setSuccess('Données du compte mises à jour avec succès !');
+        }
+      } else {
+        throw new Error(`Erreur API Riot MMR: ${mmrResponse.status}`);
+      }
       
       setTimeout(() => {
         setSuccess(null);
       }, 3000);
+      
     } catch (err) {
-      console.error('Erreur lors de la mise à jour des données du compte:', err);
+      console.error('Erreur lors de l\'actualisation des données du compte:', err);
       setError('Impossible de mettre à jour les données du compte. Veuillez réessayer plus tard.');
       
       setTimeout(() => {
@@ -558,12 +598,143 @@ const RiotManager: React.FC = () => {
   // Charger les agents et armes lors du changement d'onglet
   useEffect(() => {
     if (activeTab === 'agents') {
-      // Pour l'instant, on charge les armes aussi pour l'onglet agents
-      loadWeapons();
+      // Charger les agents de Valorant 
+      loadAgents();
     } else if (activeTab === 'skins') {
       loadWeapons();
     }
   }, [activeTab]);
+  
+  // Charger les agents depuis l'API Valorant
+  const loadAgents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true');
+      
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === 200) {
+        const agents = data.data;
+        // Stockage temporaire des agents dans la variable weapons pour l'affichage
+        setWeapons(agents.map((agent: Agent) => ({
+          uuid: agent.uuid,
+          displayName: agent.displayName,
+          category: agent.role?.displayName || "Agent",
+          displayIcon: agent.displayIcon,
+          killStreamIcon: agent.displayIcon,
+          skins: [] // Pas de skins pour les agents
+        })));
+      } else {
+        throw new Error('Erreur lors du chargement des agents');
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des agents:', err);
+      setError('Impossible de charger les agents Valorant. Veuillez réessayer plus tard.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Connexion au compte RIOT et récupération des données du joueur
+  const connectRiotAccount = async (account: RiotAccount) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (!RIOT_API_KEY) {
+        throw new Error("Clé API Riot non disponible");
+      }
+      
+      // Recherche du compte par nom et tag
+      const accountResponse = await fetch(
+        `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(account.username)}/${encodeURIComponent(account.tag)}`,
+        {
+          headers: {
+            'X-Riot-Token': RIOT_API_KEY
+          }
+        }
+      );
+      
+      if (!accountResponse.ok) {
+        throw new Error(`Erreur API Riot: ${accountResponse.status} - Compte introuvable ou clé API invalide`);
+      }
+      
+      const accountData = await accountResponse.json();
+      const puuid = accountData.puuid;
+      
+      // Mettre à jour l'ID Riot dans le compte
+      account.riotId = puuid;
+      account.lastUpdated = Date.now();
+      
+      // Récupérer les données de rang du joueur
+      const valorantRegion = convertRegion(account.region);
+      
+      try {
+        const mmrResponse = await fetch(
+          `https://${valorantRegion}.api.riotgames.com/val/ranked/v1/by-puuid/mmr/${encodeURIComponent(puuid)}`,
+          {
+            headers: {
+              'X-Riot-Token': RIOT_API_KEY
+            }
+          }
+        );
+        
+        if (mmrResponse.ok) {
+          const mmrData = await mmrResponse.json();
+          
+          if (mmrData && mmrData.data) {
+            const currentSeason = mmrData.data.current_data;
+            
+            account.rank = {
+              currentRank: currentSeason?.currenttierpatched || "Non classé",
+              currentTier: currentSeason?.currenttier?.toString() || "0",
+              rankIcon: getRankIcon(parseInt(currentSeason?.currenttier) || 0),
+              bestRank: currentSeason?.highesttierpatched || "Non classé",
+              bestTier: currentSeason?.highesttier?.toString() || "0"
+            };
+          }
+        }
+      } catch (rankErr) {
+        console.error("Erreur lors de la récupération du rang:", rankErr);
+        // Continue même en cas d'erreur pour le rang
+      }
+      
+      // Mettre à jour le compte dans la base de données
+      const accountRef = ref(database, `riotAccounts/${account.id}`);
+      await update(accountRef, {
+        riotId: puuid,
+        lastUpdated: account.lastUpdated,
+        rank: account.rank || null
+      });
+      
+      // Mettre à jour l'état local
+      setAccounts(accounts.map(acc => 
+        acc.id === account.id ? account : acc
+      ));
+      
+      setSuccess('Compte RIOT connecté avec succès !');
+      
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
+      
+    } catch (err) {
+      console.error('Erreur lors de la connexion au compte RIOT:', err);
+      setError('Impossible de connecter le compte RIOT. Vérifiez le nom d\'utilisateur et le tag.');
+      
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Rendu du composant
   return (
@@ -742,38 +913,49 @@ const RiotManager: React.FC = () => {
                         </p>
                         
                         {/* Actions */}
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => refreshAccountData(account)}
-                            className="flex-1 min-w-[80px] px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-sm"
-                            disabled={loading}
-                          >
-                            <RefreshCw size={16} className="mr-1" />
-                            Actualiser
-                          </button>
-                          
-                          <button
+                        <div className="mt-4 flex space-x-2">
+                          <button 
                             onClick={() => openEditForm(account)}
-                            className="flex-1 min-w-[80px] px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center justify-center text-sm"
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
                           >
                             <Edit size={16} className="mr-1" />
                             Modifier
                           </button>
                           
-                          <button
-                            onClick={() => openLinkAccountsModal(account.id)}
-                            className="flex-1 min-w-[80px] px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center justify-center text-sm"
+                          <button 
+                            onClick={() => deleteAccount(account.id)}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg flex items-center"
                           >
-                            <Link size={16} className="mr-1" />
-                            Lier
+                            <Trash2 size={16} className="mr-1" />
+                            Supprimer
+                          </button>
+
+                          <button 
+                            onClick={() => connectRiotAccount(account)}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg flex items-center"
+                            disabled={loading}
+                          >
+                            <RefreshCw size={16} className="mr-1" />
+                            Connecter
                           </button>
                           
-                          <button
-                            onClick={() => deleteAccount(account.id)}
-                            className="px-3 py-2 bg-red-600/30 hover:bg-red-600/50 text-red-400 rounded-lg flex items-center justify-center text-sm"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {account.linked ? (
+                            <button 
+                              onClick={() => openLinkAccountsModal(account.id)}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center"
+                            >
+                              <LinkIcon size={16} className="mr-1" />
+                              Lier
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => openLinkAccountsModal(account.id)}
+                              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
+                            >
+                              <Link size={16} className="mr-1" />
+                              Lier
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
