@@ -156,6 +156,8 @@ const RiotManager: React.FC = () => {
   const [accountsToLink, setAccountsToLink] = useState<string[]>([]);
   const [primaryAccountId, setPrimaryAccountId] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState<string>('');
+  // Ajouter après la déclaration des autres états (vers la ligne 156)
+  const [copiedField, setCopiedField] = useState<{accountId: string, field: string} | null>(null);
   
   // Chargement des comptes depuis Firebase
   useEffect(() => {
@@ -1084,56 +1086,6 @@ const RiotManager: React.FC = () => {
                           </span>
                         </div>
                         
-                        {/* Indicateur de comptes liés */}
-                        {account.linked && (
-                          <div className="mb-3 p-2 bg-purple-900/30 border border-purple-700/50 rounded-lg flex items-center">
-                            <LinkIcon size={14} className="mr-2 text-purple-400" />
-                            <p className="text-xs text-purple-400">
-                              {account.linkedAccounts?.length === 1 
-                                ? "Compte lié à 1 autre compte" 
-                                : `Compte lié à ${account.linkedAccounts?.length} autres comptes`}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Statistiques de rang */}
-                        {account.rank ? (
-                          <div className="mb-4 p-4 bg-gray-700/40 rounded-lg">
-                            <div className="flex items-center mb-3">
-                              {account.rank.rankIcon && (
-                                <img 
-                                  src={account.rank.rankIcon.replace("dash.valorant-api.com", "valorant-api.com")} 
-                                  alt={account.rank.currentRank} 
-                                  className="w-12 h-12 mr-3"
-                                />
-                              )}
-                              <div>
-                                <p className="text-sm text-gray-400">Rang actuel</p>
-                                <p className="font-bold">{account.rank.currentRank}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="text-sm grid grid-cols-2 gap-2">
-                              <div>
-                                <p className="text-gray-400">Meilleur rang</p>
-                                <p>{account.rank.bestRank || "Non disponible"}</p>
-                              </div>
-                              
-                              {account.rank.seasonRanks && account.rank.seasonRanks.length > 0 && (
-                                <div>
-                                  <p className="text-gray-400">Dernier épisode</p>
-                                  <p>{account.rank.seasonRanks[0].rank}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mb-4 p-4 bg-gray-700/40 rounded-lg flex items-center text-gray-400">
-                            <AlertTriangle size={18} className="mr-2" />
-                            <p>Données de rang non disponibles</p>
-                          </div>
-                        )}
-                        
                         {/* Informations du compte */}
                         <div className="mb-4 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
                           <h4 className="text-sm font-medium text-blue-300 mb-2">Identifiants de connexion</h4>
@@ -1148,10 +1100,17 @@ const RiotManager: React.FC = () => {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   navigator.clipboard.writeText(account.login || '');
+                                  setCopiedField({accountId: account.id, field: 'login'});
+                                  setTimeout(() => setCopiedField(null), 2000);
                                 }}
-                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded"
+                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
                                 title="Copier le nom d'utilisateur"
                               >
+                                {copiedField?.accountId === account.id && copiedField?.field === 'login' ? (
+                                  <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
+                                    Copié!
+                                  </span>
+                                ) : null}
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                               </button>
                             </div>
@@ -1167,10 +1126,17 @@ const RiotManager: React.FC = () => {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   navigator.clipboard.writeText(account.password || '');
+                                  setCopiedField({accountId: account.id, field: 'password'});
+                                  setTimeout(() => setCopiedField(null), 2000);
                                 }}
-                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded"
+                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
                                 title="Copier le mot de passe"
                               >
+                                {copiedField?.accountId === account.id && copiedField?.field === 'password' ? (
+                                  <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
+                                    Copié!
+                                  </span>
+                                ) : null}
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                               </button>
                             </div>
@@ -1186,10 +1152,17 @@ const RiotManager: React.FC = () => {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   navigator.clipboard.writeText(account.email || '');
+                                  setCopiedField({accountId: account.id, field: 'email'});
+                                  setTimeout(() => setCopiedField(null), 2000);
                                 }}
-                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded"
+                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
                                 title="Copier l'email"
                               >
+                                {copiedField?.accountId === account.id && copiedField?.field === 'email' ? (
+                                  <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
+                                    Copié!
+                                  </span>
+                                ) : null}
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                               </button>
                             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress, logoutUser, assignFormationToUser } from '../firebase/auth';
 import { Link } from 'react-router-dom';
@@ -861,6 +861,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           >
             <Wallet size={18} className="mr-2" />
             Portefeuille
+          </button>
+          <button 
+            onClick={() => setActiveSection('casino')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'casino' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <DollarSign size={18} className="mr-2" />
+            Casino
           </button>
           
           {/* Menu mobile */}
@@ -1785,6 +1796,349 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           
           {activeSection === 'wallet' && (
             <WalletComponent />
+          )}
+          
+          {activeSection === 'casino' && (
+            <div className="space-y-6">
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
+                <DollarSign size={64} className="mx-auto text-yellow-500 mb-4" />
+                <h2 className="text-3xl font-bold mb-4">Casino - Coming Soon</h2>
+                <p className="text-xl text-gray-300 mb-6">Préparez-vous pour une expérience de jeu excitante!</p>
+                <p className="text-gray-400 max-w-2xl mx-auto">
+                  Notre casino en ligne sera bientôt disponible. Vous pourrez profiter de mini-jeux, de paris et tenter de gagner des récompenses exclusives.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {activeSection === 'profile' && (
+            <div className="space-y-8">
+              <h1 className="text-3xl font-bold">Mon profil</h1>
+              
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-6">
+                  <div className="w-32 h-32 bg-gradient-to-br from-blue-600/50 to-indigo-700/50 rounded-full flex items-center justify-center">
+                    <span className="text-5xl font-bold">{currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0) || 'U'}</span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-bold">{currentUser?.displayName || 'Utilisateur'}</h2>
+                    <p className="text-gray-400">{currentUser?.email}</p>
+                    <div className="flex space-x-4">
+                      <button 
+                        onClick={() => {
+                          setIsEditingProfile(true);
+                          setIsChangingPassword(false);
+                        }}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30"
+                      >
+                        Modifier le profil
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setIsChangingPassword(true);
+                          setIsEditingProfile(false);
+                        }}
+                        className="bg-transparent border border-gray-700 px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                      >
+                        Changer le mot de passe
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {isEditingProfile && (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
+                  <h2 className="text-xl font-bold mb-4">Modifier mon profil</h2>
+                  
+                  {profileSuccess && (
+                    <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
+                      {profileSuccess}
+                    </div>
+                  )}
+                  
+                  {profileError && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg mb-4">
+                      {profileError}
+                    </div>
+                  )}
+                  
+                  <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Nom complet</label>
+                        <input 
+                          type="text" 
+                          name="displayName"
+                          value={userProfile.displayName}
+                          onChange={handleProfileChange}
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
+                        <input 
+                          type="email" 
+                          value={currentUser?.email || ''}
+                          disabled
+                          className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg opacity-70 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Identifiant Telegram</label>
+                      <input 
+                        type="text" 
+                        name="telegram"
+                        value={userProfile.telegram}
+                        onChange={handleProfileChange}
+                        placeholder="@votre_identifiant_telegram"
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div className="flex space-x-4">
+                      <button 
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
+                      >
+                        {isSubmitting ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditingProfile(false)}
+                        className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+              
+              {isChangingPassword && (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 animate-fade-in">
+                  <h2 className="text-xl font-bold mb-4">Changer mon mot de passe</h2>
+                  
+                  {passwordSuccess && (
+                    <div className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-2 rounded-lg mb-4">
+                      {passwordSuccess}
+                    </div>
+                  )}
+                  
+                  {passwordError && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg mb-4">
+                      {passwordError}
+                    </div>
+                  )}
+                  
+                  <form className="space-y-4" onSubmit={handlePasswordChange}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Mot de passe actuel</label>
+                      <input 
+                        type="password" 
+                        name="current"
+                        value={password.current}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Nouveau mot de passe</label>
+                      <input 
+                        type="password" 
+                        name="new"
+                        value={password.new}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Confirmer le nouveau mot de passe</label>
+                      <input 
+                        type="password" 
+                        name="confirm"
+                        value={password.confirm}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
+                      />
+                    </div>
+                    <div className="flex space-x-4">
+                      <button 
+                        type="submit"
+                        disabled={isChangingPassword}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-600/30 disabled:opacity-70"
+                      >
+                        {isChangingPassword ? 'Modification...' : 'Changer le mot de passe'}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsChangingPassword(false)}
+                        className="bg-transparent border border-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-800/50"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {!isEditingProfile && !isChangingPassword && (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+                  <h2 className="text-xl font-bold mb-4">Informations personnelles</h2>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-400 mb-1">Nom complet</p>
+                        <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          {currentUser?.displayName || 'Non défini'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-400 mb-1">Email</p>
+                        <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          {currentUser?.email || 'Non défini'}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-400 mb-1">Telegram</p>
+                      <p className="px-4 py-3 bg-gray-900/80 border border-gray-700 rounded-lg">
+                        {userProfile.telegram || 'Non défini'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section de suppression de compte */}
+              <div className="bg-red-900/20 backdrop-blur-sm border border-red-700/50 rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4 text-red-400">Zone de danger</h2>
+                <p className="text-gray-400 mb-4">
+                  La suppression de votre compte est irréversible. Toutes vos données seront supprimées définitivement.
+                </p>
+                
+                {deleteError && (
+                  <div className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-2 rounded-lg mb-4">
+                    {deleteError}
+                  </div>
+                )}
+                
+                <form onSubmit={handleDeleteAccount} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">
+                      Confirmez votre mot de passe
+                    </label>
+                    <input 
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-900/80 border border-red-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
+                      required
+                    />
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    disabled={isDeletingAccount}
+                    className="bg-red-600 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-red-700 disabled:opacity-70"
+                  >
+                    {isDeletingAccount ? 'Suppression...' : 'Supprimer mon compte'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Ajout de la section facturation */}
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Facturation</h2>
+                  <button
+                    onClick={() => setIsViewingInvoices(!isViewingInvoices)}
+                    className="text-blue-400 hover:underline text-sm flex items-center"
+                  >
+                    {isViewingInvoices ? 'Masquer' : 'Voir toutes les factures'}
+                    <ChevronDown className={`ml-1 w-4 h-4 transform ${isViewingInvoices ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+                
+                {isViewingInvoices ? (
+                  // Liste complète des factures
+                  <div className="space-y-4">
+                    {transactions
+                      .filter(tx => 
+                        tx.status === TransactionStatus.FINISHED && 
+                        (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                      )
+                      .map((tx, index) => (
+                        <div key={tx.id || index} className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          <div className="flex justify-between mb-2">
+                            <div>
+                              <p className="font-medium">{getTransactionTypeLabel(tx.type)}</p>
+                              <p className="text-sm text-gray-400">{formatDate(tx.completedAt || tx.createdAt)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium text-red-400">-{tx.amount} {tx.currency}</p>
+                              <button className="text-blue-400 text-sm hover:underline flex items-center">
+                                <Download size={14} className="mr-1" />
+                                Télécharger
+                              </button>
+                            </div>
+                          </div>
+                          <div className="pt-2 border-t border-gray-700 mt-2 text-sm text-gray-400">
+                            <span>N° Facture: INV-{tx.id.substring(0, 8)}</span>
+                          </div>
+                        </div>
+                      ))}
+                      
+                    {transactions.filter(tx => 
+                      tx.status === TransactionStatus.FINISHED && 
+                      (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                    ).length === 0 && (
+                      <p className="text-center text-gray-400 py-8">
+                        Aucune facture disponible
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  // Aperçu des dernières factures
+                  <div className="space-y-4">
+                    {transactions
+                      .filter(tx => 
+                        tx.status === TransactionStatus.FINISHED && 
+                        (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                      )
+                      .slice(0, 3)
+                      .map((tx, index) => (
+                        <div key={tx.id || index} className="p-4 bg-gray-900/80 border border-gray-700 rounded-lg">
+                          <div className="flex justify-between">
+                            <div>
+                              <p className="font-medium">{getTransactionTypeLabel(tx.type)}</p>
+                              <p className="text-sm text-gray-400">{formatDate(tx.completedAt || tx.createdAt)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium text-red-400">-{tx.amount} {tx.currency}</p>
+                              <button className="text-blue-400 text-sm hover:underline flex items-center">
+                                <Download size={14} className="mr-1" />
+                                Télécharger
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                    {transactions.filter(tx => 
+                      tx.status === TransactionStatus.FINISHED && 
+                      (tx.type === TransactionType.FORMATION_PURCHASE || tx.type === TransactionType.TOOL_PURCHASE)
+                    ).length === 0 && (
+                      <p className="text-center text-gray-400 py-8">
+                        Aucune facture disponible
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </main>
       </div>
