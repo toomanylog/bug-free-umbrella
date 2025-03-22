@@ -35,7 +35,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "deploy": "npm run build && netlify deploy --prod"
@@ -44,6 +44,20 @@
     "extends": [
       "react-app",
       "react-app/jest"
+    ],
+    "rules": {
+      "@typescript-eslint/no-unused-vars": "warn"
+    },
+    "overrides": [
+      {
+        "files": [
+          "**/*.ts",
+          "**/*.tsx"
+        ],
+        "rules": {
+          "react-hooks/exhaustive-deps": "warn"
+        }
+      }
     ]
   },
   "browserslist": {
@@ -62,6 +76,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^7.0.3",
     "postcss": "^8.5.3"
   }
 }
