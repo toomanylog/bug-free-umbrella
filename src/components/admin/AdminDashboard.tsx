@@ -210,7 +210,7 @@ const AdminDashboard: React.FC = () => {
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto p-4 md:p-6">
         {/* Header avec bouton de menu */}
         <header className="mb-8 flex items-center">
           <button 
