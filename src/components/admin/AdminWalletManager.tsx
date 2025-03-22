@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Download, EyeIcon, Wallet } from 'lucide-react';
-import { db } from '../../firebase/config';
-import { collection, query, getDocs, doc, updateDoc, where } from 'firebase/firestore';
-import { getUserWallet, UserWallet, Transaction, TransactionStatus, TransactionType } from '../../firebase/services/nowpayments';
+import { database } from '../../firebase/config';
+import { ref, get, update, query as dbQuery, orderByChild, equalTo } from 'firebase/database';
+import { Transaction, TransactionStatus, TransactionType } from '../../firebase/services/nowpayments';
+
+interface UserWallet {
+  userId: string;
+  balance: number;
+  currency: string;
+  lastUpdated: string;
+}
 
 const AdminWalletManager: React.FC = () => {
   const [userWallets, setUserWallets] = useState<(UserWallet & { userName: string; email: string })[]>([]);
@@ -21,37 +28,46 @@ const AdminWalletManager: React.FC = () => {
       try {
         setLoading(true);
         
-        // Récupérer tous les utilisateurs qui ont un portefeuille
-        const walletsRef = collection(db, 'wallets');
-        const walletsSnap = await getDocs(walletsRef);
+        // Récupérer tous les portefeuilles des utilisateurs
+        const walletsRef = ref(database, 'wallets');
+        const walletsSnap = await get(walletsRef);
         
-        // Récupérer les informations utilisateur correspondantes
-        const walletsWithUserInfo = await Promise.all(
-          walletsSnap.docs.map(async (walletDoc) => {
-            const walletData = walletDoc.data() as UserWallet;
-            const userId = walletData.userId;
-            
-            // Récupérer les données utilisateur
-            const userSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)));
-            
-            let userName = 'Utilisateur inconnu';
-            let email = 'Pas d\'email';
-            
-            if (!userSnap.empty) {
-              const userData = userSnap.docs[0].data();
-              userName = userData.displayName || 'Sans nom';
-              email = userData.email || 'Pas d\'email';
-            }
-            
-            return {
-              ...walletData,
-              userName,
-              email
-            };
-          })
-        );
+        if (!walletsSnap.exists()) {
+          setUserWallets([]);
+          return;
+        }
         
-        setUserWallets(walletsWithUserInfo);
+        const walletsData = walletsSnap.val();
+        const walletsArray: (UserWallet & { userName: string; email: string })[] = [];
+        
+        // Pour chaque portefeuille, récupérer les informations de l'utilisateur
+        for (const userId in walletsData) {
+          const walletData = walletsData[userId];
+          
+          // Récupérer les données utilisateur
+          const userRef = ref(database, `users/${userId}`);
+          const userSnap = await get(userRef);
+          
+          let userName = 'Utilisateur inconnu';
+          let email = 'Pas d\'email';
+          
+          if (userSnap.exists()) {
+            const userData = userSnap.val();
+            userName = userData.displayName || 'Sans nom';
+            email = userData.email || 'Pas d\'email';
+          }
+          
+          walletsArray.push({
+            userId,
+            balance: walletData.balance || 0,
+            currency: walletData.currency || 'EUR',
+            lastUpdated: walletData.lastUpdated || new Date().toISOString(),
+            userName,
+            email
+          });
+        }
+        
+        setUserWallets(walletsArray);
       } catch (error) {
         console.error('Erreur lors du chargement des portefeuilles:', error);
         setError('Erreur lors du chargement des portefeuilles. Veuillez réessayer.');
@@ -69,26 +85,27 @@ const AdminWalletManager: React.FC = () => {
       setLoading(true);
       setError('');
       
-      // Récupérer directement les transactions de l'utilisateur dans la collection transactions
-      const transactionsQuery = query(
-        collection(db, 'transactions'),
-        where('userId', '==', userId)
-      );
-      const transactionsSnap = await getDocs(transactionsQuery);
+      // Récupérer les transactions de l'utilisateur
+      const transactionsRef = ref(database, 'transactions');
+      const userTransactionsQuery = dbQuery(transactionsRef, orderByChild('userId'), equalTo(userId));
+      const transactionsSnap = await get(userTransactionsQuery);
       
-      if (transactionsSnap.empty) {
+      if (!transactionsSnap.exists()) {
         setUserTransactions([]);
       } else {
         // Récupérer les transactions
-        const transactions = transactionsSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Transaction[];
+        const transactions: Transaction[] = [];
+        transactionsSnap.forEach((childSnap) => {
+          const transaction = {
+            id: childSnap.key,
+            ...childSnap.val()
+          };
+          transactions.push(transaction);
+        });
         
-        // Simplifier la logique de tri pour éviter les problèmes de type
-        const sortedTransactions = [...transactions].sort((a, b) => {
-          // Utiliser toString() pour comparer les dates en string, ce qui est suffisant pour le tri
-          return (b.createdAt as any).toString().localeCompare((a.createdAt as any).toString());
+        // Trier les transactions par date de création (plus récentes en premier)
+        const sortedTransactions = transactions.sort((a, b) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
         
         setUserTransactions(sortedTransactions);
@@ -115,12 +132,12 @@ const AdminWalletManager: React.FC = () => {
       setLoading(true);
       
       // Récupérer la référence au portefeuille
-      const walletRef = doc(db, 'wallets', userId);
+      const walletRef = ref(database, `wallets/${userId}`);
       
       // Mettre à jour le solde
-      await updateDoc(walletRef, {
+      await update(walletRef, {
         balance: parseFloat(newBalance),
-        lastUpdated: new Date()
+        lastUpdated: new Date().toISOString()
       });
       
       // Mettre à jour l'affichage
@@ -154,16 +171,6 @@ const AdminWalletManager: React.FC = () => {
     if (!date) return 'N/A';
     
     try {
-      if (typeof date === 'object' && date !== null && 'toDate' in date && typeof date.toDate === 'function') {
-        return date.toDate().toLocaleDateString('fr-FR', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      }
-      
       return new Date(date).toLocaleDateString('fr-FR', {
         year: 'numeric',
         month: 'short',
@@ -249,135 +256,181 @@ const AdminWalletManager: React.FC = () => {
       
       <div className="mb-6">
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search className="w-5 h-5 text-gray-400" />
-          </div>
           <input
             type="text"
-            className="block w-full p-4 pl-10 bg-gray-800 border border-gray-700 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Rechercher par nom, email ou ID..."
+            placeholder="Rechercher un utilisateur..."
+            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
         </div>
       </div>
       
       {selectedUser ? (
-        // Affichage des transactions d'un utilisateur spécifique
         <div>
           <button
-            className="mb-4 flex items-center text-blue-400 hover:underline"
             onClick={() => setSelectedUser(null)}
+            className="mb-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center text-sm"
           >
-            &larr; Retour à la liste des portefeuilles
+            ← Retour à la liste des portefeuilles
           </button>
           
-          <div className="mb-6 bg-gray-800 p-4 rounded-lg">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold">
-                  {userWallets.find(w => w.userId === selectedUser)?.userName || 'Utilisateur'}
-                </h2>
-                <p className="text-gray-400">
-                  {userWallets.find(w => w.userId === selectedUser)?.email || 'Sans email'}
-                </p>
+          <div className="bg-gray-800 rounded-lg p-4 mb-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Transactions de l'utilisateur
+            </h2>
+            
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-blue-500 rounded-full mx-auto"></div>
+                <p className="mt-2 text-gray-400">Chargement des transactions...</p>
               </div>
-              
-              <div className="text-right">
-                {isEditingBalance ? (
-                  <div className="flex items-center">
-                    <input
-                      type="number"
-                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg mr-2 w-32"
-                      value={newBalance}
-                      onChange={(e) => setNewBalance(e.target.value)}
-                      placeholder="Nouveau solde"
-                    />
-                    <button
-                      className="bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg mr-2"
-                      onClick={() => updateUserBalance(selectedUser)}
-                    >
-                      Confirmer
-                    </button>
-                    <button
-                      className="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg"
-                      onClick={() => setIsEditingBalance(false)}
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-2xl font-bold">
-                      {userWallets.find(w => w.userId === selectedUser)?.balance.toFixed(2) || '0.00'} €
-                    </div>
-                    <button
-                      className="text-blue-400 hover:underline text-sm"
-                      onClick={() => {
-                        setNewBalance(userWallets.find(w => w.userId === selectedUser)?.balance.toString() || '0');
-                        setIsEditingBalance(true);
-                      }}
-                    >
-                      Modifier le solde
-                    </button>
-                  </div>
-                )}
+            ) : userTransactions.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-gray-400">Aucune transaction trouvée pour cet utilisateur</p>
               </div>
-            </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-400 border-b border-gray-700">
+                      <th className="pb-2 font-medium">ID</th>
+                      <th className="pb-2 font-medium">Type</th>
+                      <th className="pb-2 font-medium">Montant</th>
+                      <th className="pb-2 font-medium">Date</th>
+                      <th className="pb-2 font-medium">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userTransactions.map(transaction => (
+                      <tr key={transaction.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
+                        <td className="py-3 text-sm font-mono">{transaction.id?.substring(0, 8)}</td>
+                        <td className="py-3 text-sm">{getTypeLabel(transaction.type)}</td>
+                        <td className="py-3 text-sm">
+                          <span className={transaction.type === TransactionType.DEPOSIT ? 'text-green-400' : 'text-red-400'}>
+                            {transaction.type === TransactionType.DEPOSIT ? '+' : '-'}{transaction.amount} {transaction.currency}
+                          </span>
+                        </td>
+                        <td className="py-3 text-sm">{formatDate(transaction.createdAt)}</td>
+                        <td className="py-3">{getStatusLabel(transaction.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
           
-          <h3 className="text-xl font-bold mb-4">Historique des transactions</h3>
-          
-          {userTransactions.length === 0 ? (
-            <div className="text-center py-8 bg-gray-800 rounded-lg">
-              <Wallet className="mx-auto h-12 w-12 text-gray-600 mb-3" />
-              <p className="text-gray-400">Aucune transaction trouvée pour cet utilisateur</p>
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h2 className="text-xl font-semibold mb-4">
+              Modifier le solde de l'utilisateur
+            </h2>
+            
+            {isEditingBalance ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Nouveau solde
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newBalance}
+                    onChange={(e) => setNewBalance(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                    placeholder="Montant"
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => updateUserBalance(selectedUser)}
+                    disabled={loading}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium disabled:opacity-50"
+                  >
+                    {loading ? 'Mise à jour...' : 'Enregistrer'}
+                  </button>
+                  <button
+                    onClick={() => setIsEditingBalance(false)}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="mb-4">
+                  Solde actuel: <span className="font-bold text-lg">
+                    {userWallets.find(w => w.userId === selectedUser)?.balance.toFixed(2)} 
+                    {userWallets.find(w => w.userId === selectedUser)?.currency}
+                  </span>
+                </p>
+                <button
+                  onClick={() => {
+                    setNewBalance(userWallets.find(w => w.userId === selectedUser)?.balance.toString() || '0');
+                    setIsEditingBalance(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium"
+                >
+                  Modifier le solde
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gray-800 rounded-lg overflow-hidden">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin h-10 w-10 border-t-2 border-b-2 border-blue-500 rounded-full mx-auto"></div>
+              <p className="mt-4 text-gray-400">Chargement des portefeuilles...</p>
+            </div>
+          ) : filteredWallets.length === 0 ? (
+            <div className="text-center py-12">
+              <Wallet className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Aucun portefeuille trouvé</h3>
+              <p className="text-gray-400">
+                {searchTerm ? 'Aucun résultat correspondant à votre recherche' : 'Aucun portefeuille n\'est encore créé dans le système'}
+              </p>
             </div>
           ) : (
-            <div className="bg-gray-800 rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-700">
-                <thead className="bg-gray-800">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Montant
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Statut
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs text-gray-400 border-b border-gray-700 bg-gray-800/80">
+                    <th className="px-6 py-3 font-medium">Utilisateur</th>
+                    <th className="px-6 py-3 font-medium">ID</th>
+                    <th className="px-6 py-3 font-medium">Solde</th>
+                    <th className="px-6 py-3 font-medium">Dernière mise à jour</th>
+                    <th className="px-6 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-gray-800 divide-y divide-gray-700">
-                  {userTransactions.map(transaction => (
-                    <tr key={transaction.id} className="hover:bg-gray-700/50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                        {formatDate(transaction.createdAt)}
+                <tbody>
+                  {filteredWallets.map(wallet => (
+                    <tr key={wallet.userId} className="border-b border-gray-700/50 hover:bg-gray-700/20">
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-medium">{wallet.userName}</p>
+                          <p className="text-sm text-gray-400">{wallet.email}</p>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                        {getTypeLabel(transaction.type)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={transaction.type === TransactionType.DEPOSIT ? 'text-green-400' : 'text-red-400'}>
-                          {transaction.type === TransactionType.DEPOSIT ? '+' : '-'}{transaction.amount} {transaction.currency}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                        {getStatusLabel(transaction.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-blue-400 hover:text-blue-300 mr-3">
-                          <EyeIcon className="h-5 w-5" />
+                      <td className="px-6 py-4 font-mono text-sm text-gray-400">{wallet.userId.substring(0, 8)}...</td>
+                      <td className="px-6 py-4 font-medium">{wallet.balance.toFixed(2)} {wallet.currency}</td>
+                      <td className="px-6 py-4 text-sm">{formatDate(wallet.lastUpdated)}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => loadUserTransactions(wallet.userId)}
+                          className="p-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 mr-2"
+                          title="Voir les transactions"
+                        >
+                          <EyeIcon size={16} />
                         </button>
-                        <button className="text-blue-400 hover:text-blue-300">
-                          <Download className="h-5 w-5" />
+                        <button
+                          className="p-2 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30"
+                          title="Exporter les transactions"
+                        >
+                          <Download size={16} />
                         </button>
                       </td>
                     </tr>
@@ -385,74 +438,6 @@ const AdminWalletManager: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-      ) : (
-        // Liste de tous les portefeuilles
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-400 mx-auto mb-4"></div>
-              <p className="text-gray-400">Chargement des portefeuilles...</p>
-            </div>
-          ) : filteredWallets.length === 0 ? (
-            <div className="text-center py-12">
-              <Wallet className="mx-auto h-12 w-12 text-gray-600 mb-3" />
-              <p className="text-gray-400">Aucun portefeuille trouvé</p>
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-700">
-              <thead className="bg-gray-800">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Utilisateur
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Solde
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Dernière mise à jour
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-gray-800 divide-y divide-gray-700">
-                {filteredWallets.map(wallet => (
-                  <tr key={wallet.userId} className="hover:bg-gray-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-200">
-                            {wallet.userName}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            {wallet.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-200 font-medium">
-                        {wallet.balance.toFixed(2)} {wallet.currency}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {formatDate(wallet.lastUpdated)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        className="text-blue-400 hover:text-blue-300"
-                        onClick={() => loadUserTransactions(wallet.userId)}
-                      >
-                        Voir les transactions
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           )}
         </div>
       )}

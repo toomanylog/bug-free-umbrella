@@ -1,15 +1,5 @@
 import { ref, set, get, push, remove, update } from 'firebase/database';
 import { database } from './config';
-import { 
-  collection, 
-  addDoc, 
-  doc, 
-  updateDoc, 
-  arrayUnion, 
-  Timestamp,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from './config';
 
 // Types
 export interface Certification {
@@ -18,8 +8,8 @@ export interface Certification {
   description: string;
   formation?: string; // ID de la formation associée
   imageUrl?: string;
-  createdAt: Timestamp | string;
-  updatedAt: Timestamp | string;
+  createdAt: string;
+  updatedAt: string;
   examQuestions?: ExamQuestion[];
   passingScore?: number; // Score minimum pour réussir (en pourcentage, par défaut 70%)
   requirements: CertificationRequirement[]; // Change from optional to required with default empty array

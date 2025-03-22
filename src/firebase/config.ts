@@ -1,8 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
-import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
 
 // Configuration Firebase
 const firebaseConfig = {
@@ -12,15 +11,22 @@ const firebaseConfig = {
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
   databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL
 };
 
-// Initialisation de Firebase
+// Initialiser Firebase
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-const auth = getAuth(app);
-const storage = getStorage(app);
-const db = getFirestore(app);
 
-export { app, database, auth, storage, db }; 
+// Initialiser l'authentification
+const auth = getAuth(app);
+
+// Initialiser le stockage
+const storage = getStorage(app);
+
+// Initialiser la Realtime Database
+const database = getDatabase(app);
+
+// Désactiver Firestore (pas utilisé dans cette application)
+const db = null;
+
+export { app, auth, database, storage, db }; 

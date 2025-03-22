@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { auth, database, db } from '../config';
-import { doc, updateDoc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { auth, database } from '../config';
+import { ref, set, get, push, update, query as dbQuery, orderByChild, equalTo } from 'firebase/database';
 import { User } from 'firebase/auth';
 
 // Clé API NOWPayments
@@ -39,9 +39,9 @@ export interface Transaction {
   status: TransactionStatus;
   paymentId?: string;
   invoiceId?: string;
-  createdAt: Date;
-  updatedAt?: Date;
-  completedAt?: Date;
+  createdAt: string;
+  updatedAt?: string;
+  completedAt?: string;
   type: TransactionType;
   itemId?: string; // ID de la formation, outil, etc.
   paymentUrl?: string;
@@ -51,8 +51,7 @@ export interface UserWallet {
   userId: string;
   balance: number;
   currency: string;
-  lastUpdated: Date;
-  transactions: string[]; // IDs des transactions
+  lastUpdated: string;
 }
 
 /**
@@ -61,69 +60,68 @@ export interface UserWallet {
  * @param amount Montant en EUR
  * @returns URL de paiement et informations sur le paiement
  */
-export const createWalletDeposit = async (user: User, amount: number): Promise<{ paymentUrl: string, paymentId: string }> => {
+export const createWalletDeposit = async (user: User, amount: number): Promise<{ paymentUrl: string; transactionId: string }> => {
   try {
-    // Créer une demande de paiement via NOWPayments
-    const response = await axios.post(`${API_URL}/payment`, {
-      price_amount: amount,
-      price_currency: 'eur',
-      pay_currency: 'btc', // Par défaut Bitcoin, peut être modifié
-      ipn_callback_url: `${process.env.REACT_APP_API_URL}/api/payment-callback`,
-      order_id: `wallet_deposit_${user.uid}_${Date.now()}`,
-      order_description: `Rechargement de portefeuille pour ${user.email || user.uid}`,
-    }, {
-      headers: {
-        'x-api-key': API_KEY,
-        'Content-Type': 'application/json'
-      }
-    });
+    // Vérifier si le montant est valide
+    if (!amount || amount <= 0) {
+      throw new Error('Le montant doit être supérieur à 0');
+    }
 
-    if (response.data && response.data.payment_id && response.data.pay_address) {
-      // Enregistrer la transaction dans Firestore
-      const transaction: Omit<Transaction, 'id'> = {
+    // Créer un paiement via l'API NOWPayments
+    const response = await axios.post(
+      `${API_URL}/payment`,
+      {
+        price_amount: amount,
+        price_currency: 'eur',
+        pay_currency: 'btc', // Devise de paiement par défaut
+        ipn_callback_url: process.env.REACT_APP_NOWPAYMENTS_IPN_CALLBACK_URL,
+        order_id: `deposit_${user.uid}_${Date.now()}`,
+        order_description: `Dépôt de ${amount} EUR pour ${user.email || ''}`
+      },
+      {
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // Si la création du paiement a réussi
+    if (response.data && response.data.payment_id) {
+      // Créer une nouvelle transaction dans la base de données
+      const transactionsRef = ref(database, 'transactions');
+      const transactionRef = push(transactionsRef);
+      const newTransaction = {
+        id: transactionRef.key,
         userId: user.uid,
         amount: amount,
-        currency: 'eur',
+        currency: 'EUR',
         status: TransactionStatus.WAITING,
-        paymentId: response.data.payment_id,
-        createdAt: new Date(),
         type: TransactionType.DEPOSIT,
-        paymentUrl: response.data.invoice_url || response.data.pay_address
+        paymentId: response.data.payment_id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        paymentDetails: {
+          pay_address: response.data.pay_address,
+          pay_amount: response.data.pay_amount,
+          pay_currency: response.data.pay_currency,
+          paymentUrl: response.data.invoice_url
+        }
       };
 
-      const transactionRef = await addDoc(collection(db, 'transactions'), transaction);
-
-      // Mettre à jour le portefeuille utilisateur
-      const userWalletRef = doc(db, 'wallets', user.uid);
-      const userWalletSnap = await getDoc(userWalletRef);
-
-      if (userWalletSnap.exists()) {
-        // Mettre à jour le portefeuille existant
-        await updateDoc(userWalletRef, {
-          lastUpdated: new Date(),
-          transactions: [...userWalletSnap.data().transactions, transactionRef.id]
-        });
-      } else {
-        // Créer un nouveau portefeuille
-        await setDoc(userWalletRef, {
-          userId: user.uid,
-          balance: 0, // Le solde sera mis à jour une fois le paiement confirmé
-          currency: 'eur',
-          lastUpdated: new Date(),
-          transactions: [transactionRef.id]
-        });
-      }
+      // Enregistrer la transaction dans la base de données
+      await set(transactionRef, newTransaction);
 
       return {
-        paymentUrl: response.data.invoice_url || '',
-        paymentId: response.data.payment_id
+        paymentUrl: response.data.invoice_url,
+        transactionId: transactionRef.key || ''
       };
     } else {
-      throw new Error('Réponse invalide de l\'API de paiement');
+      throw new Error('Erreur lors de la création du paiement');
     }
-  } catch (error: any) {
-    console.error('Erreur lors de la création d\'un dépôt:', error);
-    throw new Error(`Erreur lors de la création du paiement: ${error.message}`);
+  } catch (error) {
+    console.error('Erreur lors de la création du paiement:', error);
+    throw error;
   }
 };
 
@@ -141,32 +139,34 @@ export const createFormationPurchase = async (
 ): Promise<{ paymentUrl: string, paymentId: string }> => {
   try {
     // Vérifier si l'utilisateur a suffisamment dans son portefeuille
-    const userWalletRef = doc(db, 'wallets', user.uid);
-    const userWalletSnap = await getDoc(userWalletRef);
+    const userWalletRef = ref(database, `wallets/${user.uid}`);
+    const userWalletSnap = await get(userWalletRef);
     
-    if (userWalletSnap.exists() && userWalletSnap.data().balance >= formationPrice) {
+    if (userWalletSnap.exists() && userWalletSnap.val().balance >= formationPrice) {
       // Utiliser le solde du portefeuille
-      const newBalance = userWalletSnap.data().balance - formationPrice;
+      const newBalance = userWalletSnap.val().balance - formationPrice;
       
       // Créer une transaction interne
-      const transaction: Omit<Transaction, 'id'> = {
+      const transactionsRef = ref(database, 'transactions');
+      const transactionRef = push(transactionsRef);
+      const transaction = {
+        id: transactionRef.key,
         userId: user.uid,
         amount: formationPrice,
         currency: 'eur',
         status: TransactionStatus.FINISHED,
-        createdAt: new Date(),
-        completedAt: new Date(),
         type: TransactionType.FORMATION_PURCHASE,
-        itemId: formationId
+        itemId: formationId,
+        createdAt: new Date().toISOString(),
+        completedAt: new Date().toISOString()
       };
       
-      const transactionRef = await addDoc(collection(db, 'transactions'), transaction);
+      await set(transactionRef, transaction);
       
       // Mettre à jour le portefeuille
-      await updateDoc(userWalletRef, {
+      await update(ref(database, `wallets/${user.uid}`), {
         balance: newBalance,
-        lastUpdated: new Date(),
-        transactions: [...userWalletSnap.data().transactions, transactionRef.id]
+        lastUpdated: new Date().toISOString()
       });
       
       // Assigner la formation à l'utilisateur
@@ -175,17 +175,17 @@ export const createFormationPurchase = async (
       
       return {
         paymentUrl: '', // Pas d'URL car payé avec le solde
-        paymentId: transactionRef.id
+        paymentId: transactionRef.key || ''
       };
     } else {
-      // Créer un nouveau paiement via NOWPayments
+      // Créer un paiement via NOWPayments
       const response = await axios.post(`${API_URL}/payment`, {
         price_amount: formationPrice,
         price_currency: 'eur',
-        pay_currency: 'btc', // Par défaut Bitcoin, peut être modifié
-        ipn_callback_url: `${process.env.REACT_APP_API_URL}/api/payment-callback`,
+        pay_currency: 'btc',
+        ipn_callback_url: process.env.REACT_APP_NOWPAYMENTS_IPN_CALLBACK_URL,
         order_id: `formation_${formationId}_${user.uid}_${Date.now()}`,
-        order_description: `Achat de formation ${formationId} pour ${user.email || user.uid}`,
+        order_description: `Achat de formation ${formationId} pour ${user.email || ''}`
       }, {
         headers: {
           'x-api-key': API_KEY,
@@ -195,47 +195,34 @@ export const createFormationPurchase = async (
       
       if (response.data && response.data.payment_id) {
         // Enregistrer la transaction
-        const transaction: Omit<Transaction, 'id'> = {
+        const transactionsRef = ref(database, 'transactions');
+        const transactionRef = push(transactionsRef);
+        const transaction = {
+          id: transactionRef.key,
           userId: user.uid,
           amount: formationPrice,
           currency: 'eur',
           status: TransactionStatus.WAITING,
-          paymentId: response.data.payment_id,
-          createdAt: new Date(),
           type: TransactionType.FORMATION_PURCHASE,
           itemId: formationId,
+          paymentId: response.data.payment_id,
+          createdAt: new Date().toISOString(),
           paymentUrl: response.data.invoice_url || response.data.pay_address
         };
         
-        const transactionRef = await addDoc(collection(db, 'transactions'), transaction);
-        
-        // Mettre à jour ou créer le portefeuille utilisateur
-        if (userWalletSnap.exists()) {
-          await updateDoc(userWalletRef, {
-            lastUpdated: new Date(),
-            transactions: [...userWalletSnap.data().transactions, transactionRef.id]
-          });
-        } else {
-          await setDoc(userWalletRef, {
-            userId: user.uid,
-            balance: 0,
-            currency: 'eur',
-            lastUpdated: new Date(),
-            transactions: [transactionRef.id]
-          });
-        }
+        await set(transactionRef, transaction);
         
         return {
           paymentUrl: response.data.invoice_url || '',
-          paymentId: response.data.payment_id
+          paymentId: transactionRef.key || ''
         };
       } else {
         throw new Error('Réponse invalide de l\'API de paiement');
       }
     }
-  } catch (error: any) {
-    console.error('Erreur lors de l\'achat d\'une formation:', error);
-    throw new Error(`Erreur lors de la création du paiement: ${error.message}`);
+  } catch (error) {
+    console.error('Erreur lors de l\'achat de formation:', error);
+    throw error;
   }
 };
 
@@ -254,32 +241,34 @@ export const createToolPurchase = async (
   try {
     // Logique similaire à createFormationPurchase
     // Vérifier si l'utilisateur a suffisamment dans son portefeuille
-    const userWalletRef = doc(db, 'wallets', user.uid);
-    const userWalletSnap = await getDoc(userWalletRef);
+    const userWalletRef = ref(database, `wallets/${user.uid}`);
+    const userWalletSnap = await get(userWalletRef);
     
-    if (userWalletSnap.exists() && userWalletSnap.data().balance >= toolPrice) {
+    if (userWalletSnap.exists() && userWalletSnap.val().balance >= toolPrice) {
       // Utiliser le solde du portefeuille
-      const newBalance = userWalletSnap.data().balance - toolPrice;
+      const newBalance = userWalletSnap.val().balance - toolPrice;
       
       // Créer une transaction interne
-      const transaction: Omit<Transaction, 'id'> = {
+      const transactionsRef = ref(database, 'transactions');
+      const transactionRef = push(transactionsRef);
+      const transaction = {
+        id: transactionRef.key,
         userId: user.uid,
         amount: toolPrice,
         currency: 'eur',
         status: TransactionStatus.FINISHED,
-        createdAt: new Date(),
-        completedAt: new Date(),
         type: TransactionType.TOOL_PURCHASE,
-        itemId: toolId
+        itemId: toolId,
+        createdAt: new Date().toISOString(),
+        completedAt: new Date().toISOString()
       };
       
-      const transactionRef = await addDoc(collection(db, 'transactions'), transaction);
+      await set(transactionRef, transaction);
       
       // Mettre à jour le portefeuille
-      await updateDoc(userWalletRef, {
+      await update(userWalletRef, {
         balance: newBalance,
-        lastUpdated: new Date(),
-        transactions: [...userWalletSnap.data().transactions, transactionRef.id]
+        lastUpdated: new Date().toISOString()
       });
       
       // Logique d'attribution de l'outil à l'utilisateur à implémenter
@@ -287,7 +276,7 @@ export const createToolPurchase = async (
       
       return {
         paymentUrl: '', // Pas d'URL car payé avec le solde
-        paymentId: transactionRef.id
+        paymentId: transactionRef.key || ''
       };
     } else {
       // Créer un nouveau paiement via NOWPayments
@@ -307,39 +296,26 @@ export const createToolPurchase = async (
       
       if (response.data && response.data.payment_id) {
         // Enregistrer la transaction
-        const transaction: Omit<Transaction, 'id'> = {
+        const transactionsRef = ref(database, 'transactions');
+        const transactionRef = push(transactionsRef);
+        const transaction = {
+          id: transactionRef.key,
           userId: user.uid,
           amount: toolPrice,
           currency: 'eur',
           status: TransactionStatus.WAITING,
-          paymentId: response.data.payment_id,
-          createdAt: new Date(),
           type: TransactionType.TOOL_PURCHASE,
           itemId: toolId,
+          paymentId: response.data.payment_id,
+          createdAt: new Date().toISOString(),
           paymentUrl: response.data.invoice_url || response.data.pay_address
         };
         
-        const transactionRef = await addDoc(collection(db, 'transactions'), transaction);
-        
-        // Mettre à jour ou créer le portefeuille utilisateur
-        if (userWalletSnap.exists()) {
-          await updateDoc(userWalletRef, {
-            lastUpdated: new Date(),
-            transactions: [...userWalletSnap.data().transactions, transactionRef.id]
-          });
-        } else {
-          await setDoc(userWalletRef, {
-            userId: user.uid,
-            balance: 0,
-            currency: 'eur',
-            lastUpdated: new Date(),
-            transactions: [transactionRef.id]
-          });
-        }
+        await set(transactionRef, transaction);
         
         return {
           paymentUrl: response.data.invoice_url || '',
-          paymentId: response.data.payment_id
+          paymentId: transactionRef.key || ''
         };
       } else {
         throw new Error('Réponse invalide de l\'API de paiement');
@@ -358,11 +334,17 @@ export const createToolPurchase = async (
  */
 export const getUserWallet = async (userId: string): Promise<UserWallet | null> => {
   try {
-    const walletRef = doc(db, 'wallets', userId);
-    const walletSnap = await getDoc(walletRef);
+    const walletRef = ref(database, `wallets/${userId}`);
+    const walletSnap = await get(walletRef);
     
     if (walletSnap.exists()) {
-      return walletSnap.data() as UserWallet;
+      const walletData = walletSnap.val();
+      return {
+        userId: userId,
+        balance: walletData.balance || 0,
+        currency: walletData.currency || 'eur',
+        lastUpdated: walletData.lastUpdated || new Date().toISOString()
+      };
     }
     return null;
   } catch (error) {
@@ -378,29 +360,30 @@ export const getUserWallet = async (userId: string): Promise<UserWallet | null> 
  */
 export const getUserTransactions = async (userId: string): Promise<Transaction[]> => {
   try {
-    const wallet = await getUserWallet(userId);
+    const transactionsRef = ref(database, 'transactions');
+    const userTransactionsQuery = dbQuery(transactionsRef, orderByChild('userId'), equalTo(userId));
+    const transactionsSnap = await get(userTransactionsQuery);
     
-    if (!wallet || !wallet.transactions || wallet.transactions.length === 0) {
+    if (!transactionsSnap.exists()) {
       return [];
     }
     
     const transactions: Transaction[] = [];
     
-    for (const transactionId of wallet.transactions) {
-      const transactionRef = doc(db, 'transactions', transactionId);
-      const transactionSnap = await getDoc(transactionRef);
-      
-      if (transactionSnap.exists()) {
-        transactions.push({
-          id: transactionSnap.id,
-          ...transactionSnap.data()
-        } as Transaction);
-      }
-    }
+    transactionsSnap.forEach((childSnap) => {
+      const transactionData = childSnap.val();
+      transactions.push({
+        id: childSnap.key || '',
+        ...transactionData
+      });
+    });
     
     // Trier par date décroissante (plus récent en premier)
     return transactions.sort((a, b) => {
-      return (b.createdAt as any).toMillis() - (a.createdAt as any).toMillis();
+      // Convertir les dates en objets Date pour comparaison
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
     });
   } catch (error) {
     console.error('Erreur lors de la récupération des transactions:', error);
@@ -419,44 +402,65 @@ export const updateTransactionStatus = async (
 ): Promise<boolean> => {
   try {
     // Récupérer la transaction par paymentId
-    // Note: Nécessiterait un index sur paymentId dans les transactions
+    const transactionsRef = ref(database, 'transactions');
+    const q = dbQuery(transactionsRef, orderByChild('paymentId'), equalTo(paymentId));
+    const transactionsSnap = await get(q);
     
-    // 1. Trouver la transaction en utilisant les méthodes de Firestore v9
-    const transactionsCollection = collection(db, 'transactions');
-    const q = query(transactionsCollection, where('paymentId', '==', paymentId));
-    const transactionDocs = await getDocs(q);
-    
-    if (transactionDocs.empty) {
+    if (!transactionsSnap.exists()) {
       console.error(`Aucune transaction trouvée avec paymentId: ${paymentId}`);
       return false;
     }
     
-    const transactionDoc = transactionDocs.docs[0];
-    const transaction = { id: transactionDoc.id, ...transactionDoc.data() } as Transaction;
+    let transactionId = '';
+    let transactionData: any = null;
     
-    // 2. Mettre à jour la transaction
-    const transactionRef = doc(db, 'transactions', transaction.id);
-    await updateDoc(transactionRef, {
+    // Parcourir les résultats pour trouver la transaction
+    transactionsSnap.forEach((childSnap) => {
+      transactionId = childSnap.key || '';
+      transactionData = childSnap.val();
+    });
+    
+    if (!transactionData || !transactionId) {
+      console.error('Transaction non trouvée après récupération');
+      return false;
+    }
+    
+    const transaction: Transaction = {
+      id: transactionId,
+      ...transactionData
+    };
+    
+    // Mettre à jour la transaction
+    const transactionRef = ref(database, `transactions/${transactionId}`);
+    await update(transactionRef, {
       status: newStatus,
-      updatedAt: new Date(),
-      ...(newStatus === TransactionStatus.FINISHED ? { completedAt: new Date() } : {}),
+      updatedAt: new Date().toISOString(),
+      ...(newStatus === TransactionStatus.FINISHED ? { completedAt: new Date().toISOString() } : {}),
       ...(actualAmount ? { actualAmount } : {})
     });
     
-    // 3. Si la transaction est terminée, mettre à jour le portefeuille ou attribuer l'item
+    // Si la transaction est terminée, mettre à jour le portefeuille ou attribuer l'item
     if (newStatus === TransactionStatus.FINISHED) {
       const userId = transaction.userId;
       
       if (transaction.type === TransactionType.DEPOSIT) {
         // Créditer le portefeuille
-        const walletRef = doc(db, 'wallets', userId);
-        const walletSnap = await getDoc(walletRef);
+        const walletRef = ref(database, `wallets/${userId}`);
+        const walletSnap = await get(walletRef);
         
         if (walletSnap.exists()) {
-          const currentBalance = walletSnap.data().balance || 0;
-          await updateDoc(walletRef, {
+          const currentBalance = walletSnap.val().balance || 0;
+          await update(walletRef, {
             balance: currentBalance + transaction.amount,
-            lastUpdated: new Date()
+            lastUpdated: new Date().toISOString()
+          });
+        } else {
+          // Créer un portefeuille si inexistant
+          await set(walletRef, {
+            userId,
+            balance: transaction.amount,
+            currency: 'eur',
+            lastUpdated: new Date().toISOString()
           });
         }
       } else if (transaction.type === TransactionType.FORMATION_PURCHASE && transaction.itemId) {

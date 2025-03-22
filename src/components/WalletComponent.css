@@ -1,0 +1,317 @@
+/* Styles pour le composant de portefeuille */
+
+.wallet-container {
+  background-color: #1e293b;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #f8fafc;
+  max-width: 600px;
+}
+
+.wallet-loading {
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.wallet-error {
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #fecaca;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.wallet-balance-container {
+  margin-bottom: 1.5rem;
+}
+
+.wallet-balance-container h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #f1f5f9;
+}
+
+.wallet-balance {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.balance-amount {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.balance-currency {
+  font-size: 1.25rem;
+  margin-left: 0.5rem;
+  color: #94a3b8;
+}
+
+.balance-last-updated {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.deposit-section {
+  background-color: #0f172a;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.deposit-section h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #e2e8f0;
+}
+
+.predefined-amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.amount-button {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.amount-button:hover {
+  background-color: #334155;
+}
+
+.amount-button.selected {
+  background-color: #0284c7;
+  border-color: #0284c7;
+  color: white;
+}
+
+.custom-amount {
+  margin-bottom: 1rem;
+}
+
+.custom-amount label {
+  display: block;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  color: #94a3b8;
+}
+
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon input {
+  width: 100%;
+  padding: 0.75rem;
+  padding-right: 2rem;
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+}
+
+.input-with-icon input:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.3);
+}
+
+.currency-symbol {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.deposit-button {
+  width: 100%;
+  background-color: #0284c7;
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.deposit-button:hover {
+  background-color: #0369a1;
+}
+
+.deposit-button:disabled {
+  background-color: #475569;
+  cursor: not-allowed;
+}
+
+.payment-redirect {
+  background-color: #0f172a;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.payment-redirect h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #e2e8f0;
+}
+
+.payment-redirect p {
+  margin-bottom: 0.75rem;
+  color: #94a3b8;
+}
+
+.redirect-button {
+  background-color: #0284c7;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0.5rem 0;
+  transition: background-color 0.2s;
+}
+
+.redirect-button:hover {
+  background-color: #0369a1;
+}
+
+.cancel-button {
+  background-color: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 0.5rem 0;
+  transition: all 0.2s;
+}
+
+.cancel-button:hover {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
+.transactions-history {
+  background-color: #0f172a;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.transactions-history h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #e2e8f0;
+}
+
+.no-transactions {
+  text-align: center;
+  padding: 2rem 0;
+  color: #94a3b8;
+}
+
+.transactions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #1e293b;
+}
+
+.transaction-item:last-child {
+  border-bottom: none;
+}
+
+.transaction-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #1e293b;
+  margin-right: 1rem;
+}
+
+.transaction-details {
+  flex: 1;
+}
+
+.transaction-type {
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 0.25rem;
+}
+
+.transaction-date {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.transaction-amount {
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin-right: 1rem;
+}
+
+.transaction-item[class*="deposit"] .transaction-amount,
+.transaction-item[class*="finished"] .transaction-amount {
+  color: #4ade80;
+}
+
+.transaction-item[class*="formation_purchase"] .transaction-amount,
+.transaction-item[class*="tool_purchase"] .transaction-amount,
+.transaction-item[class*="other_purchase"] .transaction-amount {
+  color: #f87171;
+}
+
+.transaction-item[class*="failed"] .transaction-amount,
+.transaction-item[class*="expired"] .transaction-amount {
+  color: #94a3b8;
+}
+
+.transaction-status {
+  display: flex;
+  align-items: center;
+}
+
+.transaction-status .status-icon {
+  margin-right: 0.5rem;
+}
+
+.status-icon.success {
+  color: #4ade80;
+}
+
+.status-icon.error {
+  color: #f87171;
+}
+
+.status-icon.pending {
+  color: #facc15;
+} 

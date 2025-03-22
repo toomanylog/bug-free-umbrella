@@ -14,8 +14,8 @@ import {
   TransactionStatus,
   TransactionType 
 } from '../firebase/services/nowpayments';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { ref, update } from 'firebase/database';
+import { database } from '../firebase/config';
 
 interface DashboardProps {
   onClose: () => void;
@@ -634,10 +634,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     
     try {
       // Référence au document utilisateur
-      const userRef = doc(db, 'users', currentUser.uid);
+      const userRef = ref(database, `users/${currentUser.uid}`);
       
       // Mise à jour des wallets crypto
-      await updateDoc(userRef, {
+      await update(userRef, {
         cryptoWallets: userCryptoWallets
       });
       
