@@ -131,8 +131,11 @@ const RiotManager: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'accounts' | 'agents' | 'skins'>('accounts');
   const [weapons, setWeapons] = useState<Weapon[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [loadingWeapons, setLoadingWeapons] = useState<boolean>(false);
+  const [loadingAgents, setLoadingAgents] = useState<boolean>(false);
   const [weaponError, setWeaponError] = useState<string | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
   const [selectedWeapon, setSelectedWeapon] = useState<Weapon | null>(null);
   const [selectedSkin, setSelectedSkin] = useState<WeaponSkin | null>(null);
   const [showSkinDetails, setShowSkinDetails] = useState<boolean>(false);
@@ -493,8 +496,8 @@ const RiotManager: React.FC = () => {
   // Charger les armes depuis l'API Valorant
   const loadWeapons = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoadingWeapons(true);
+      setWeaponError(null);
       
       const response = await fetch('https://valorant-api.com/v1/weapons');
       
@@ -505,9 +508,11 @@ const RiotManager: React.FC = () => {
       const data = await response.json();
       
       if (data.status === 200) {
-        const weapons = data.data;
+        const weaponsData = data.data;
+        console.log(`Armes chargées: ${weaponsData.length}`);
+        
         // Transformations pour l'affichage
-        const formattedWeapons = weapons.map((weapon: Weapon) => {
+        const formattedWeapons = weaponsData.map((weapon: Weapon) => {
           // Nettoyer la catégorie pour enlever "EEquippableCategory::"
           const categoryDisplay = weapon.category.replace('EEquippableCategory::', '');
           
@@ -534,9 +539,9 @@ const RiotManager: React.FC = () => {
       }
     } catch (err) {
       console.error('Erreur lors du chargement des armes:', err);
-      setError('Impossible de charger les armes Valorant. Veuillez réessayer plus tard.');
+      setWeaponError('Impossible de charger les armes Valorant. Veuillez réessayer plus tard.');
     } finally {
-      setLoading(false);
+      setLoadingWeapons(false);
     }
   };
   
@@ -637,8 +642,8 @@ const RiotManager: React.FC = () => {
   // Charger les agents depuis l'API Valorant
   const loadAgents = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoadingAgents(true);
+      setAgentError(null);
       
       const response = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true');
       
@@ -649,41 +654,28 @@ const RiotManager: React.FC = () => {
       const data = await response.json();
       
       if (data.status === 200) {
-        const agents = data.data;
         // Pour diagnostic - afficher dans la console le nombre d'agents
-        console.log(`Agents chargés: ${agents.length}`);
-        
-        // Utiliser un format compatible avec l'affichage
-        const formattedAgents = agents.map((agent: Agent) => ({
-          uuid: agent.uuid,
-          displayName: agent.displayName,
-          category: agent.role ? agent.role.displayName : "Agent",
-          displayIcon: agent.displayIcon,
-          killStreamIcon: agent.displayIcon,
-          skins: [] // Pas de skins pour les agents
-        }));
-        
-        setWeapons(formattedAgents);
+        console.log(`Agents chargés: ${data.data.length}`);
+        setAgents(data.data);
       } else {
         throw new Error('Erreur lors du chargement des agents');
       }
     } catch (err) {
       console.error('Erreur lors du chargement des agents:', err);
-      setError('Impossible de charger les agents Valorant. Veuillez réessayer plus tard.');
+      setAgentError('Impossible de charger les agents Valorant. Veuillez réessayer plus tard.');
     } finally {
-      setLoading(false);
+      setLoadingAgents(false);
     }
   };
   
   // Charger les agents et armes lors du changement d'onglet
   useEffect(() => {
-    if (activeTab === 'agents') {
-      // Charger les agents de Valorant 
+    if (activeTab === 'agents' && agents.length === 0) {
       loadAgents();
-    } else if (activeTab === 'skins') {
+    } else if (activeTab === 'skins' && weapons.length === 0) {
       loadWeapons();
     }
-  }, [activeTab]);
+  }, [activeTab, agents.length, weapons.length]);
   
   // Connexion au compte RIOT et récupération des données du joueur
   const connectRiotAccount = async (account: RiotAccount) => {
@@ -824,6 +816,28 @@ const RiotManager: React.FC = () => {
           <Swords size={16} className="inline mr-2" />
           Skins
         </button>
+        
+        {activeTab === 'agents' && (
+          <button
+            className="py-3 px-4 ml-auto text-sm text-blue-400 hover:text-blue-300 flex items-center"
+            onClick={loadAgents}
+            disabled={loadingAgents}
+          >
+            <RefreshCw size={14} className={`mr-1 ${loadingAgents ? 'animate-spin' : ''}`} />
+            Actualiser
+          </button>
+        )}
+        
+        {activeTab === 'skins' && (
+          <button
+            className="py-3 px-4 ml-auto text-sm text-blue-400 hover:text-blue-300 flex items-center"
+            onClick={loadWeapons}
+            disabled={loadingWeapons}
+          >
+            <RefreshCw size={14} className={`mr-1 ${loadingWeapons ? 'animate-spin' : ''}`} />
+            Actualiser
+          </button>
+        )}
       </div>
       
       {/* Messages d'erreur et de succès */}
@@ -1057,6 +1071,52 @@ const RiotManager: React.FC = () => {
                       <button className="w-full px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded-lg text-sm">
                         Voir les skins
                       </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+      
+      {activeTab === 'agents' && (
+        <>
+          {agentError && (
+            <div className="p-3 mb-4 bg-red-900/30 border border-red-700 rounded-lg text-red-400">
+              {agentError}
+            </div>
+          )}
+          
+          {loadingAgents ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {agents.map(agent => (
+                  <div 
+                    key={agent.uuid} 
+                    className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-blue-500 transition-colors"
+                  >
+                    <div className="p-4">
+                      <div className="flex items-center mb-3">
+                        <div className="h-12 w-12 bg-gray-700 rounded-full overflow-hidden mr-3">
+                          <img 
+                            src={agent.displayIcon} 
+                            alt={agent.displayName} 
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{agent.displayName}</h3>
+                          <p className="text-sm text-gray-400">{agent.role?.displayName || "Agent"}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 bg-gray-700/50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-300 line-clamp-3">{agent.description}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
