@@ -69,7 +69,9 @@ const FormationDetail: React.FC = () => {
   };
 
   // Fonction pour marquer un module comme complété
-  const markModuleAsCompleted = async (moduleId: string) => {
+  const markModuleAsCompleted = async (e: React.MouseEvent, moduleId: string) => {
+    e.preventDefault(); // Empêcher le comportement par défaut qui fait remonter la page
+    
     if (!formationId || !userData || completedModules.has(moduleId)) return;
     
     try {
@@ -216,7 +218,7 @@ const FormationDetail: React.FC = () => {
                   
                   {!completedModules.has(module.id) && (
                     <button
-                      onClick={() => markModuleAsCompleted(module.id)}
+                      onClick={(e) => markModuleAsCompleted(e, module.id)}
                       className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
                     >
                       <Check size={16} className="mr-2" />

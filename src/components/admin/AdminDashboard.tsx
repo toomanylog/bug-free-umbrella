@@ -35,8 +35,18 @@ const SidebarItem: React.FC<{
 );
 
 const AdminDashboard: React.FC = () => {
-  const { userData, isAdmin } = useAuth();
-  const [activeSection, setActiveSection] = useState<string>('dashboard');
+  const { userData, currentUser, isAdmin } = useAuth();
+  // Persister l'onglet actif en utilisant localStorage
+  const [activeSection, setActiveSection] = useState(() => {
+    const savedSection = localStorage.getItem('adminDashboardActiveSection');
+    return savedSection || 'overview';
+  });
+  
+  // Enregistrer l'onglet actif dans le localStorage quand il change
+  useEffect(() => {
+    localStorage.setItem('adminDashboardActiveSection', activeSection);
+  }, [activeSection]);
+  
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(window.innerWidth < 768);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [stats, setStats] = useState({

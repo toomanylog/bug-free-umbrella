@@ -65,7 +65,17 @@ interface DashboardState {
 
 const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const { currentUser, userData, isAdmin, logout } = useAuth();
-  const [activeSection, setActiveSection] = useState('overview');
+  // Utiliser localStorage pour persister l'onglet actif
+  const [activeSection, setActiveSection] = useState(() => {
+    const savedSection = localStorage.getItem('dashboardActiveSection');
+    return savedSection || 'overview';
+  });
+  
+  // Enregistrer l'onglet actif dans localStorage quand il change
+  useEffect(() => {
+    localStorage.setItem('dashboardActiveSection', activeSection);
+  }, [activeSection]);
+  
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -735,32 +745,42 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       <div className="container px-4 py-12 mx-auto flex-grow">
         <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-4">
-            Bonjour, {userProfile.displayName || 'Utilisateur'}
-          </h1>
-          <p className="text-gray-400 mb-4">
-            Bienvenue sur votre espace formation
-          </p>
-          {isAdmin && (
-            <a 
-              href="/admin" 
-              className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors text-white font-medium"
-            >
-              Accéder au Dashboard Admin
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 ml-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
+          <div className="flex flex-col md:flex-row justify-between items-start mb-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">
+                Bonjour, {userProfile.displayName || 'Utilisateur'}
+              </h1>
+              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-gray-400">
+                <p>Bienvenue sur votre espace formation</p>
+                <p className="text-sm flex items-center">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                  Dernière connexion: {userStats.lastLogin}
+                </p>
+              </div>
+            </div>
+            
+            {isAdmin && (
+              <a 
+                href="/admin" 
+                className="mt-4 md:mt-0 group overflow-hidden relative inline-flex items-center px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-700 text-white font-medium shadow-lg hover:shadow-indigo-500/30 transition-all duration-300"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </a>
-          )}
+                <span className="relative z-10">Dashboard Admin</span>
+                <span className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-800 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 ml-2 relative z-10"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </a>
+            )}
+          </div>
         </div>
         
         {/* Navigation - Avec Aperçu, Outils, Mes formations et Portefeuille */}
@@ -853,10 +873,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                 <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
                   <h3 className="text-lg font-semibold text-gray-400 mb-2">Certifications</h3>
                   <p className="text-3xl font-bold">{userStats.certificationsObtained}</p>
-                </div>
-                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-gray-400 mb-2">Dernière connexion</h3>
-                  <p className="text-xl font-bold">{userStats.lastLogin}</p>
                 </div>
                 <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
                   <h3 className="text-lg font-semibold text-gray-400 mb-2">Solde portefeuille</h3>

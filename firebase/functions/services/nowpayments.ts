@@ -54,10 +54,26 @@ export interface Transaction {
  * @returns Vrai si la signature est valide
  */
 export const verifyIPNSignature = (signature: string, body: string): boolean => {
-  // Implémentation simplifiée, à remplacer par une vérification réelle
-  // Normalement, on doit utiliser le secret IPN et le corps pour vérifier la signature
-  console.log('Vérification de signature:', signature.substring(0, 10) + '...');
-  return true; // Retourner true pour le développement, implémenter la vérification réelle en production
+  // Récupérer la clé secrète IPN depuis les variables d'environnement
+  const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
+  
+  if (!ipnSecret) {
+    console.error("NOWPAYMENTS_IPN_SECRET n'est pas configuré");
+    return false;
+  }
+  
+  // Créer un HMAC avec la clé secrète
+  const crypto = require('crypto');
+  const hmac = crypto.createHmac('sha512', ipnSecret);
+  
+  // Mettre à jour l'HMAC avec le corps de la requête
+  hmac.update(body);
+  
+  // Calculer la signature attendue
+  const calculatedSignature = hmac.digest('hex');
+  
+  // Comparer avec la signature reçue
+  return calculatedSignature === signature;
 };
 
 /**
