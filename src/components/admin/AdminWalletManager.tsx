@@ -3,6 +3,7 @@ import { Search, Download, EyeIcon, Wallet } from 'lucide-react';
 import { database } from '../../firebase/config';
 import { ref, get, update, query as dbQuery, orderByChild, equalTo } from 'firebase/database';
 import { Transaction, TransactionStatus, TransactionType } from '../../firebase/services/nowpayments';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface UserWallet {
   userId: string;
@@ -21,6 +22,7 @@ const AdminWalletManager: React.FC = () => {
   const [newBalance, setNewBalance] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+  const { currentUser, userData } = useAuth();
 
   // Charger tous les portefeuilles utilisateurs
   useEffect(() => {
@@ -180,9 +182,9 @@ const AdminWalletManager: React.FC = () => {
         const newTransactionRef = ref(database, `transactions/${Date.now()}`);
         const now = new Date().toISOString();
         
-        // Récupérer les informations de l'administrateur
-        const currentAdminId = localStorage.getItem('currentUserId') || 'unknown_admin';
-        const currentAdminName = localStorage.getItem('currentUserName') || 'Administrateur';
+        // Récupérer les informations de l'administrateur depuis l'auth context
+        const currentAdminId = currentUser?.uid || 'unknown_admin';
+        const currentAdminName = userData?.displayName || currentUser?.displayName || 'Administrateur';
         
         // Déterminer si c'est un ajout ou un retrait de fonds
         const isDeposit = difference > 0;
@@ -290,7 +292,7 @@ const AdminWalletManager: React.FC = () => {
   const getTypeLabel = (type: TransactionType, transaction: any): string => {
     // Vérifier si c'est un ajustement administratif
     if (transaction.adminAdjustment) {
-      return transaction.amount > 0 
+      return transaction.transactionType === 'credit' 
         ? `Ajout de fonds par ${transaction.adminName || 'un administrateur'}`
         : `Retrait de fonds par ${transaction.adminName || 'un administrateur'}`;
     }

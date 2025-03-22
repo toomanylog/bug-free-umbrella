@@ -6,11 +6,14 @@ import UserManager from './UserManager';
 import CertificationManager from './CertificationManager';
 import ToolManager from './ToolManager';
 import AdminWalletManager from './AdminWalletManager';
-import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Menu, X, CreditCard } from 'lucide-react';
+import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Menu, X, CreditCard, Activity, DollarSign, UserCheck, Clock } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
 import { getAllCertifications } from '../../firebase/certifications';
 import { getAllTools } from '../../firebase/tools';
+import { ref, get, query, orderByChild, limitToLast } from 'firebase/database';
+import { database } from '../../firebase/config';
+import { TransactionStatus, TransactionType } from '../../firebase/services/nowpayments';
 
 // Sidebar Item Component
 const SidebarItem: React.FC<{
@@ -42,6 +45,13 @@ const AdminDashboard: React.FC = () => {
     certifications: 0,
     tools: 0
   });
+  const [advancedStats, setAdvancedStats] = useState({
+    activeUsers: 0,
+    totalTransactions: 0,
+    totalRevenue: 0,
+    completedFormations: 0
+  });
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
   
   // Surveiller les changements de taille d'écran
   useEffect(() => {
@@ -82,6 +92,12 @@ const AdminDashboard: React.FC = () => {
           certifications: certifications.length,
           tools: tools.length
         });
+
+        // Charger les statistiques avancées
+        await loadAdvancedStats(users);
+        
+        // Charger les logs récents
+        await loadRecentLogs();
       } catch (error) {
         console.error("Erreur lors du chargement des statistiques:", error);
       }
@@ -89,6 +105,85 @@ const AdminDashboard: React.FC = () => {
     
     loadStats();
   }, []);
+
+  // Charger les statistiques avancées
+  const loadAdvancedStats = async (users: any[]) => {
+    try {
+      // Compter les utilisateurs actifs (selon une certaine définition, par exemple ceux qui se sont connectés récemment)
+      const activeUsers = users.length; // Simplification pour l'exemple
+      
+      // Calculer le nombre total de transactions
+      const transactionsRef = ref(database, 'transactions');
+      const transactionsSnapshot = await get(transactionsRef);
+      const totalTransactions = transactionsSnapshot.exists() ? Object.keys(transactionsSnapshot.val()).length : 0;
+      
+      // Calculer le revenu total (somme des transactions terminées)
+      let totalRevenue = 0;
+      if (transactionsSnapshot.exists()) {
+        const transactions = transactionsSnapshot.val();
+        Object.values(transactions).forEach((tx: any) => {
+          if (tx.status === TransactionStatus.FINISHED && tx.type !== TransactionType.DEPOSIT) {
+            totalRevenue += parseFloat(tx.amount) || 0;
+          }
+        });
+      }
+      
+      // Calculer le nombre de formations terminées
+      const usersRef = ref(database, 'users');
+      const usersSnapshot = await get(usersRef);
+      let completedFormations = 0;
+      
+      if (usersSnapshot.exists()) {
+        const usersData = usersSnapshot.val();
+        Object.values(usersData).forEach((user: any) => {
+          if (user.formationsProgress) {
+            Object.values(user.formationsProgress).forEach((progress: any) => {
+              if (progress.completed) {
+                completedFormations++;
+              }
+            });
+          }
+        });
+      }
+      
+      setAdvancedStats({
+        activeUsers,
+        totalTransactions,
+        totalRevenue,
+        completedFormations
+      });
+    } catch (error) {
+      console.error("Erreur lors du chargement des statistiques avancées:", error);
+    }
+  };
+
+  // Charger les logs récents (transactions, connexions, etc.)
+  const loadRecentLogs = async () => {
+    try {
+      // Récupérer les 10 dernières transactions
+      const transactionsRef = ref(database, 'transactions');
+      const recentTransactionsQuery = query(transactionsRef, orderByChild('createdAt'), limitToLast(10));
+      const transactionsSnapshot = await get(recentTransactionsQuery);
+      
+      if (transactionsSnapshot.exists()) {
+        const transactions = transactionsSnapshot.val();
+        const transactionsArray = Object.entries(transactions).map(([id, data]: [string, any]) => ({
+          id,
+          ...data,
+          type: 'transaction'
+        }));
+        
+        // Trier par date (plus récent en premier)
+        const sortedLogs = transactionsArray.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        
+        setRecentLogs(sortedLogs.slice(0, 10));
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des logs récents:", error);
+    }
+  };
 
   useEffect(() => {
     // Si l'utilisateur n'est pas admin, rediriger
@@ -131,18 +226,18 @@ const AdminDashboard: React.FC = () => {
       
       {/* Sidebar */}
       <div 
-        className={`fixed md:static inset-y-0 left-0 z-50 bg-gray-800 text-white transition-all duration-300 ease-in-out ${
+        className={`fixed md:static inset-y-0 left-0 z-50 bg-gray-800 text-white transition-all duration-300 ease-in-out flex flex-col ${
           sidebarCollapsed ? 'w-20' : 'w-64'
         } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
-        <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-2'} mb-8`}>
+        <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-2'} p-4 mb-6 mt-2`}>
           <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
             <span className="font-bold">ML</span>
           </div>
           {!sidebarCollapsed && <h1 className="text-xl font-bold">Admin Dashboard</h1>}
         </div>
         
-        <nav className="mt-10 px-2">
+        <nav className="flex-1 px-2">
           <div className={`space-y-2 ${sidebarCollapsed ? 'items-center' : ''}`}>
             <SidebarItem 
               icon={<Home size={20} />}
@@ -196,10 +291,10 @@ const AdminDashboard: React.FC = () => {
           </div>
         </nav>
         
-        <div className={`mt-8 pt-4 border-t border-gray-700 ${sidebarCollapsed ? 'text-center' : ''}`}>
+        <div className={`p-3 pb-5 mt-auto border-t border-gray-700 ${sidebarCollapsed ? 'text-center' : ''}`}>
           <button 
             onClick={goToClientDashboard}
-            className={`flex items-center px-3 py-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors ${sidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}
+            className={`flex items-center px-3 py-2 rounded-lg bg-gray-700 hover:bg-blue-600 text-white transition-colors ${sidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}
           >
             <ArrowLeft size={18} className={sidebarCollapsed ? '' : 'mr-2'} />
             {!sidebarCollapsed && <span>Retour au dashboard client</span>}
@@ -238,36 +333,138 @@ const AdminDashboard: React.FC = () => {
         
         {/* Dynamic Content */}
         {activeSection === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="space-y-8">
+            {/* Statistiques de base */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 className="text-xl font-semibold mb-4">Formations</h2>
+                <div className="flex items-center justify-between">
+                  <span className="text-3xl font-bold">{stats.formations}</span>
+                  <BookOpen size={28} className="text-blue-500" />
+                </div>
+              </div>
+              
+              <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 className="text-xl font-semibold mb-4">Utilisateurs</h2>
+                <div className="flex items-center justify-between">
+                  <span className="text-3xl font-bold">{stats.users}</span>
+                  <Users size={28} className="text-green-500" />
+                </div>
+              </div>
+              
+              <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 className="text-xl font-semibold mb-4">Certifications</h2>
+                <div className="flex items-center justify-between">
+                  <span className="text-3xl font-bold">{stats.certifications}</span>
+                  <Award size={28} className="text-yellow-500" />
+                </div>
+              </div>
+              
+              <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h2 className="text-xl font-semibold mb-4">Outils</h2>
+                <div className="flex items-center justify-between">
+                  <span className="text-3xl font-bold">{stats.tools}</span>
+                  <Wrench size={28} className="text-purple-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Statistiques avancées */}
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-              <h2 className="text-xl font-semibold mb-4">Formations</h2>
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">{stats.formations}</span>
-                <BookOpen size={28} className="text-blue-500" />
+              <h2 className="text-xl font-semibold mb-6">Statistiques avancées</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-gray-700/50 p-5 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <UserCheck className="h-6 w-6 text-blue-400 mr-2" />
+                    <h3 className="text-lg font-medium">Utilisateurs actifs</h3>
+                  </div>
+                  <p className="text-3xl font-bold">{advancedStats.activeUsers}</p>
+                </div>
+                
+                <div className="bg-gray-700/50 p-5 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <Activity className="h-6 w-6 text-green-400 mr-2" />
+                    <h3 className="text-lg font-medium">Transactions</h3>
+                  </div>
+                  <p className="text-3xl font-bold">{advancedStats.totalTransactions}</p>
+                </div>
+                
+                <div className="bg-gray-700/50 p-5 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <DollarSign className="h-6 w-6 text-yellow-400 mr-2" />
+                    <h3 className="text-lg font-medium">Revenu total</h3>
+                  </div>
+                  <p className="text-3xl font-bold">{advancedStats.totalRevenue.toFixed(2)} €</p>
+                </div>
+                
+                <div className="bg-gray-700/50 p-5 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <BookOpen className="h-6 w-6 text-purple-400 mr-2" />
+                    <h3 className="text-lg font-medium">Formations terminées</h3>
+                  </div>
+                  <p className="text-3xl font-bold">{advancedStats.completedFormations}</p>
+                </div>
               </div>
             </div>
             
+            {/* Logs récents */}
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-              <h2 className="text-xl font-semibold mb-4">Utilisateurs</h2>
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">{stats.users}</span>
-                <Users size={28} className="text-green-500" />
-              </div>
-            </div>
-            
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-              <h2 className="text-xl font-semibold mb-4">Certifications</h2>
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">{stats.certifications}</span>
-                <Award size={28} className="text-yellow-500" />
-              </div>
-            </div>
-            
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-              <h2 className="text-xl font-semibold mb-4">Outils</h2>
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold">{stats.tools}</span>
-                <Wrench size={28} className="text-purple-500" />
+              <h2 className="text-xl font-semibold mb-6">Activité récente</h2>
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                {recentLogs.length === 0 ? (
+                  <p className="text-gray-400 text-center py-4">Aucune activité récente</p>
+                ) : (
+                  recentLogs.map((log) => (
+                    <div key={log.id} className="bg-gray-700/50 p-4 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium">
+                            {log.adminAdjustment 
+                              ? (log.transactionType === 'credit' 
+                                ? `Ajout de fonds par ${log.adminName}` 
+                                : `Retrait de fonds par ${log.adminName}`)
+                              : log.type === TransactionType.DEPOSIT 
+                                ? 'Dépôt'
+                                : log.type === TransactionType.FORMATION_PURCHASE 
+                                  ? 'Achat de formation'
+                                  : log.type === TransactionType.TOOL_PURCHASE 
+                                    ? 'Achat d\'outil'
+                                    : 'Transaction'
+                            }
+                          </p>
+                          <p className="text-sm text-gray-400 mt-1">{log.description || 'Pas de description'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-medium ${log.transactionType === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
+                            {log.transactionType === 'credit' ? '+' : '-'}{log.amount} {log.currency}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(log.createdAt).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center mt-2">
+                        <Clock size={14} className="text-gray-400 mr-1" />
+                        <span className="text-xs text-gray-400">
+                          {log.status === TransactionStatus.FINISHED 
+                            ? 'Terminée' 
+                            : log.status === TransactionStatus.WAITING 
+                              ? 'En attente'
+                              : log.status === TransactionStatus.FAILED
+                                ? 'Échouée'
+                                : 'En cours'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
