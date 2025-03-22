@@ -877,7 +877,7 @@ const MisaLinuxHomepage = () => {
               <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700/50">
                 <h3 className="text-2xl font-bold mb-4">Notre mission</h3>
                 <p className="text-gray-300 mb-6">
-                  Nous nous engageons à fournir les formations et outils les plus avancés.
+                  Chez Misa Linux, nous nous engageons à fournir les formations et outils les plus avancés.
                 </p>
                 <ul className="space-y-3">
                   {['Formations de haut niveau', 'Support personnalisé', 'Outils exclusifs', 'Communauté d\'experts'].map((item, index) => (
@@ -1012,15 +1012,27 @@ const MisaLinuxHomepage = () => {
             </div>
             
             <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-6 md:mb-0 items-center">
-              <Link to="/cgu" className="hover:text-blue-400 transition-colors">
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); navigate('/cgu'); }} 
+                className="hover:text-blue-400 transition-colors"
+              >
                 Conditions générales d'utilisation
-              </Link>
-              <Link to="/cgv" className="hover:text-blue-400 transition-colors">
+              </a>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); navigate('/cgv'); }} 
+                className="hover:text-blue-400 transition-colors"
+              >
                 Conditions générales de vente
-              </Link>
-              <Link to="/privacy" className="hover:text-blue-400 transition-colors">
+              </a>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); navigate('/privacy'); }} 
+                className="hover:text-blue-400 transition-colors"
+              >
                 Politique de confidentialité
-              </Link>
+              </a>
             </div>
             
             <div className="text-gray-400 text-sm">
