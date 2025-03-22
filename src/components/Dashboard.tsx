@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress, logoutUser } from '../firebase/auth';
+import { updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress, logoutUser, assignFormationToUser } from '../firebase/auth';
 import { Link } from 'react-router-dom';
 import { getAllTools, checkToolAccess, ToolStatus } from '../firebase/tools';
 import WalletComponent from './WalletComponent';
@@ -1881,8 +1881,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                                 if (formation.price && formation.price > 0) {
                                   handleBuyFormation(formation);
                                 } else {
-                                  // Assigner gratuitement
-                                  // Implémentation à ajouter
+                                  // Assigner gratuitement la formation à l'utilisateur
+                                  if (currentUser) {
+                                    const assignFreeFormation = async () => {
+                                      try {
+                                        // Assigner directement la formation gratuite
+                                        await assignFormationToUser(currentUser.uid, formation.id);
+                                        // Rafraîchir les données
+                                        const { getUserFormations } = await import('../firebase/formations');
+                                        const updatedFormations = await getUserFormations(currentUser.uid);
+                                        if (Array.isArray(updatedFormations)) {
+                                          const validFormations = updatedFormations
+                                            .filter((item): item is {formation: any; progress: any} => 
+                                              item !== null && item.formation !== null
+                                            );
+                                          setUserFormations(validFormations.map(item => item.formation));
+                                        }
+                                        // Afficher un message de succès
+                                        alert("Formation obtenue avec succès!");
+                                      } catch (error) {
+                                        console.error("Erreur lors de l'acquisition de la formation gratuite:", error);
+                                        alert("Une erreur s'est produite. Veuillez réessayer.");
+                                      }
+                                    };
+                                    assignFreeFormation();
+                                  }
                                 }
                               }}
                               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"

@@ -23,6 +23,7 @@ const EMPTY_FORMATION: Omit<Formation, 'id'> = {
   description: '',
   imageUrl: '',
   published: false,
+  price: 0,
   modules: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString()
@@ -321,7 +322,15 @@ const FormationManager: React.FC = () => {
               )}
               
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2 text-white">Description</h3>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold text-white">Description</h3>
+                  <div className="text-lg">
+                    {previewFormation.price && previewFormation.price > 0 
+                      ? <span className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-lg">{previewFormation.price} €</span>
+                      : <span className="bg-green-500/20 text-green-300 px-3 py-1 rounded-lg">Gratuit</span>
+                    }
+                  </div>
+                </div>
                 <div className="text-gray-300 markdown-content">
                   <ReactMarkdown>{previewFormation.description}</ReactMarkdown>
                 </div>
@@ -461,6 +470,21 @@ const FormationManager: React.FC = () => {
               value={currentFormation.imageUrl}
               onChange={e => setCurrentFormation({...currentFormation, imageUrl: e.target.value})}
             />
+          </div>
+        </div>
+        
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-400 mb-1">Prix (€)</label>
+          <div className="flex items-center">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full md:w-1/4 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={currentFormation.price || 0}
+              onChange={e => setCurrentFormation({...currentFormation, price: parseFloat(e.target.value) || 0})}
+            />
+            <p className="ml-2 text-sm text-gray-400">Laissez à 0 pour une formation gratuite</p>
           </div>
         </div>
         
