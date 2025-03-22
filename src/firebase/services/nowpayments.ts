@@ -4,12 +4,12 @@ import { ref, set, get, push, update, query as dbQuery, orderByChild, equalTo, r
 import { User } from 'firebase/auth';
 
 // Clé API NOWPayments
-const API_KEY = '09CARKN-MS64CEK-G9BGJ62-8QSSJ7M';
-const PUBLIC_KEY = '467c714f-5bb9-44d0-a611-97888b03cae7';
+const API_KEY = process.env.REACT_APP_NOWPAYMENTS_API_KEY || '';
+const PUBLIC_KEY = process.env.REACT_APP_NOWPAYMENTS_PUBLIC_KEY || '';
 const API_URL = 'https://api.nowpayments.io/v1';
 
-// Clé IPN pour la vérification des webhooks - à configurer dans les variables d'environnement
-const IPN_SECRET_KEY = process.env.REACT_APP_NOWPAYMENTS_IPN_KEY || 'aR65dL1KfqswL0Hmmke46GbDNvdlqggp';
+// Note: Les clés IPN sont uniquement utilisées côté serveur
+// Aucune clé IPN n'est stockée ou utilisée côté client pour des raisons de sécurité
 
 // Délai d'expiration des transactions (en millisecondes) - 24 heures par défaut
 export const TRANSACTION_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 heures
@@ -455,8 +455,9 @@ export const updateTransactionStatus = async (
         const { assignFormationToUser } = await import('../auth');
         await assignFormationToUser(userId, transaction.itemId);
       } else if (transaction.type === TransactionType.TOOL_PURCHASE && transaction.itemId) {
-        // Logique d'attribution d'outil
-        // TODO: Implémenter l'attribution d'outil
+        // Attribuer l'outil à l'utilisateur
+        const { assignToolToUser } = await import('../auth');
+        await assignToolToUser(userId, transaction.itemId);
       }
     }
     
@@ -476,9 +477,9 @@ export const updateTransactionStatus = async (
  * @returns Toujours true dans l'environnement client
  */
 export const verifyIPNSignature = (signature: string, body: string): boolean => {
-  // Dans un environnement client, nous ne pouvons pas vérifier la signature de manière sécurisée
-  console.warn('Vérification de signature IPN non disponible côté client');
-  return true; // Cette logique devrait être implémentée côté serveur dans une Cloud Function
+  // Cette fonction ne doit jamais être utilisée côté client pour des raisons de sécurité
+  console.error('ERREUR DE SÉCURITÉ: Tentative de vérification IPN côté client');
+  throw new Error('La vérification IPN ne peut pas être effectuée côté client. Cette opération doit être réalisée uniquement par les fonctions Cloud.');
 };
 
 /**

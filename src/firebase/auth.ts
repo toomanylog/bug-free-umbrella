@@ -470,40 +470,32 @@ export const updateFormationProgress = async (userId: string, formationId: strin
   }
 };
 
-// Fonction pour mettre à jour les préférences utilisateur
-export const updateUserPreferences = async (
-  userId: string,
-  preferences: {
-    theme?: string;
-    notifications?: boolean;
-    emailNotifications?: boolean;
-  }
-): Promise<void> => {
+/**
+ * Attribue un outil à un utilisateur
+ * @param userId ID de l'utilisateur
+ * @param toolId ID de l'outil
+ */
+export const assignToolToUser = async (userId: string, toolId: string): Promise<void> => {
   try {
+    // Vérifier si l'utilisateur existe
     const userRef = ref(database, `users/${userId}`);
     const userSnapshot = await get(userRef);
     
     if (!userSnapshot.exists()) {
-      throw new Error('Utilisateur non trouvé');
+      throw new Error(`L'utilisateur avec l'ID ${userId} n'existe pas`);
     }
+
+    // Créer ou mettre à jour la liste des outils de l'utilisateur
+    const userToolsRef = ref(database, `users/${userId}/tools/${toolId}`);
+    await set(userToolsRef, true);
     
-    const userData = userSnapshot.val();
+    // Ajouter un timestamp d'attribution
+    const userToolTimestampRef = ref(database, `users/${userId}/toolsTimestamps/${toolId}`);
+    await set(userToolTimestampRef, new Date().toISOString());
     
-    // Fusionner les préférences existantes avec les nouvelles
-    const updatedPreferences = {
-      ...(userData.preferences || {}),
-      ...preferences
-    };
-    
-    // Mettre à jour dans la base de données
-    await update(userRef, {
-      preferences: updatedPreferences,
-      updatedAt: new Date().toISOString()
-    });
-    
-    console.log(`Préférences mises à jour pour l'utilisateur ${userId}`);
+    console.log(`Outil ${toolId} attribué avec succès à l'utilisateur ${userId}`);
   } catch (error) {
-    console.error('Erreur lors de la mise à jour des préférences:', error);
+    console.error('Erreur lors de l\'attribution de l\'outil:', error);
     throw error;
   }
 }; 

@@ -189,10 +189,31 @@ export const updateTransactionStatus = async (
         // Attribuer la formation à l'utilisateur
         const userFormationsRef = db.ref(`users/${userId}/formations/${transactionData.itemId}`);
         await userFormationsRef.set(true);
+        
+        // Ajouter un timestamp d'attribution
+        const formationTimestampRef = db.ref(`users/${userId}/formationsTimestamps/${transactionData.itemId}`);
+        await formationTimestampRef.set(new Date().toISOString());
+        
+        console.log(`Formation ${transactionData.itemId} attribuée à l'utilisateur ${userId}`);
       } else if (transactionData.type === TransactionType.TOOL_PURCHASE && transactionData.itemId) {
         // Attribuer l'outil à l'utilisateur
         const userToolsRef = db.ref(`users/${userId}/tools/${transactionData.itemId}`);
         await userToolsRef.set(true);
+        
+        // Ajouter un timestamp d'attribution
+        const toolTimestampRef = db.ref(`users/${userId}/toolsTimestamps/${transactionData.itemId}`);
+        await toolTimestampRef.set(new Date().toISOString());
+        
+        // Enregistrer l'achat dans un journal d'activité
+        const activityRef = db.ref(`activities/${userId}`).push();
+        await activityRef.set({
+          type: 'tool_purchase',
+          toolId: transactionData.itemId,
+          timestamp: new Date().toISOString(),
+          transactionId: transactionId
+        });
+        
+        console.log(`Outil ${transactionData.itemId} attribué à l'utilisateur ${userId}`);
       }
     }
     
