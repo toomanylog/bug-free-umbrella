@@ -877,7 +877,7 @@ const MisaLinuxHomepage = () => {
               <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700/50">
                 <h3 className="text-2xl font-bold mb-4">Notre mission</h3>
                 <p className="text-gray-300 mb-6">
-                  Chez Misa Linux, nous nous engageons à fournir les formations et outils les plus avancés pour vous permettre d'exceller dans l'univers compétitif des techniques spécialisées.
+                  Nous nous engageons à fournir les formations et outils les plus avancés.
                 </p>
                 <ul className="space-y-3">
                   {['Formations de haut niveau', 'Support personnalisé', 'Outils exclusifs', 'Communauté d\'experts'].map((item, index) => (

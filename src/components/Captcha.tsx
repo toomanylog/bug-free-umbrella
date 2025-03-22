@@ -3,9 +3,10 @@
  * 
  * Ce captcha utilise un puzzle à faire glisser (slide puzzle) pour vérifier que l'utilisateur est humain:
  * - Deux pièces de puzzle doivent être glissées et déposées dans les positions correspondantes
- * - Simplifié pour éviter les problèmes de comportement erratique
- * - Les dimensions et positions sont mieux contrôlées
+ * - Les pièces ont des formes, rotations et couleurs différentes
+ * - Les positions et couleurs sont aléatoires à chaque chargement
  * - Le motif de fond change à chaque chargement
+ * - Beaucoup plus résistant aux attaques par OCR que les captchas textuels
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -18,12 +19,15 @@ interface PieceData {
   id: number;
   pos: { x: number; y: number };
   isVerified: boolean;
+  rotation: number;
+  shape: 'rectangle' | 'circle' | 'triangle';
   color: string;
 }
 
 interface DropZoneData {
   id: number;
   pos: { x: number; y: number };
+  shape: 'rectangle' | 'circle' | 'triangle';
 }
 
 const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
@@ -38,7 +42,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
   const pieceRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dropZoneRefs = useRef<(HTMLDivElement | null)[]>([]);
   
-  // Couleurs pour le captcha
+  // Couleurs pour le thème du captcha
   const [colors, setColors] = useState({
     primary: '#3b82f6',    // blue-500
     secondary: '#6366f1',  // indigo-500
@@ -46,23 +50,37 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
     background: '#1e293b'  // slate-800
   });
   
-  // Générer un motif de fond simple
+  // Générer un motif de fond adapté
   const generatePattern = () => {
-    const size = 4 + Math.floor(Math.random() * 4);
+    const hue = Math.floor(210 + Math.random() * 60); // Variations de bleu et violet
     
-    return `radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.1) 0%, transparent 70%),
-           radial-gradient(circle at 70% 60%, rgba(99, 102, 241, 0.1) 0%, transparent 70%)`;
+    return `radial-gradient(circle at 30% 30%, hsla(${hue}, 70%, 50%, 0.1) 0%, transparent 70%),
+           radial-gradient(circle at 70% 60%, hsla(${hue + 20}, 70%, 50%, 0.1) 0%, transparent 70%)`;
+  };
+  
+  // Générer une forme aléatoire
+  const getRandomShape = (): 'rectangle' | 'circle' | 'triangle' => {
+    const shapes: ('rectangle' | 'circle' | 'triangle')[] = ['rectangle', 'circle', 'triangle'];
+    return shapes[Math.floor(Math.random() * shapes.length)];
+  };
+  
+  // Générer une couleur aléatoire dans le thème
+  const getRandomColor = (): string => {
+    const hue = Math.floor(210 + Math.random() * 60); // Variations de bleu et violet
+    const saturation = Math.floor(70 + Math.random() * 20);
+    const lightness = Math.floor(45 + Math.random() * 15);
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   };
   
   // Initialiser le puzzle
   const initPuzzle = () => {
     if (!containerRef.current) return;
     
-    // Conteneur dimensions
+    // Dimensions du conteneur
     const containerWidth = containerRef.current.clientWidth;
     const containerHeight = 160;
     
-    // Créer des pièces et des zones de dépôt dans des positions fixes
+    // Dimensions et marges pour les pièces
     const pieceWidth = 70;
     const pieceHeight = 50;
     const margin = 20;
@@ -70,35 +88,53 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
     const newPieces: PieceData[] = [];
     const newDropZones: DropZoneData[] = [];
     
-    // Définir les positions fixes pour les pièces et les zones
-    const piecePositions = [
-      { x: margin, y: margin },
-      { x: margin, y: containerHeight - pieceHeight - margin }
-    ];
+    // Définir les zones pour les pièces et les zones de dépôt
+    const leftArea = { 
+      minX: margin, 
+      maxX: containerWidth * 0.4 - pieceWidth, 
+      minY: margin, 
+      maxY: containerHeight - pieceHeight - margin 
+    };
     
-    const dropPositions = [
-      { x: containerWidth - pieceWidth - margin, y: margin },
-      { x: containerWidth - pieceWidth - margin, y: containerHeight - pieceHeight - margin }
-    ];
+    const rightArea = { 
+      minX: containerWidth * 0.6, 
+      maxX: containerWidth - pieceWidth - margin, 
+      minY: margin, 
+      maxY: containerHeight - pieceHeight - margin 
+    };
     
-    // Créer les pièces et zones dans des positions prévisibles
+    // Créer les pièces et zones dans des positions semi-aléatoires
     for (let i = 0; i < 2; i++) {
-      // Couleurs distinctes pour chaque pièce
-      const colors = [
-        '#3b82f6', // blue-500
-        '#8b5cf6'  // violet-500
-      ];
+      // Générer les attributs aléatoires
+      const shape = getRandomShape();
+      const color = getRandomColor();
+      const rotation = Math.floor(Math.random() * 4) * 90; // 0, 90, 180, 270 degrés
+      
+      // Position de la pièce (à gauche)
+      // Stratifier verticalement pour éviter le chevauchement
+      const pieceY = leftArea.minY + (i * (leftArea.maxY - leftArea.minY) / 2);
+      // Ajouter un peu de randomisation horizontale
+      const pieceX = leftArea.minX + Math.random() * (leftArea.maxX - leftArea.minX) * 0.7;
       
       newPieces.push({
         id: i,
-        pos: piecePositions[i],
+        pos: { x: pieceX, y: pieceY },
         isVerified: false,
-        color: colors[i]
+        rotation,
+        shape,
+        color
       });
+      
+      // Position de la zone de dépôt (à droite)
+      // Stratifier verticalement dans le même ordre que les pièces
+      const dropY = rightArea.minY + (i * (rightArea.maxY - rightArea.minY) / 2);
+      // Ajouter un peu de randomisation horizontale
+      const dropX = rightArea.minX + Math.random() * (rightArea.maxX - rightArea.minX) * 0.7;
       
       newDropZones.push({
         id: i,
-        pos: dropPositions[i]
+        pos: { x: dropX, y: dropY },
+        shape
       });
     }
     
@@ -140,8 +176,8 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
     // Surface de la pièce
     const pieceArea = piece.width * piece.height;
     
-    // Si plus de 50% de la pièce est dans la zone de dépôt, c'est valide
-    return overlapArea / pieceArea > 0.5;
+    // Si plus de 60% de la pièce est dans la zone de dépôt, c'est valide
+    return overlapArea / pieceArea > 0.6;
   };
   
   // Gérer le début du glissement
@@ -158,13 +194,15 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
     
     let clientX: number, clientY: number;
     
-    // Gérer les événements tactiles et souris
-    if ('touches' in e) {
+    // Gérer différents types d'événements
+    if ('touches' in e && e.touches.length > 0) {
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
-    } else {
+    } else if ('clientX' in e) {
       clientX = e.clientX;
       clientY = e.clientY;
+    } else {
+      return; // Événement non pris en charge
     }
     
     if (!containerRef.current) return;
@@ -182,9 +220,9 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
     const newX = clientX - container.left - piece.width / 2;
     const newY = clientY - container.top - piece.height / 2;
     
-    // Limiter au conteneur
-    const boundedX = Math.max(0, Math.min(newX, container.width - piece.width));
-    const boundedY = Math.max(0, Math.min(newY, container.height - piece.height));
+    // Limiter au conteneur avec une marge pour éviter les problèmes de bord
+    const boundedX = Math.max(5, Math.min(newX, container.width - piece.width - 5));
+    const boundedY = Math.max(5, Math.min(newY, container.height - piece.height - 5));
     
     // Mettre à jour la position de la pièce spécifique
     setPieces(prev => prev.map(p => 
@@ -276,6 +314,34 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
+  // Rendu des différentes formes de pièces
+  const renderPieceShape = (piece: PieceData) => {
+    switch (piece.shape) {
+      case 'circle':
+        return (
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 to-transparent">
+            <div className="w-2 h-10 rounded-full bg-gray-800/40 absolute left-2 top-2 transform rotate-45"></div>
+            <div className="w-2 h-10 rounded-full bg-gray-800/40 absolute right-2 bottom-2 transform -rotate-45"></div>
+          </div>
+        );
+      case 'triangle':
+        return (
+          <div className="absolute inset-0 clip-path-triangle bg-gradient-to-br from-white/20 to-transparent">
+            <div className="w-2 h-10 rounded-full bg-gray-800/40 absolute left-2 bottom-2"></div>
+            <div className="w-2 h-10 rounded-full bg-gray-800/40 absolute right-2 bottom-2"></div>
+          </div>
+        );
+      case 'rectangle':
+      default:
+        return (
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-md">
+            <div className="w-2 h-10 rounded-full bg-gray-800/40 absolute left-2 top-2"></div>
+            <div className="w-2 h-10 rounded-full bg-gray-800/40 absolute right-2 bottom-2"></div>
+          </div>
+        );
+    }
+  };
+  
   return (
     <div className="space-y-4">
       <div 
@@ -286,7 +352,7 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
         {/* Instructions */}
         {!verified && (
           <div className="absolute inset-0 flex items-center justify-center text-center text-sm text-gray-300 z-0 pointer-events-none">
-            <span>Glissez les pièces de puzzle vers la droite</span>
+            <span>Glissez les pièces vers leurs emplacements respectifs</span>
           </div>
         )}
         
@@ -308,7 +374,9 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
                   backgroundColor: 'rgba(30, 41, 59, 0.5)',
                   borderWidth: '2px',
                   borderStyle: 'dashed',
-                  borderRadius: '8px'
+                  borderRadius: zone.shape === 'circle' ? '9999px' : 
+                               zone.shape === 'triangle' ? '0' : '8px',
+                  clipPath: zone.shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'none'
                 }}
               >
                 {pieces.find(p => p.id === zone.id)?.isVerified && (
@@ -331,28 +399,17 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
                   left: `${piece.pos.x}px`, 
                   top: `${piece.pos.y}px`,
                   backgroundColor: piece.color,
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                  borderRadius: piece.shape === 'circle' ? '9999px' : 
+                               piece.shape === 'triangle' ? '0' : '8px',
+                  clipPath: piece.shape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'none',
+                  transform: `rotate(${piece.rotation}deg)`,
+                  transformOrigin: 'center center'
                 }}
                 onMouseDown={(e) => handleDragStart(e, piece.id)}
                 onTouchStart={(e) => handleDragStart(e, piece.id)}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-lg"></div>
+                {renderPieceShape(piece)}
                 <span className="relative z-10 text-sm font-bold text-white">{piece.id + 1}</span>
-                
-                {/* Motifs pour rendre les pièces reconnaissables */}
-                {piece.id === 0 && (
-                  <div className="absolute inset-2 flex items-center justify-center pointer-events-none opacity-80">
-                    <div className="w-8 h-1 bg-white rounded-full"></div>
-                  </div>
-                )}
-                
-                {piece.id === 1 && (
-                  <div className="absolute inset-2 flex items-center justify-center pointer-events-none opacity-80">
-                    <div className="w-1 h-8 bg-white rounded-full"></div>
-                    <div className="w-8 h-1 bg-white rounded-full"></div>
-                  </div>
-                )}
               </div>
             ))}
           </>
@@ -403,6 +460,15 @@ const Captcha: React.FC<CaptchaProps> = ({ onVerify }) => {
           {error}
         </div>
       )}
+      
+      {/* Styles pour les formes */}
+      <style>
+        {`
+        .clip-path-triangle {
+          clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        }
+        `}
+      </style>
     </div>
   );
 };
