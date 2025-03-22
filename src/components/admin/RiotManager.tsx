@@ -16,6 +16,7 @@ interface RiotAccount {
   linkedAccounts?: string[];
   email?: string;
   password?: string;
+  login?: string;
   manualRank?: boolean;
   rank?: {
     currentRank?: string;
@@ -133,6 +134,7 @@ const RiotManager: React.FC = () => {
     lastUpdated: Date.now(),
     email: '',
     password: '',
+    login: '',
     manualRank: false
   });
   
@@ -208,6 +210,7 @@ const RiotManager: React.FC = () => {
       lastUpdated: Date.now(),
       email: '',
       password: '',
+      login: '',
       manualRank: false
     });
     setIsEditing(false);
@@ -227,6 +230,7 @@ const RiotManager: React.FC = () => {
       rank: account.rank,
       email: account.email || '',
       password: account.password || '',
+      login: account.login || '',
       manualRank: account.manualRank || false
     });
     setShowForm(true);
@@ -506,6 +510,7 @@ const RiotManager: React.FC = () => {
         // Filtrer les champs vides
         if (!accountData.email) delete accountData.email;
         if (!accountData.password) delete accountData.password;
+        if (!accountData.login) delete accountData.login;
         
         // Si en mode manuel, ne pas récupérer les données d'API
         if (newAccount.manualRank) {
@@ -565,6 +570,7 @@ const RiotManager: React.FC = () => {
       if (advancedMode) {
         if (newAccount.email) mergedData.email = newAccount.email;
         if (newAccount.password) mergedData.password = newAccount.password;
+        if (newAccount.login) mergedData.login = newAccount.login;
       }
       
       // S'assurer que riotId existe et est de type string
@@ -583,6 +589,7 @@ const RiotManager: React.FC = () => {
         ...(mergedData.rank && { rank: mergedData.rank }),
         ...(mergedData.email && { email: mergedData.email }),
         ...(mergedData.password && { password: mergedData.password }),
+        ...(mergedData.login && { login: mergedData.login }),
         ...(mergedData.linked && { linked: mergedData.linked }),
         ...(mergedData.linkedAccounts && { linkedAccounts: mergedData.linkedAccounts }),
         ...(mergedData.manualRank && { manualRank: mergedData.manualRank })
@@ -1329,7 +1336,7 @@ const RiotManager: React.FC = () => {
                   
                   <div className="grid grid-cols-3 gap-4 mb-3">
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Nom d'utilisateur</label>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Nom affiché en jeu</label>
                       <input
                         type="text"
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1381,8 +1388,35 @@ const RiotManager: React.FC = () => {
                   
                   {advancedMode && (
                     <div className="mt-3 border border-gray-600 rounded-lg p-4 space-y-4 bg-gray-750">
+                      <h3 className="font-medium text-blue-400 mb-2">Identifiants de connexion</h3>
+                      
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">E-mail associé (optionnel)</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Nom d'utilisateur</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={newAccount.login || ''}
+                          onChange={(e) => setNewAccount({...newAccount, login: e.target.value})}
+                          placeholder="Nom d'utilisateur pour se connecter au compte RIOT"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Identifiant utilisé pour vous connecter au compte RIOT (pas le nom affiché en jeu)
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe</label>
+                        <input
+                          type="password"
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={newAccount.password}
+                          onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
+                          placeholder="Mot de passe pour ce compte RIOT"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">E-mail (optionnel)</label>
                         <input
                           type="email"
                           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1395,16 +1429,8 @@ const RiotManager: React.FC = () => {
                         </p>
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe (optionnel)</label>
-                        <input
-                          type="password"
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={newAccount.password}
-                          onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
-                          placeholder="Mot de passe pour ce compte RIOT"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">
+                      <div className="mt-2 p-2 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                        <p className="text-xs text-blue-300">
                           Note: Les identifiants sont stockés de manière sécurisée et visibles uniquement par les administrateurs.
                         </p>
                       </div>
