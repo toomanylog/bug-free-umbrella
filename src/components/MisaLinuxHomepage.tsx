@@ -743,83 +743,6 @@ const MisaLinuxHomepage = () => {
         </div>
       </section>
       
-      {/* About Section */}
-      <section id="about" className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-blue-900/10 to-gray-900 z-0"></div>
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <div id="about-header" className="max-w-3xl mx-auto mb-16 animate-on-scroll">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6 inline-block relative">
-              À propos de Misa Linux
-              <div className={`absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ${animatedElements['about-header'] ? 'w-24' : 'w-0'}`}></div>
-            </h2>
-            <p className="text-xl text-gray-300 mb-8">
-              Centre de formation spécialisé dans les techniques avancées de la fraude et du développement de compétences numériques stratégiques.
-            </p>
-            
-            <div className="grid md:grid-cols-2 gap-10 mt-12">
-              <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700/50">
-                <h3 className="text-2xl font-bold mb-4">Notre mission</h3>
-                <p className="text-gray-300 mb-6">
-                  Chez Misa Linux, nous nous engageons à fournir les formations et outils les plus avancés pour vous permettre d'exceller dans l'univers compétitif des techniques spécialisées.
-                </p>
-                <ul className="space-y-3">
-                  {['Formations de haut niveau', 'Support personnalisé', 'Outils exclusifs', 'Communauté d\'experts'].map((item, index) => (
-                    <li key={index} className="flex items-start">
-                      <div className="bg-blue-600/20 p-1 rounded-full mr-3 mt-1">
-                        <Check size={16} className="text-blue-400" />
-                      </div>
-                      <span className="text-gray-300">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700/50">
-                <h3 className="text-2xl font-bold mb-4">Contactez-nous</h3>
-                <p className="text-gray-300 mb-6">
-                  Vous avez des questions ? N'hésitez pas à nous contacter via Telegram.
-                </p>
-                <div className="space-y-4">
-                  <a 
-                    href="https://t.me/misalinux" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center w-full relative overflow-hidden px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                      <path d="m22 2-7 20-4-9-9-4Z" />
-                      <path d="M22 2 11 13" />
-                    </svg>
-                    Contact direct
-                    <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
-                  </a>
-                  
-                  <a 
-                    href="https://t.me/chezmisa" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center w-full relative overflow-hidden px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-transparent border border-blue-600 hover:bg-blue-900/20"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                      <path d="m22 2-7 20-4-9-9-4Z" />
-                      <path d="M22 2 11 13" />
-                    </svg>
-                    Notre canal Telegram
-                  </a>
-                  
-                  <div className="mt-6 text-center">
-                    <p className="text-gray-400 text-sm">
-                      Rejoignez notre communauté Telegram pour être informé des dernières formations et outils disponibles.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      
       {/* Anonymat section - Version simplifiée et plus élégante */}
       <section id="anonymity" className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-900 z-0"></div>
@@ -936,6 +859,83 @@ const MisaLinuxHomepage = () => {
         </div>
       </section>
       
+      {/* About Section */}
+      <section id="about" className="py-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-blue-900/10 to-gray-900 z-0"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div id="about-header" className="max-w-3xl mx-auto mb-16 animate-on-scroll">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 inline-block relative">
+              À propos de Misa Linux
+              <div className={`absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ${animatedElements['about-header'] ? 'w-24' : 'w-0'}`}></div>
+            </h2>
+            <p className="text-xl text-gray-300 mb-8">
+              Centre de formation spécialisé dans les techniques avancées de la fraude et du développement de compétences numériques stratégiques.
+            </p>
+            
+            <div className="grid md:grid-cols-2 gap-10 mt-12">
+              <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700/50">
+                <h3 className="text-2xl font-bold mb-4">Notre mission</h3>
+                <p className="text-gray-300 mb-6">
+                  Chez Misa Linux, nous nous engageons à fournir les formations et outils les plus avancés pour vous permettre d'exceller dans l'univers compétitif des techniques spécialisées.
+                </p>
+                <ul className="space-y-3">
+                  {['Formations de haut niveau', 'Support personnalisé', 'Outils exclusifs', 'Communauté d\'experts'].map((item, index) => (
+                    <li key={index} className="flex items-start">
+                      <div className="bg-blue-600/20 p-1 rounded-full mr-3 mt-1">
+                        <Check size={16} className="text-blue-400" />
+                      </div>
+                      <span className="text-gray-300">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700/50">
+                <h3 className="text-2xl font-bold mb-4">Contactez-nous</h3>
+                <p className="text-gray-300 mb-6">
+                  Vous avez des questions ? N'hésitez pas à nous contacter via Telegram.
+                </p>
+                <div className="space-y-4">
+                  <a 
+                    href="https://t.me/misalinux" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center w-full relative overflow-hidden px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 hover:shadow-lg hover:shadow-blue-600/30"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                      <path d="m22 2-7 20-4-9-9-4Z" />
+                      <path d="M22 2 11 13" />
+                    </svg>
+                    Contact direct
+                    <div className="absolute inset-0 w-4 h-full bg-white/20 skew-x-[45deg] transform -translate-x-32 group-hover:translate-x-64 transition-transform duration-700"></div>
+                  </a>
+                  
+                  <a 
+                    href="https://t.me/chezmisa" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center w-full relative overflow-hidden px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-transparent border border-blue-600 hover:bg-blue-900/20"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                      <path d="m22 2-7 20-4-9-9-4Z" />
+                      <path d="M22 2 11 13" />
+                    </svg>
+                    Notre canal Telegram
+                  </a>
+                  
+                  <div className="mt-6 text-center">
+                    <p className="text-gray-400 text-sm">
+                      Rejoignez notre communauté Telegram pour être informé des dernières formations et outils disponibles.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Login Modal */}
       <div className={`fixed inset-0 z-50 flex items-center justify-center ${isLoginModalOpen ? 'opacity-100 visible' : 'opacity-0 invisible'} transition-all duration-300`}>
         <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={toggleLoginModal}></div>
