@@ -85,17 +85,42 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const loadStats = async () => {
       try {
-        // Charger le nombre de formations
-        const formations = await getAllFormations();
+        let formations = [];
+        let users = [];
+        let certifications = [];
+        let tools = [];
         
-        // Charger le nombre d'utilisateurs
-        const users = await getAllUsers();
+        try {
+          // Charger le nombre de formations
+          formations = await getAllFormations();
+        } catch (error) {
+          console.error("Erreur lors du chargement des formations:", error);
+          formations = [];
+        }
         
-        // Charger le nombre de certifications
-        const certifications = await getAllCertifications();
+        try {
+          // Charger le nombre d'utilisateurs
+          users = await getAllUsers();
+        } catch (error) {
+          console.error("Erreur lors de la récupération des utilisateurs:", error);
+          users = [];
+        }
         
-        // Charger le nombre d'outils
-        const tools = await getAllTools();
+        try {
+          // Charger le nombre de certifications
+          certifications = await getAllCertifications();
+        } catch (error) {
+          console.error("Erreur lors du chargement des certifications:", error);
+          certifications = [];
+        }
+        
+        try {
+          // Charger le nombre d'outils
+          tools = await getAllTools();
+        } catch (error) {
+          console.error("Erreur lors du chargement des outils:", error);
+          tools = [];
+        }
         
         setStats({
           formations: formations.length,
@@ -105,10 +130,18 @@ const AdminDashboard: React.FC = () => {
         });
 
         // Charger les statistiques avancées
-        await loadAdvancedStats(users);
+        try {
+          await loadAdvancedStats(users);
+        } catch (error) {
+          console.error("Erreur lors du chargement des statistiques avancées:", error);
+        }
         
         // Charger les logs récents
-        await loadRecentLogs();
+        try {
+          await loadRecentLogs();
+        } catch (error) {
+          console.error("Erreur lors du chargement des logs récents:", error);
+        }
       } catch (error) {
         console.error("Erreur lors du chargement des statistiques:", error);
       }

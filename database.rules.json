@@ -4,6 +4,7 @@
     ".write": false,
     
     "users": {
+      ".read": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$uid": {
         ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
         ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
@@ -18,6 +19,11 @@
     },
     
     "riotAccounts": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    
+    "stats": {
       ".read": "auth !== null",
       ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
