@@ -103,13 +103,23 @@ export const createWalletDeposit = async (
       throw new Error('Crypto-monnaie non supportée');
     }
 
+    // Normaliser l'ID de la crypto-monnaie pour NOWPayments
+    // USDT doit être précisé comme USDT_TRX, USDT_ETH, etc.
+    // BNB doit être précisé comme BNB_BSC ou BNB_BEP2
+    let paymentCurrency = payCurrency;
+    if (payCurrency === 'usdt') {
+      paymentCurrency = 'usdt_trc20'; // Utiliser TRC20 par défaut pour USDT
+    } else if (payCurrency === 'bnb') {
+      paymentCurrency = 'bnb_bsc'; // Utiliser BSC (BEP20) par défaut pour BNB
+    }
+
     // Créer un paiement via l'API NOWPayments
     const response = await axios.post(
       `${API_URL}/payment`,
       {
         price_amount: amount,
         price_currency: 'eur',
-        pay_currency: payCurrency,
+        pay_currency: paymentCurrency,
         ipn_callback_url: process.env.REACT_APP_NOWPAYMENTS_IPN_CALLBACK_URL,
         order_id: `deposit_${user.uid}_${Date.now()}`,
         order_description: `Dépôt de ${amount} EUR pour ${user.email || ''}`
@@ -148,27 +158,21 @@ export const createWalletDeposit = async (
           pay_amount: payAmount,
           pay_currency: payCurrency,
           paymentUrl: paymentUrl
-        },
-        expiresAt: new Date(Date.now() + TRANSACTION_EXPIRATION_TIME).toISOString() // Ajouter date d'expiration
+        }
       };
-
+      
       // Enregistrer la transaction dans la base de données
       await set(transactionRef, newTransaction);
-
-      // Planifier une vérification d'expiration
-      setTimeout(() => {
-        checkTransactionExpiration(transactionRef.key || '');
-      }, TRANSACTION_EXPIRATION_TIME);
-
+      
       return {
-        paymentUrl: paymentUrl,
+        paymentUrl,
         transactionId: transactionRef.key || ''
       };
     } else {
-      throw new Error('Erreur lors de la création du paiement: réponse incomplète de l\'API');
+      throw new Error('Erreur lors de la création du paiement');
     }
   } catch (error) {
-    console.error('Erreur lors de la création du paiement:', error);
+    console.error('Erreur lors de la création du dépôt:', error);
     throw error;
   }
 };

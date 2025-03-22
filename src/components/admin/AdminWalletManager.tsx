@@ -184,6 +184,9 @@ const AdminWalletManager: React.FC = () => {
         const currentAdminId = localStorage.getItem('currentUserId') || 'unknown_admin';
         const currentAdminName = localStorage.getItem('currentUserName') || 'Administrateur';
         
+        // Déterminer si c'est un ajout ou un retrait de fonds
+        const isDeposit = difference > 0;
+        
         // Créer la transaction
         const transactionData = {
           id: Date.now().toString(),
@@ -191,17 +194,17 @@ const AdminWalletManager: React.FC = () => {
           amount: Math.abs(difference),
           currency: 'EUR',
           status: TransactionStatus.FINISHED,
-          type: TransactionType.DEPOSIT,
+          type: isDeposit ? TransactionType.DEPOSIT : TransactionType.OTHER_PURCHASE,
           createdAt: now,
           updatedAt: now,
           completedAt: now,
           adminAdjustment: true,
           adminId: currentAdminId,
           adminName: currentAdminName,
-          description: difference > 0 
+          description: isDeposit 
             ? `Ajout de ${Math.abs(difference)} EUR par l'administrateur ${currentAdminName}` 
             : `Retrait de ${Math.abs(difference)} EUR par l'administrateur ${currentAdminName}`,
-          transactionType: difference > 0 ? 'credit' : 'debit'
+          transactionType: isDeposit ? 'credit' : 'debit'
         };
         
         // Ajouter la transaction à la base de données
@@ -276,6 +279,8 @@ const AdminWalletManager: React.FC = () => {
         return <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs">Remboursé</span>;
       case TransactionStatus.PARTIALLY_PAID:
         return <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded-full text-xs">Partiellement payé</span>;
+      case TransactionStatus.CANCELLED:
+        return <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs">Annulé</span>;
       default:
         return <span className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded-full text-xs">Inconnu</span>;
     }

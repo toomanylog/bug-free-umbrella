@@ -130,6 +130,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     doge: ''
   });
 
+  // Ajouter un état de chargement pour les différentes sections
+  const [loading, setLoading] = useState({
+    formations: false,
+    wallet: false,
+    tools: false,
+    profile: false,
+    overview: false
+  });
+
   // Charger les données de l'utilisateur depuis Firestore
   useEffect(() => {
     const loadUserData = async () => {
@@ -227,18 +236,30 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     const loadCatalogFormations = async () => {
       if (activeSection === 'formations' && currentUser) {
         try {
+          // Désactiver temporairement le loading pour éviter les problèmes d'affichage
+          setLoading(prevState => ({...prevState, formations: true}));
+          
           const { getPublishedFormations } = await import('../firebase/formations');
+          console.log("Chargement des formations publiées...");
           const publishedFormations = await getPublishedFormations();
+          console.log("Formations publiées récupérées:", publishedFormations);
+          
+          // Récupérer les IDs des formations de l'utilisateur
+          const userFormationIds = userFormations.map(f => f.id);
+          console.log("Formations de l'utilisateur:", userFormationIds);
           
           // Filtrer pour exclure les formations déjà assignées à l'utilisateur
-          const userFormationIds = userFormations.map(f => f.id);
           const filteredFormations = publishedFormations.filter(
             formation => !userFormationIds.includes(formation.id)
           );
           
+          console.log("Formations filtrées pour le catalogue:", filteredFormations);
           setCatalogFormations(filteredFormations);
         } catch (error) {
           console.error("Erreur lors du chargement du catalogue de formations:", error);
+          setCatalogFormations([]);
+        } finally {
+          setLoading(prevState => ({...prevState, formations: false}));
         }
       }
     };
