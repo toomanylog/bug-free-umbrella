@@ -340,9 +340,14 @@ const AdminDashboard: React.FC = () => {
               collapsed={sidebarCollapsed}
             />
           </div>
+
+          {/* Ajout d'un espace en bas pour éviter que le contenu soit masqué par le bouton fixe */}
+          <div className="h-16"></div>
         </nav>
         
-        <div className={`p-3 pb-5 mt-auto border-t border-gray-700 ${sidebarCollapsed ? 'text-center' : ''}`}>
+        <div className={`fixed bottom-0 left-0 p-3 pb-5 border-t border-gray-700 bg-gray-800 ${
+          sidebarCollapsed ? 'text-center w-20' : 'w-64'
+        } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} transition-all duration-300 ease-in-out`}>
           <button 
             onClick={goToClientDashboard}
             className={`flex items-center px-3 py-2 rounded-lg bg-gray-700 hover:bg-blue-600 text-white transition-colors ${sidebarCollapsed ? 'justify-center w-full' : 'w-full'}`}

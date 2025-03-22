@@ -408,7 +408,7 @@ const RiotManager: React.FC = () => {
     // Cette fonction devrait retourner l'URL de l'icône du rang
     // On pourrait utiliser valorant-api.com pour obtenir ces icônes
     const rankName = getRankName(tier).toLowerCase();
-    return `https://dash.valorant-api.com/assets/ranks/${rankName}.png`;
+    return `https://valorant-api.com/assets/ranks/${rankName}.png`;
   };
   
   // Actualiser les données du compte
@@ -1102,7 +1102,7 @@ const RiotManager: React.FC = () => {
                             <div className="flex items-center mb-3">
                               {account.rank.rankIcon && (
                                 <img 
-                                  src={account.rank.rankIcon} 
+                                  src={account.rank.rankIcon.replace("dash.valorant-api.com", "valorant-api.com")} 
                                   alt={account.rank.currentRank} 
                                   className="w-12 h-12 mr-3"
                                 />
@@ -1134,6 +1134,68 @@ const RiotManager: React.FC = () => {
                           </div>
                         )}
                         
+                        {/* Informations du compte */}
+                        <div className="mb-4 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                          <h4 className="text-sm font-medium text-blue-300 mb-2">Identifiants de connexion</h4>
+                          
+                          {account.login && (
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="text-sm text-gray-400">Nom d'utilisateur</p>
+                                <p className="font-medium">{account.login}</p>
+                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigator.clipboard.writeText(account.login || '');
+                                }}
+                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded"
+                                title="Copier le nom d'utilisateur"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                              </button>
+                            </div>
+                          )}
+                          
+                          {account.password && (
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="text-sm text-gray-400">Mot de passe</p>
+                                <p className="font-medium">••••••••</p>
+                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigator.clipboard.writeText(account.password || '');
+                                }}
+                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded"
+                                title="Copier le mot de passe"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                              </button>
+                            </div>
+                          )}
+                          
+                          {account.email && (
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-400">Email</p>
+                                <p className="font-medium text-sm truncate max-w-[180px]">{account.email}</p>
+                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigator.clipboard.writeText(account.email || '');
+                                }}
+                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded"
+                                title="Copier l'email"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        
                         {/* Date de dernière mise à jour */}
                         <p className="text-xs text-gray-500 mb-4">
                           Dernière mise à jour: {new Date(account.lastUpdated).toLocaleDateString('fr-FR', {
@@ -1147,24 +1209,6 @@ const RiotManager: React.FC = () => {
                         
                         {/* Actions */}
                         <div className="mt-4 flex flex-wrap gap-2">
-                          <button 
-                            onClick={() => connectRiotAccount(account)}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg flex items-center"
-                            disabled={loading}
-                          >
-                            <RefreshCw size={16} className="mr-1" />
-                            Connecter
-                          </button>
-                          
-                          <button 
-                            onClick={() => refreshAccountData(account)}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
-                            disabled={loading}
-                          >
-                            <Shield size={16} className="mr-1" />
-                            Actualiser
-                          </button>
-                          
                           <button 
                             onClick={() => openEditForm(account)}
                             className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
@@ -1180,24 +1224,6 @@ const RiotManager: React.FC = () => {
                             <Trash2 size={16} className="mr-1" />
                             Supprimer
                           </button>
-                          
-                          {account.linked ? (
-                            <button 
-                              onClick={() => openLinkAccountsModal(account.id)}
-                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg flex items-center"
-                            >
-                              <LinkIcon size={16} className="mr-1" />
-                              Comptes liés
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => openLinkAccountsModal(account.id)}
-                              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
-                            >
-                              <Link size={16} className="mr-1" />
-                              Lier
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>
