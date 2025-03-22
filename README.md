@@ -145,3 +145,45 @@ Pour déployer sur Netlify, configurez les variables d'environnement via l'inter
 5. Cliquez sur **Save**
 
 ⚠️ **Important** : Netlify ne lit pas automatiquement les fichiers `.env` lors du build. Les variables doivent être configurées directement dans les paramètres de l'environnement Netlify.
+
+## Intégration avec l'API Riot Games
+
+L'application utilise l'API Riot Games pour récupérer les données des comptes Valorant. Voici comment cela fonctionne :
+
+### Méthode actuelle
+
+Notre implémentation actuelle utilise l'API REST de Riot Games avec une clé API de développement. Cette méthode :
+
+1. Permet d'ajouter des comptes Valorant en spécifiant le nom d'utilisateur et le tag
+2. Connecte le compte via l'API Riot pour récupérer le PUUID (identifiant unique du joueur)
+3. Récupère les données de rang et les statistiques du joueur
+4. Stocke ces informations dans notre base de données
+
+Les données sont récupérées directement depuis notre serveur avec la clé API, sans nécessiter d'authentification de l'utilisateur sur son compte Riot.
+
+### Limites de l'approche actuelle
+
+- La clé API de développement a des limites de taux de requêtes (20 requêtes/sec)
+- Pas d'accès à certaines données privées du joueur
+- Impossible d'effectuer des actions au nom du joueur
+
+### Alternative : Authentification OAuth
+
+Pour une intégration plus complète comme celle utilisée par Tracker.gg, il faudrait :
+
+1. S'inscrire au programme de développement Riot
+2. Créer une application enregistrée avec OAuth
+3. Implémenter le flux d'autorisation OAuth où l'utilisateur se connecte à son compte Riot
+4. Utiliser le jeton d'accès obtenu pour accéder aux données avec plus de permissions
+
+Cette méthode nécessite une approbation de Riot Games pour une utilisation en production.
+
+### Configuration
+
+Pour utiliser l'API Riot, assurez-vous de configurer votre clé API dans les variables d'environnement :
+
+```
+REACT_APP_RIOT_API_KEY=votre-clé-api
+```
+
+Vous pouvez obtenir une clé API de développement sur le [Portail Développeur Riot Games](https://developer.riotgames.com/).
