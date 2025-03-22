@@ -2,13 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, database } from '../firebase/config';
 import { ref, get, onValue, off } from 'firebase/database';
-import { createWalletDeposit, Transaction, TransactionStatus, UserWallet } from '../firebase/services/nowpayments';
+import { createWalletDeposit, Transaction as BaseTransaction, TransactionStatus, UserWallet } from '../firebase/services/nowpayments';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Trash, ArrowUp, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 // Styles
 import './WalletComponent.css';
+
+// Interface pour étendre le type Transaction
+interface Transaction extends BaseTransaction {
+  paymentDetails?: {
+    pay_address: string;
+    pay_amount: number;
+    pay_currency: string;
+    paymentUrl: string;
+  };
+}
 
 // Interface pour les props du composant
 interface WalletComponentProps {
@@ -300,6 +310,66 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
           <button className="cancel-button" onClick={() => setDepositUrl(null)}>
             Annuler
           </button>
+        </div>
+      )}
+
+      {/* Afficher les transactions en attente avec les détails de paiement */}
+      {transactions.filter(tx => tx.status === TransactionStatus.WAITING && tx.type === 'deposit').length > 0 && (
+        <div className="pending-payments">
+          <h3>Paiements en attente</h3>
+          {transactions
+            .filter(tx => tx.status === TransactionStatus.WAITING && tx.type === 'deposit')
+            .map(tx => (
+              <div key={tx.id} className="pending-payment-item">
+                <div className="payment-header">
+                  <h4>Dépôt de {tx.amount} {tx.currency}</h4>
+                  <span className="status-tag">En attente</span>
+                </div>
+                
+                {tx.paymentDetails && (
+                  <div className="payment-details">
+                    <p>Pour finaliser votre paiement, veuillez envoyer:</p>
+                    <div className="crypto-amount">
+                      <strong>{tx.paymentDetails.pay_amount}</strong> {tx.paymentDetails.pay_currency.toUpperCase()}
+                    </div>
+                    
+                    <div className="crypto-address">
+                      <label>Adresse {tx.paymentDetails.pay_currency.toUpperCase()}:</label>
+                      <div className="address-wrapper">
+                        <input 
+                          type="text"
+                          readOnly
+                          value={tx.paymentDetails.pay_address}
+                          className="address-field"
+                        />
+                        <button 
+                          className="copy-button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(tx.paymentDetails.pay_address);
+                            alert('Adresse copiée dans le presse-papier');
+                          }}
+                        >
+                          Copier
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {tx.paymentDetails && tx.paymentDetails.paymentUrl && (
+                      <div className="payment-url">
+                        <a 
+                          href={tx.paymentDetails.paymentUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="payment-link"
+                        >
+                          Payer via le portail de paiement
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
         </div>
       )}
 
