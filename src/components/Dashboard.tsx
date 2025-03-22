@@ -66,7 +66,7 @@ interface DashboardState {
 const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const { currentUser, userData, isAdmin, logout } = useAuth();
   // Utiliser localStorage pour persister l'onglet actif
-  const [activeSection, setActiveSection] = useState(() => {
+  const [activeSection, setActiveSection] = useState<string>(() => {
     const savedSection = localStorage.getItem('dashboardActiveSection');
     return savedSection || 'overview';
   });
@@ -123,14 +123,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
   const [userCertifications, setUserCertifications] = useState<any[]>([]);
   const [userTools, setUserTools] = useState<any[]>([]);
   const [activePayment, setActivePayment] = useState(false);
-  const [currentPaymentItem, setCurrentPaymentItem] = useState<{id: string, type: 'formation' | 'tool', name: string, price: number} | null>(null);
+  const [currentPaymentItem, setCurrentPaymentItem] = useState<any>(null);
   const [userWallet, setUserWallet] = useState<{balance: number, currency: string} | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // État pour le paiement
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState('');
-  const [paymentError, setPaymentError] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
+  const [paymentUrl, setPaymentUrl] = useState<string>('');
+  const [paymentError, setPaymentError] = useState<string>('');
+  const [depositAmount, setDepositAmount] = useState<string>('');
 
   const [userCryptoWallets, setUserCryptoWallets] = useState({
     btc: '',
@@ -592,6 +593,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     } catch (error: any) {
       console.error("Erreur lors de l'achat de la formation:", error);
       setPaymentError(error.message || "Une erreur s'est produite lors de l'achat");
+      
+      // Vérifier si l'erreur est due à un solde insuffisant
+      if (error.message && error.message.includes("Solde insuffisant")) {
+        // Extraire le montant manquant de l'erreur (format: "Il vous manque XX.XX€")
+        const missingAmountMatch = error.message.match(/manque (\d+\.\d+)€/);
+        if (missingAmountMatch && missingAmountMatch[1]) {
+          const missingAmount = parseFloat(missingAmountMatch[1]);
+          // Arrondir à l'euro supérieur et ajouter 1€ pour les frais
+          const suggestedAmount = Math.ceil(missingAmount) + 1;
+          
+          // Rediriger vers l'onglet portefeuille
+          setActiveSection('wallet');
+          setDepositAmount(suggestedAmount.toString());
+          setPaymentError(`Solde insuffisant pour cette formation. Veuillez recharger au moins ${suggestedAmount}€ pour continuer.`);
+        }
+      }
     } finally {
       setIsProcessingPayment(false);
     }
@@ -636,6 +653,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     } catch (error: any) {
       console.error("Erreur lors de l'achat de l'outil:", error);
       setPaymentError(error.message || "Une erreur s'est produite lors de l'achat");
+      
+      // Vérifier si l'erreur est due à un solde insuffisant
+      if (error.message && error.message.includes("Solde insuffisant")) {
+        // Extraire le montant manquant de l'erreur (format: "Il vous manque XX.XX€")
+        const missingAmountMatch = error.message.match(/manque (\d+\.\d+)€/);
+        if (missingAmountMatch && missingAmountMatch[1]) {
+          const missingAmount = parseFloat(missingAmountMatch[1]);
+          // Arrondir à l'euro supérieur et ajouter 1€ pour les frais
+          const suggestedAmount = Math.ceil(missingAmount) + 1;
+          
+          // Rediriger vers l'onglet portefeuille
+          setActiveSection('wallet');
+          setDepositAmount(suggestedAmount.toString());
+          setPaymentError(`Solde insuffisant pour cet outil. Veuillez recharger au moins ${suggestedAmount}€ pour continuer.`);
+        }
+      }
     } finally {
       setIsProcessingPayment(false);
     }

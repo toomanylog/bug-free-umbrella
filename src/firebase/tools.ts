@@ -158,13 +158,20 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
           
           if (!formationProgress) {
             // Récupérer le titre de la formation pour un message plus précis
-            const formationRef = ref(database, `formations/${formationId}`);
-            const formationSnapshot = await get(formationRef);
-            const formationTitle = formationSnapshot.exists() 
-              ? formationSnapshot.val().title || 'non spécifiée' 
-              : 'non spécifiée';
-            
-            missingConditions.push(`Terminer la formation "${formationTitle}"`);
+            try {
+              const formationRef = ref(database, `formations/${formationId}`);
+              const formationSnapshot = await get(formationRef);
+              
+              let formationTitle = 'non spécifiée';
+              if (formationSnapshot.exists()) {
+                formationTitle = formationSnapshot.val().title || 'non spécifiée';
+              }
+              
+              missingConditions.push(`Terminer la formation "${formationTitle}"`);
+            } catch (error) {
+              console.error(`Erreur lors de la récupération de la formation ${formationId}:`, error);
+              missingConditions.push(`Terminer la formation requise`);
+            }
           }
           break;
           
@@ -175,13 +182,20 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
           
           if (!hasCertification) {
             // Récupérer le titre de la certification
-            const certificationRef = ref(database, `certifications/${certificationId}`);
-            const certificationSnapshot = await get(certificationRef);
-            const certificationTitle = certificationSnapshot.exists() 
-              ? certificationSnapshot.val().title || 'non spécifiée'
-              : 'non spécifiée';
-            
-            missingConditions.push(`Obtenir la certification "${certificationTitle}"`);
+            try {
+              const certificationRef = ref(database, `certifications/${certificationId}`);
+              const certificationSnapshot = await get(certificationRef);
+              
+              let certificationTitle = 'non spécifiée';
+              if (certificationSnapshot.exists()) {
+                certificationTitle = certificationSnapshot.val().title || 'non spécifiée';
+              }
+              
+              missingConditions.push(`Obtenir la certification "${certificationTitle}"`);
+            } catch (error) {
+              console.error(`Erreur lors de la récupération de la certification ${certificationId}:`, error);
+              missingConditions.push(`Obtenir la certification requise`);
+            }
           }
           break;
           

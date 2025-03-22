@@ -188,7 +188,7 @@ export const createFormationPurchase = async (
   user: User, 
   formationId: string, 
   formationPrice: number
-): Promise<{ paymentUrl: string, paymentId: string }> => {
+): Promise<{ paymentUrl: string, paymentId: string, missingFunds?: number }> => {
   try {
     // Vérifier si l'utilisateur a suffisamment dans son portefeuille
     const userWalletRef = ref(database, `wallets/${user.uid}`);
@@ -230,47 +230,15 @@ export const createFormationPurchase = async (
         paymentId: transactionRef.key || ''
       };
     } else {
-      // Créer un paiement via NOWPayments
-      const response = await axios.post(`${API_URL}/payment`, {
-        price_amount: formationPrice,
-        price_currency: 'eur',
-        pay_currency: 'btc',
-        ipn_callback_url: process.env.REACT_APP_NOWPAYMENTS_IPN_CALLBACK_URL,
-        order_id: `formation_${formationId}_${user.uid}_${Date.now()}`,
-        order_description: `Achat de formation ${formationId} pour ${user.email || ''}`
-      }, {
-        headers: {
-          'x-api-key': API_KEY,
-          'Content-Type': 'application/json'
-        }
-      });
+      // L'utilisateur n'a pas assez de fonds
+      // Calculer combien il manque
+      const userBalance = userWalletSnap.exists() ? userWalletSnap.val().balance : 0;
+      const missingFunds = formationPrice - userBalance;
       
-      if (response.data && response.data.payment_id) {
-        // Enregistrer la transaction
-        const transactionsRef = ref(database, 'transactions');
-        const transactionRef = push(transactionsRef);
-        const transaction = {
-          id: transactionRef.key,
-          userId: user.uid,
-          amount: formationPrice,
-          currency: 'eur',
-          status: TransactionStatus.WAITING,
-          type: TransactionType.FORMATION_PURCHASE,
-          itemId: formationId,
-          paymentId: response.data.payment_id,
-          createdAt: new Date().toISOString(),
-          paymentUrl: response.data.invoice_url || response.data.pay_address
-        };
-        
-        await set(transactionRef, transaction);
-        
-        return {
-          paymentUrl: response.data.invoice_url || '',
-          paymentId: transactionRef.key || ''
-        };
-      } else {
-        throw new Error('Réponse invalide de l\'API de paiement');
-      }
+      // Arrondir le montant manquant à l'euro supérieur et ajouter 1€ pour couvrir les frais
+      const recommendedAmount = Math.ceil(missingFunds) + 1;
+      
+      throw new Error(`Solde insuffisant pour acheter cette formation. Il vous manque ${missingFunds.toFixed(2)}€ dans votre portefeuille.`);
     }
   } catch (error) {
     console.error('Erreur lors de l\'achat de formation:', error);
@@ -289,9 +257,8 @@ export const createToolPurchase = async (
   user: User,
   toolId: string,
   toolPrice: number
-): Promise<{ paymentUrl: string, paymentId: string }> => {
+): Promise<{ paymentUrl: string, paymentId: string, missingFunds?: number }> => {
   try {
-    // Logique similaire à createFormationPurchase
     // Vérifier si l'utilisateur a suffisamment dans son portefeuille
     const userWalletRef = ref(database, `wallets/${user.uid}`);
     const userWalletSnap = await get(userWalletRef);
@@ -331,47 +298,15 @@ export const createToolPurchase = async (
         paymentId: transactionRef.key || ''
       };
     } else {
-      // Créer un nouveau paiement via NOWPayments
-      const response = await axios.post(`${API_URL}/payment`, {
-        price_amount: toolPrice,
-        price_currency: 'eur',
-        pay_currency: 'btc', // Par défaut Bitcoin, peut être modifié
-        ipn_callback_url: `${process.env.REACT_APP_API_URL}/api/payment-callback`,
-        order_id: `tool_${toolId}_${user.uid}_${Date.now()}`,
-        order_description: `Achat d'outil ${toolId} pour ${user.email || user.uid}`,
-      }, {
-        headers: {
-          'x-api-key': API_KEY,
-          'Content-Type': 'application/json'
-        }
-      });
+      // L'utilisateur n'a pas assez de fonds
+      // Calculer combien il manque
+      const userBalance = userWalletSnap.exists() ? userWalletSnap.val().balance : 0;
+      const missingFunds = toolPrice - userBalance;
       
-      if (response.data && response.data.payment_id) {
-        // Enregistrer la transaction
-        const transactionsRef = ref(database, 'transactions');
-        const transactionRef = push(transactionsRef);
-        const transaction = {
-          id: transactionRef.key,
-          userId: user.uid,
-          amount: toolPrice,
-          currency: 'eur',
-          status: TransactionStatus.WAITING,
-          type: TransactionType.TOOL_PURCHASE,
-          itemId: toolId,
-          paymentId: response.data.payment_id,
-          createdAt: new Date().toISOString(),
-          paymentUrl: response.data.invoice_url || response.data.pay_address
-        };
-        
-        await set(transactionRef, transaction);
-        
-        return {
-          paymentUrl: response.data.invoice_url || '',
-          paymentId: transactionRef.key || ''
-        };
-      } else {
-        throw new Error('Réponse invalide de l\'API de paiement');
-      }
+      // Arrondir le montant manquant à l'euro supérieur et ajouter 1€ pour couvrir les frais
+      const recommendedAmount = Math.ceil(missingFunds) + 1;
+      
+      throw new Error(`Solde insuffisant pour acheter cet outil. Il vous manque ${missingFunds.toFixed(2)}€ dans votre portefeuille.`);
     }
   } catch (error: any) {
     console.error('Erreur lors de l\'achat d\'un outil:', error);
