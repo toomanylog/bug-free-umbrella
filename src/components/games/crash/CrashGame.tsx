@@ -473,6 +473,9 @@ const CrashGame: React.FC = () => {
         animationRef.current = null;
       }
       
+      // Ajouter un log de débogage
+      console.log("Animation démarrée à", new Date().toISOString());
+      
       // Fonction d'animation avec plus de robustesse
       const animate = (timestamp: number) => {
         try {
@@ -486,19 +489,34 @@ const CrashGame: React.FC = () => {
             // Calculer le nouveau multiplicateur
             const newMultiplier = calculateMultiplierAtTime(timeSinceStart);
             
+            // Debug pour voir si le multiplicateur est calculé correctement
+            if (Math.floor(timeSinceStart / 1000) % 2 === 0) {
+              console.log(`Temps écoulé: ${timeSinceStart}ms, Multiplicateur: ${newMultiplier.toFixed(2)}`);
+            }
+            
             // Vérifier que le multiplicateur est une valeur valide
             if (!isNaN(newMultiplier) && isFinite(newMultiplier) && newMultiplier >= 1.00) {
-              setCurrentMultiplier(newMultiplier);
+              // Forcer une mise à jour directe du state pour éviter les problèmes de rendu
+              setCurrentMultiplier(prev => {
+                // Ne mettre à jour que si la nouvelle valeur est supérieure
+                // Cela évite les "retours en arrière" visuels
+                return Math.max(prev, newMultiplier);
+              });
+              
+              // Mettre à jour l'affichage immédiatement
               drawCurve(newMultiplier);
               
-              // Vérifier l'auto-cashout
-              if (userBet && autoCashout && newMultiplier >= autoCashout && !isCashedOut) {
+              // Vérifier l'auto-cashout seulement si une valeur est définie
+              if (userBet && userBet.autoCashout && userBet.autoCashout > 0 && newMultiplier >= userBet.autoCashout && !isCashedOut) {
+                console.log(`Auto-encaissement déclenché à ${newMultiplier.toFixed(2)}x (seuil: ${userBet.autoCashout}x)`);
                 cashOut();
               }
             }
             
-            // Continuer l'animation
-            animationRef.current = window.requestAnimationFrame(animate);
+            // Continuer l'animation seulement si le jeu est en cours
+            if (gameState.status === 'running') {
+              animationRef.current = window.requestAnimationFrame(animate);
+            }
           }
         } catch (error) {
           console.error("Erreur dans l'animation:", error);
@@ -517,8 +535,19 @@ const CrashGame: React.FC = () => {
       const baseTime = 1500;
       const logBase = 1.1;
       
-      const multiplier = Math.pow(logBase, timeMs / baseTime);
-      return Math.max(1, parseFloat(multiplier.toFixed(2)));
+      // Formule améliorée pour éviter les problèmes numériques
+      // Assurer que timeMs est positif
+      const safeTimeMs = Math.max(0, timeMs);
+      
+      // S'assurer que le multiplicateur commence à 1.01 au minimum
+      // et augmente plus rapidement au début pour une meilleure visualisation
+      const multiplier = Math.pow(logBase, safeTimeMs / baseTime);
+      
+      // Assurer que le multiplicateur est valide et arrondi à 2 décimales
+      const validMultiplier = Math.max(1.01, parseFloat(multiplier.toFixed(2)));
+      
+      // S'assurer que le multiplier est au moins MIN_MULTIPLIER
+      return Math.max(MIN_MULTIPLIER, validMultiplier);
     };
 
     // Dessiner la courbe sur le canvas
@@ -680,7 +709,7 @@ const CrashGame: React.FC = () => {
           };
         });
         
-        // Mettre à jour Firebase
+        // Mettre à jour Firebase et les statistiques
         try {
           const gameStateRef = ref(database, 'crashGame/currentGame');
           const snapshot = await get(gameStateRef);
@@ -694,6 +723,9 @@ const CrashGame: React.FC = () => {
               crashMultiplier: validCrashPoint,
               crashHistory: [validCrashPoint, ...currentHistory].slice(0, 10)
             });
+            
+            // Mettre à jour les statistiques dans le tableau de bord admin
+            updateGameStats(validCrashPoint, currentState.bets || []);
           }
         } catch (firebaseError) {
           console.error("Erreur lors de la mise à jour de Firebase:", firebaseError);
@@ -713,6 +745,96 @@ const CrashGame: React.FC = () => {
         setTimeout(() => {
           initializeNewGame();
         }, 3000);
+      }
+    };
+
+    // Mettre à jour les statistiques du jeu
+    const updateGameStats = async (crashPoint: number, bets: UserBet[]) => {
+      try {
+        // Récupérer les statistiques actuelles
+        const statsRef = ref(database, 'crashGame/stats');
+        const snapshot = await get(statsRef);
+        
+        if (snapshot.exists()) {
+          const currentStats = snapshot.val();
+          
+          // Calculer les mises totales et les paiements pour cette partie
+          let gameWagered = 0;
+          let gamePayout = 0;
+          
+          // Récupérer l'historique des encaissements pour cette partie
+          const betHistoryRef = ref(database, 'crashGame/betHistory');
+          const betHistorySnapshot = await get(betHistoryRef);
+          const betHistory: BetHistory[] = betHistorySnapshot.exists() ? Object.values(betHistorySnapshot.val()) : [];
+          
+          // Filtrer les paris de la partie actuelle
+          const currentBetIds = bets.map(bet => bet.id);
+          const currentGameBetHistory = betHistory.filter(bet => 
+            currentBetIds.includes(bet.id) && bet.isCashedOut
+          );
+          
+          // Calculer les montants totaux misés pour cette partie
+          bets.forEach(bet => {
+            gameWagered += bet.amount;
+          });
+          
+          // Calculer les paiements totaux pour cette partie
+          currentGameBetHistory.forEach(bet => {
+            if (bet.cashoutMultiplier && bet.amount) {
+              const payout = bet.amount * bet.cashoutMultiplier;
+              gamePayout += payout;
+              
+              // Mettre à jour le plus gros gain si nécessaire
+              const profit = payout - bet.amount;
+              if (profit > currentStats.biggestWin) {
+                currentStats.biggestWin = profit;
+              }
+            }
+          });
+          
+          // Mettre à jour les statistiques
+          const updatedStats = {
+            totalGames: currentStats.totalGames + 1,
+            totalBets: currentStats.totalBets + bets.length,
+            totalWagered: currentStats.totalWagered + gameWagered,
+            totalPayout: currentStats.totalPayout + gamePayout,
+            profitLoss: currentStats.totalWagered + gameWagered - (currentStats.totalPayout + gamePayout),
+            avgMultiplier: ((currentStats.avgMultiplier * currentStats.totalGames) + crashPoint) / (currentStats.totalGames + 1),
+            biggestWin: currentStats.biggestWin
+          };
+          
+          // Enregistrer les statistiques mises à jour
+          await update(statsRef, updatedStats);
+          
+          // Ajouter un log détaillé de la partie
+          const gameLogRef = ref(database, `crashGame/logs/${Date.now()}`);
+          await set(gameLogRef, {
+            timestamp: Date.now(),
+            crashPoint: crashPoint,
+            totalBets: bets.length,
+            totalWagered: gameWagered,
+            totalPayout: gamePayout,
+            profit: gameWagered - gamePayout,
+            bets: bets
+          });
+          
+          console.log("Statistiques du jeu mises à jour avec succès");
+        } else {
+          // Créer les statistiques initiales si elles n'existent pas
+          await set(statsRef, {
+            totalGames: 1,
+            totalBets: bets.length,
+            totalWagered: bets.reduce((sum, bet) => sum + bet.amount, 0),
+            totalPayout: 0, // Aucun paiement pour la première partie
+            profitLoss: bets.reduce((sum, bet) => sum + bet.amount, 0),
+            avgMultiplier: crashPoint,
+            biggestWin: 0
+          });
+          
+          console.log("Statistiques initiales du jeu créées");
+        }
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour des statistiques:", error);
       }
     };
 
@@ -760,7 +882,8 @@ const CrashGame: React.FC = () => {
           userId: currentUser.uid,
           amount: betAmount,
           timestamp: Date.now(),
-          autoCashout: autoCashout || undefined
+          // Ne définir autoCashout que s'il a une valeur valide
+          ...(autoCashout && autoCashout >= MIN_MULTIPLIER ? { autoCashout } : {})
         };
         
         // Mettre à jour l'état local immédiatement
@@ -812,8 +935,11 @@ const CrashGame: React.FC = () => {
       try {
         if (!isMuted) playSound('cashOut');
         
+        // Assurer que le multiplicateur actuel est au moins 1.01
+        const safeMultiplier = Math.max(MIN_MULTIPLIER, currentMultiplier);
+        
         // Calculer les gains
-        const profit = userBet.amount * (currentMultiplier - 1);
+        const profit = userBet.amount * (safeMultiplier - 1);
         const totalWin = userBet.amount + profit;
         
         // Mettre à jour le solde du joueur
@@ -841,7 +967,7 @@ const CrashGame: React.FC = () => {
           userId: currentUser.uid,
           userName: userData?.displayName || currentUser.email || 'Joueur',
           amount: userBet.amount,
-          cashoutMultiplier: currentMultiplier,
+          cashoutMultiplier: safeMultiplier,
           profit: profit,
           timestamp: Date.now(),
           isCashedOut: true
@@ -1038,18 +1164,20 @@ const CrashGame: React.FC = () => {
                 <Info size={20} />
               </button>
               
-              {/* Bouton pour forcer le redémarrage */}
-              <button 
-                className="control-button"
-                onClick={forceRestartGame}
-                title="Forcer le redémarrage du jeu"
-                aria-label="Redémarrer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                  <path d="M3 3v5h5"></path>
-                </svg>
-              </button>
+              {/* Bouton pour forcer le redémarrage - visible uniquement pour les admins */}
+              {isAdmin && (
+                <button 
+                  className="control-button"
+                  onClick={forceRestartGame}
+                  title="Forcer le redémarrage du jeu"
+                  aria-label="Redémarrer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
           
