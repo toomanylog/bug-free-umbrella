@@ -483,6 +483,48 @@
   font-size: 0.75rem;
 }
 
+/* Ajouter des styles pour l'état du jeu */
+.key-indicator span {
+  display: inline-block;
+}
+
+.key-indicator:last-child {
+  margin-left: auto;
+  background-color: rgba(17, 24, 39, 0.7);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.key-indicator:last-child span {
+  font-weight: 600;
+}
+
+/* Style pour le bouton de redémarrage */
+.control-button[aria-label="Redémarrer"] {
+  background-color: rgba(239, 68, 68, 0.3);
+  transition: all 0.2s ease;
+}
+
+.control-button[aria-label="Redémarrer"]:hover {
+  background-color: rgba(239, 68, 68, 0.6);
+  transform: rotate(45deg);
+}
+
+/* Animation pour le rechargement des jeux */
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.control-button[aria-label="Redémarrer"] svg {
+  animation: rotate 2s linear infinite;
+  animation-play-state: paused;
+}
+
+.control-button[aria-label="Redémarrer"]:hover svg {
+  animation-play-state: running;
+}
+
 /* Loading overlay */
 .loading-overlay {
   position: absolute;

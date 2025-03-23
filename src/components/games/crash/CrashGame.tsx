@@ -192,12 +192,27 @@ const CrashGame: React.FC = () => {
 
     // Initialiser le jeu
     useEffect(() => {
+      console.log("Initialisation du jeu Crash...");
       loadUserBalance();
       loadGameState();
       loadBetHistory();
       
+      // Ajouter un gestionnaire pour les événements de visibilité de la page
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          console.log("Onglet redevenu visible, recharger l'état du jeu...");
+          loadGameState();
+          loadBetHistory();
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
       // Nettoyer les ressources lors du démontage
       return () => {
+        console.log("Nettoyage des ressources du jeu Crash...");
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        
         if (crashTimeoutRef.current) {
           clearTimeout(crashTimeoutRef.current);
         }
@@ -258,23 +273,34 @@ const CrashGame: React.FC = () => {
 
     // Initialiser un nouveau jeu
     const initializeNewGame = async () => {
-      const newState: CrashState = {
-        status: 'waiting',
-        startTime: null,
-        crashTime: null,
-        crashMultiplier: null,
-        bets: [],
-        crashHistory: gameState.crashHistory || []
-      };
-      
-      await set(ref(database, 'crashGame/currentGame'), newState);
-      setGameState(newState);
-      startCountdown();
+      console.log("Initialisation d'un nouveau jeu...");
+      try {
+        const newState: CrashState = {
+          status: 'waiting',
+          startTime: null,
+          crashTime: null,
+          crashMultiplier: null,
+          bets: [],
+          crashHistory: gameState.crashHistory || []
+        };
+        
+        await set(ref(database, 'crashGame/currentGame'), newState);
+        setGameState(newState);
+        startCountdown();
+      } catch (error) {
+        console.error("Erreur lors de l'initialisation d'un nouveau jeu:", error);
+        setMessage({ text: "Erreur lors de l'initialisation du jeu. Réessayez plus tard.", type: 'error' });
+        // En cas d'erreur, on tente à nouveau après un délai
+        setTimeout(() => {
+          initializeNewGame();
+        }, 5000);
+      }
     };
 
     // Charger l'historique des paris
     const loadBetHistory = async () => {
       try {
+        console.log("Chargement de l'historique des paris...");
         const historyRef = ref(database, 'crashGame/betHistory');
         const snapshot = await get(historyRef);
         
@@ -287,6 +313,9 @@ const CrashGame: React.FC = () => {
           
           // Limiter à 50 entrées
           setBetHistory(historyArray.slice(0, 50));
+          console.log(`${historyArray.length} paris chargés dans l'historique`);
+        } else {
+          console.log("Aucun historique de paris trouvé");
         }
       } catch (error) {
         console.error("Erreur lors du chargement de l'historique:", error);
@@ -295,12 +324,14 @@ const CrashGame: React.FC = () => {
 
     // Démarrer le compte à rebours
     const startCountdown = () => {
+      console.log("Démarrage du compte à rebours...");
       setCountDown(GAME_TIMER);
       
       const timer = setInterval(() => {
         setCountDown(prev => {
           if (prev === null || prev <= 1) {
             clearInterval(timer);
+            console.log("Compte à rebours terminé, démarrage du jeu...");
             startGame();
             return null;
           }
@@ -311,35 +342,50 @@ const CrashGame: React.FC = () => {
 
     // Démarrer le jeu
     const startGame = async () => {
-      if (!isMuted) playSound('gameStart');
-      
-      // Générer un crashpoint aléatoire avec l'avantage de la maison
-      const crashPoint = generateCrashPoint();
-      const startTime = Date.now();
-      const crashTimeMs = calculateCrashTimeFromMultiplier(crashPoint);
-      
-      const updatedState: CrashState = {
-        ...gameState,
-        status: 'running',
-        startTime,
-        crashTime: startTime + crashTimeMs,
-        crashMultiplier: crashPoint,
-      };
-      
-      await update(ref(database, 'crashGame/currentGame'), {
-        status: 'running',
-        startTime,
-        crashTime: startTime + crashTimeMs,
-        crashMultiplier: crashPoint
-      });
-      
-      setGameState(updatedState);
-      startAnimation();
-      
-      // Programmer le crash
-      crashTimeoutRef.current = setTimeout(() => {
-        handleCrash(crashPoint);
-      }, crashTimeMs);
+      console.log("Démarrage d'une nouvelle partie...");
+      try {
+        if (!isMuted) playSound('gameStart');
+        
+        // Générer un crashpoint aléatoire avec l'avantage de la maison
+        const crashPoint = generateCrashPoint();
+        const startTime = Date.now();
+        const crashTimeMs = calculateCrashTimeFromMultiplier(crashPoint);
+        
+        console.log(`Crashpoint généré: ${crashPoint.toFixed(2)}, temps de crash: ${crashTimeMs}ms`);
+        
+        const updatedState: CrashState = {
+          ...gameState,
+          status: 'running',
+          startTime,
+          crashTime: startTime + crashTimeMs,
+          crashMultiplier: crashPoint,
+        };
+        
+        await update(ref(database, 'crashGame/currentGame'), {
+          status: 'running',
+          startTime,
+          crashTime: startTime + crashTimeMs,
+          crashMultiplier: crashPoint
+        });
+        
+        setGameState(updatedState);
+        startAnimation();
+        
+        // Programmer le crash
+        if (crashTimeoutRef.current) {
+          clearTimeout(crashTimeoutRef.current);
+        }
+        
+        crashTimeoutRef.current = setTimeout(() => {
+          handleCrash(crashPoint);
+        }, crashTimeMs);
+      } catch (error) {
+        console.error("Erreur lors du démarrage du jeu:", error);
+        // En cas d'erreur, on réinitialise le jeu après un court délai
+        setTimeout(() => {
+          initializeNewGame();
+        }, 3000);
+      }
     };
 
     // Générer un point de crash aléatoire
@@ -528,49 +574,59 @@ const CrashGame: React.FC = () => {
 
     // Gérer le crash
     const handleCrash = async (crashPoint: number) => {
-      if (!isMuted) playSound('crash');
+      console.log(`Crash à ${crashPoint.toFixed(2)}x`);
       
-      // Arrêter l'animation
-      if (animationRef.current !== null) {
-        window.cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-      
-      // Mettre à jour l'état du jeu
-      await update(ref(database, 'crashGame/currentGame'), {
-        status: 'crashed',
-        crashMultiplier: crashPoint
-      });
-      
-      setGameState(prev => {
-        // Ajouter ce crash à l'historique
-        const updatedHistory = [crashPoint, ...(prev.crashHistory || [])].slice(0, 10);
+      try {
+        if (!isMuted) playSound('crash');
         
-        // Mettre à jour la base de données avec le nouvel historique
-        update(ref(database, 'crashGame/currentGame'), {
-          crashHistory: updatedHistory
+        // Arrêter l'animation
+        if (animationRef.current !== null) {
+          window.cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+        
+        // Mettre à jour l'état du jeu
+        await update(ref(database, 'crashGame/currentGame'), {
+          status: 'crashed',
+          crashMultiplier: crashPoint
         });
         
-        return {
-          ...prev,
-          status: 'crashed',
-          crashMultiplier: crashPoint,
-          crashHistory: updatedHistory
-        };
-      });
-      
-      // Mettre à jour l'interface avec le multiplicateur final
-      setCurrentMultiplier(crashPoint);
-      drawCurve(crashPoint);
-      
-      // Après un délai, préparer la prochaine partie
-      setTimeout(() => {
-        initializeNewGame();
-        setUserBet(null);
-        setIsCashedOut(false);
-        loadBetHistory();
-        loadUserBalance();
-      }, 2000);
+        setGameState(prev => {
+          // Ajouter ce crash à l'historique
+          const updatedHistory = [crashPoint, ...(prev.crashHistory || [])].slice(0, 10);
+          
+          // Mettre à jour la base de données avec le nouvel historique
+          update(ref(database, 'crashGame/currentGame'), {
+            crashHistory: updatedHistory
+          });
+          
+          return {
+            ...prev,
+            status: 'crashed',
+            crashMultiplier: crashPoint,
+            crashHistory: updatedHistory
+          };
+        });
+        
+        // Mettre à jour l'interface avec le multiplicateur final
+        setCurrentMultiplier(crashPoint);
+        drawCurve(crashPoint);
+        
+        // Après un délai, préparer la prochaine partie
+        setTimeout(() => {
+          initializeNewGame();
+          setUserBet(null);
+          setIsCashedOut(false);
+          loadBetHistory();
+          loadUserBalance();
+        }, 3000);
+      } catch (error) {
+        console.error("Erreur lors du traitement du crash:", error);
+        // En cas d'erreur, on réinitialise le jeu après un court délai
+        setTimeout(() => {
+          initializeNewGame();
+        }, 3000);
+      }
     };
 
     // Placer un pari
@@ -804,6 +860,52 @@ const CrashGame: React.FC = () => {
       };
     }, []);
 
+    // Ajout d'une fonction pour forcer le redémarrage du jeu
+    const forceRestartGame = () => {
+      console.log("Redémarrage forcé du jeu...");
+      
+      // Arrêter toute animation en cours
+      if (animationRef.current !== null) {
+        window.cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      
+      // Arrêter tout timeout en cours
+      if (crashTimeoutRef.current) {
+        clearTimeout(crashTimeoutRef.current);
+        crashTimeoutRef.current = null;
+      }
+      
+      // Réinitialiser les états
+      setUserBet(null);
+      setIsCashedOut(false);
+      setMessage({ text: "Redémarrage du jeu...", type: 'info' });
+      
+      // Réinitialiser le jeu
+      initializeNewGame();
+    };
+
+    // Persistance améliorée pour l'état d'affichage de l'historique
+    useEffect(() => {
+      // Sauvegarder la préférence d'affichage de l'historique dans le localStorage
+      if (showHistory !== undefined) {
+        localStorage.setItem('crashGameShowHistory', showHistory ? 'true' : 'false');
+      }
+    }, [showHistory]);
+
+    // Récupérer la préférence d'affichage de l'historique au chargement
+    useEffect(() => {
+      const savedShowHistory = localStorage.getItem('crashGameShowHistory');
+      if (savedShowHistory) {
+        setShowHistory(savedShowHistory === 'true');
+      }
+    }, []);
+
+    // Gérer l'activation/désactivation de l'affichage de l'historique
+    const toggleHistory = useCallback(() => {
+      setShowHistory(prevShow => !prevShow);
+    }, []);
+
     return (
       <div className="crash-game">
         {isLoading && (
@@ -828,7 +930,7 @@ const CrashGame: React.FC = () => {
               
               <button 
                 className="control-button"
-                onClick={() => setShowHistory(!showHistory)}
+                onClick={toggleHistory}
                 aria-label={showHistory ? "Masquer l'historique" : "Afficher l'historique"}
               >
                 <History size={20} />
@@ -843,6 +945,19 @@ const CrashGame: React.FC = () => {
                 })}
               >
                 <Info size={20} />
+              </button>
+              
+              {/* Bouton pour forcer le redémarrage */}
+              <button 
+                className="control-button"
+                onClick={forceRestartGame}
+                title="Forcer le redémarrage du jeu"
+                aria-label="Redémarrer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                  <path d="M3 3v5h5"></path>
+                </svg>
               </button>
             </div>
           </div>
@@ -1041,6 +1156,11 @@ const CrashGame: React.FC = () => {
             <div className="key-indicator">
               <Keyboard size={14} className="inline-icon" />
               <span>MAX: {MAX_BET}€</span>
+            </div>
+            
+            {/* Ajouter l'état du jeu pour déboguer */}
+            <div className="key-indicator">
+              <span>État: {gameState.status}</span>
             </div>
           </div>
         </div>
