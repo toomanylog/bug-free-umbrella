@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft } from 'lucide-react';
 import CrashGame from './crash/CrashGame';
 import './CasinoManager.css';
@@ -25,9 +25,17 @@ const CasinoManager: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
+  // Récupérer le contexte d'authentification
+  const auth = useAuth();
+  
   // Utiliser useEffect pour surveiller l'état de l'authentification directement
-  React.useEffect(() => {
+  useEffect(() => {
     try {
+      // S'assurer que nous sommes en phase avec le contexte d'authentification
+      setCurrentUser(auth.currentUser);
+      setIsLoading(auth.isLoading);
+      
+      // Fallback au cas où le contexte ne fonctionne pas
       const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
         setCurrentUser(user);
         setIsLoading(false);
@@ -39,7 +47,7 @@ const CasinoManager: React.FC = () => {
       console.error("Erreur d'authentification:", error);
       setIsLoading(false);
     }
-  }, []);
+  }, [auth.currentUser, auth.isLoading]);
   
   // Liste des jeux disponibles
   const games: GameType[] = [
@@ -59,10 +67,21 @@ const CasinoManager: React.FC = () => {
     }
   ];
   
-  // Sélectionner un jeu
+  // Sélectionner un jeu de manière sécurisée
   const selectGame = (gameId: string) => {
-    setActiveGame(gameId);
-    setShowGameList(false);
+    try {
+      // Vérifier l'authentification avant de changer d'écran
+      if (gameId === 'crash' && auth.currentUser === null) {
+        console.log("L'utilisateur doit être connecté pour jouer");
+        // On continue tout de même pour afficher l'écran de connexion requise
+      }
+      
+      setActiveGame(gameId);
+      setShowGameList(false);
+    } catch (error) {
+      console.error("Erreur lors de la sélection du jeu:", error);
+      // En cas d'erreur, rester sur la liste des jeux
+    }
   };
   
   // Retourner à la liste des jeux
