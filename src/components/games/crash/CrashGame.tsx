@@ -4,6 +4,8 @@ import { database } from '../../../firebase/config';
 import { ref, set, get, push, update } from 'firebase/database';
 import { Check, Coins, CreditCard, DollarSign, History, Info, Keyboard, Trophy, Users, Volume2, VolumeX } from 'lucide-react';
 import './CrashGame.css';
+import { User } from 'firebase/auth';
+import { UserData } from '../../../firebase/auth';
 
 // Types
 interface BetHistory {
@@ -59,7 +61,9 @@ const MAX_MULTIPLIER = 100; // Multiplicateur maximum théorique
 
 const CrashGame: React.FC = () => {
   // Accéder au contexte d'authentification de manière sécurisée
-  let currentUser, userData, isAdmin;
+  let currentUser: User | null = null; 
+  let userData: UserData | null = null;
+  let isAdmin: boolean = false;
   
   try {
     // Utiliser la destructuration avec valeurs par défaut pour éviter les erreurs
