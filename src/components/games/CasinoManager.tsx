@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft } from 'lucide-react';
 import CrashGame from './crash/CrashGame';
 import './CasinoManager.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from 'firebase/auth';
-import { UserData } from '../../firebase/auth';
 
 interface GameType {
   id: string;
@@ -41,22 +40,26 @@ const CasinoManager: React.FC = () => {
     }
   ];
   
-  // Sélectionner un jeu de manière sécurisée avec useCallback pour éviter les problèmes de contexte
-  const selectGame = useCallback((gameId: string) => {
-    console.log(`Sélection du jeu: ${gameId}`);
+  // Navigation sécurisée
+  const navigateTo = useCallback((gameId: string | null) => {
     try {
+      console.log(`Navigation vers: ${gameId || 'liste des jeux'}`);
       setActiveGame(gameId);
-      setShowGameList(false);
+      setShowGameList(gameId === null);
     } catch (error) {
-      console.error("Erreur lors de la sélection du jeu:", error);
+      console.error("Erreur de navigation:", error);
     }
   }, []);
   
+  // Sélectionner un jeu
+  const selectGame = useCallback((gameId: string) => {
+    navigateTo(gameId);
+  }, [navigateTo]);
+  
   // Retourner à la liste des jeux
   const backToGameList = useCallback(() => {
-    setActiveGame(null);
-    setShowGameList(true);
-  }, []);
+    navigateTo(null);
+  }, [navigateTo]);
   
   // Gestionnaire de clic sécurisé pour les cartes de jeu
   const handleGameCardClick = useCallback((game: GameType) => {
@@ -180,9 +183,10 @@ const CasinoManager: React.FC = () => {
         </div>
         
         <div className="game-content">
-          {selectedGame.id === 'crash' ? (
-            <CrashGame key="crash-game-instance" />
-          ) : (
+          {selectedGame.id === 'crash' && (
+            <CrashGame key={`crash-game-${Date.now()}`} />
+          )}
+          {selectedGame.id === 'dice' && (
             <div>Jeu de dés en développement</div>
           )}
         </div>
@@ -190,7 +194,7 @@ const CasinoManager: React.FC = () => {
     );
   };
   
-  // Le rendu principal reste simple et prévisible
+  // Le rendu principal avec gestion d'erreur
   return (
     <div className="casino-manager">
       {showGameList ? renderGameList() : renderGame()}

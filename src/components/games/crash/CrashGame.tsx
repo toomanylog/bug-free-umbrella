@@ -81,6 +81,56 @@ const LoginRequired = () => (
   </div>
 );
 
+// Initialiser les sons - déplacé à l'extérieur du composant pour éviter les problèmes de références
+const initializeSounds = () => {
+  const soundElements: { [key: string]: HTMLAudioElement } = {};
+  const soundFiles = [
+    { id: 'betPlace', file: '/bet-place.mp3', fallback: '/success.mp3' },
+    { id: 'cashOut', file: '/cash-out.mp3', fallback: '/success.mp3' },
+    { id: 'crash', file: '/crash.mp3', fallback: '/success.mp3' },
+    { id: 'success', file: '/success.mp3', fallback: '/success.mp3' },
+    { id: 'gameStart', file: '/game-start.mp3', fallback: '/success.mp3' }
+  ];
+
+  soundFiles.forEach(({ id, file, fallback }) => {
+    try {
+      const audio = new Audio(`${process.env.PUBLIC_URL}/sounds${file}`);
+      // Vérifier si le son existe, sinon utiliser le fallback
+      audio.addEventListener('error', () => {
+        console.warn(`Erreur lors du chargement du son ${file}, utilisation du son de fallback`);
+        soundElements[id] = new Audio(`${process.env.PUBLIC_URL}/sounds${fallback}`);
+      });
+      soundElements[id] = audio;
+    } catch (error) {
+      console.warn(`Erreur lors de l'initialisation du son ${file}:`, error);
+      try {
+        // Utiliser le fallback si le son principal a échoué
+        soundElements[id] = new Audio(`${process.env.PUBLIC_URL}/sounds${fallback}`);
+      } catch (fallbackError) {
+        console.error(`Erreur avec le son de fallback ${fallback}:`, fallbackError);
+      }
+    }
+  });
+
+  return {
+    playSound: (id: string) => {
+      try {
+        if (soundElements[id]) {
+          soundElements[id].currentTime = 0;
+          const playPromise = soundElements[id].play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.warn(`Erreur lors de la lecture du son ${id}:`, error);
+            });
+          }
+        }
+      } catch (error) {
+        console.warn(`Erreur lors de la lecture du son ${id}:`, error);
+      }
+    }
+  };
+};
+
 const CrashGame: React.FC = () => {
   try {
     // On récupère le contexte d'authentification de manière sécurisée
@@ -737,56 +787,6 @@ const CrashGame: React.FC = () => {
     // Mise rapide avec montants prédéfinis
     const handleQuickBet = (amount: number) => {
       setBetAmount(amount);
-    };
-
-    // Initialiser les sons
-    const initializeSounds = () => {
-      const soundElements: { [key: string]: HTMLAudioElement } = {};
-      const soundFiles = [
-        { id: 'betPlace', file: '/bet-place.mp3', fallback: '/success.mp3' },
-        { id: 'cashOut', file: '/cash-out.mp3', fallback: '/success.mp3' },
-        { id: 'crash', file: '/crash.mp3', fallback: '/success.mp3' },
-        { id: 'success', file: '/success.mp3', fallback: '/success.mp3' },
-        { id: 'gameStart', file: '/game-start.mp3', fallback: '/success.mp3' }
-      ];
-
-      soundFiles.forEach(({ id, file, fallback }) => {
-        try {
-          const audio = new Audio(`${process.env.PUBLIC_URL}/sounds${file}`);
-          // Vérifier si le son existe, sinon utiliser le fallback
-          audio.addEventListener('error', () => {
-            console.warn(`Erreur lors du chargement du son ${file}, utilisation du son de fallback`);
-            soundElements[id] = new Audio(`${process.env.PUBLIC_URL}/sounds${fallback}`);
-          });
-          soundElements[id] = audio;
-        } catch (error) {
-          console.warn(`Erreur lors de l'initialisation du son ${file}:`, error);
-          try {
-            // Utiliser le fallback si le son principal a échoué
-            soundElements[id] = new Audio(`${process.env.PUBLIC_URL}/sounds${fallback}`);
-          } catch (fallbackError) {
-            console.error(`Erreur avec le son de fallback ${fallback}:`, fallbackError);
-          }
-        }
-      });
-
-      return {
-        playSound: (id: string) => {
-          try {
-            if (soundElements[id]) {
-              soundElements[id].currentTime = 0;
-              const playPromise = soundElements[id].play();
-              if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                  console.warn(`Erreur lors de la lecture du son ${id}:`, error);
-                });
-              }
-            }
-          } catch (error) {
-            console.warn(`Erreur lors de la lecture du son ${id}:`, error);
-          }
-        }
-      };
     };
 
     // Initialisation du son optimisée pour ne pas bloquer en cas d'erreur
