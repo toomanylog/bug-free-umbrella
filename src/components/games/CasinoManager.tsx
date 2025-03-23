@@ -1,33 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft } from 'lucide-react';
 import CrashGame from './crash/CrashGame';
 import './CasinoManager.css';
-import { AuthProvider } from '../../contexts/AuthContext';
+import { AuthProvider, useAuth } from '../../contexts/AuthContext';
 
 interface GameType {
   id: string;
   name: string;
   description: string;
   icon: React.ReactNode;
-  component: React.ReactNode;
   status: 'active' | 'coming-soon';
 }
+
+// Composant qui sert de wrapper pour les jeux
+const GameWrapper: React.FC<{gameId: string}> = ({ gameId }) => {
+  // On récupère directement les données d'authentification ici
+  const auth = useAuth();
+  
+  if (!auth || !auth.currentUser) {
+    return (
+      <div className="bg-gray-800 text-white p-4 rounded-lg">
+        <h2 className="text-xl font-bold mb-2">Connexion requise</h2>
+        <p>Vous devez être connecté pour jouer. Veuillez vous connecter ou créer un compte.</p>
+        <div className="mt-4">
+          <a href="/login" className="text-blue-400 hover:text-blue-300">Se connecter</a>
+        </div>
+      </div>
+    );
+  }
+  
+  // Rendu du jeu en fonction de son ID
+  switch (gameId) {
+    case 'crash':
+      return <CrashGame />;
+    case 'dice':
+      return <div>Jeu de dés en développement</div>;
+    default:
+      return <div>Jeu non trouvé</div>;
+  }
+};
 
 const CasinoManager: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [showGameList, setShowGameList] = useState<boolean>(true);
-  
-  // Rendre le jeu en fonction de son ID plutôt que d'utiliser le component prédéfini
-  const renderGameContent = (gameId: string) => {
-    switch (gameId) {
-      case 'crash':
-        return <CrashGame />;
-      case 'dice':
-        return <div>Jeu de dés en développement</div>;
-      default:
-        return <div>Jeu non trouvé</div>;
-    }
-  };
   
   // Liste des jeux disponibles
   const games: GameType[] = [
@@ -36,7 +51,6 @@ const CasinoManager: React.FC = () => {
       name: 'Rocket Crash',
       description: 'Regardez la fusée décoller et encaissez avant le crash pour gagner!',
       icon: <Rocket size={32} />,
-      component: null, // Utilisera renderGameContent au lieu de stocker le composant ici
       status: 'active'
     },
     {
@@ -44,7 +58,6 @@ const CasinoManager: React.FC = () => {
       name: 'Lucky Dice',
       description: 'Lancez les dés et pariez sur le résultat. Bonus pour les combinaisons!',
       icon: <Dice5 size={32} />,
-      component: null,
       status: 'coming-soon'
     }
   ];
@@ -135,7 +148,7 @@ const CasinoManager: React.FC = () => {
         
         <div className="game-content">
           <AuthProvider>
-            {renderGameContent(selectedGame.id)}
+            <GameWrapper gameId={selectedGame.id} />
           </AuthProvider>
         </div>
       </div>

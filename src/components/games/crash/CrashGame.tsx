@@ -58,21 +58,42 @@ const GAME_TIMER = 5; // Secondes d'attente entre les parties
 const MAX_MULTIPLIER = 100; // Multiplicateur maximum théorique
 
 const CrashGame: React.FC = () => {
-  // Vérifier que le contexte d'authentification est disponible
-  let auth;
+  // Accéder au contexte d'authentification de manière sécurisée
+  let currentUser, userData, isAdmin;
+  
   try {
-    auth = useAuth();
+    // Utiliser la destructuration avec valeurs par défaut pour éviter les erreurs
+    const authContext = useAuth();
+    currentUser = authContext?.currentUser || null;
+    userData = authContext?.userData || null;
+    isAdmin = authContext?.isAdmin || false;
   } catch (error) {
     console.error("Erreur de contexte d'authentification:", error);
+    // Rendre un composant d'erreur
     return (
-      <div className="crash-game-error">
-        <h2>Erreur de chargement</h2>
+      <div className="crash-game-error bg-gray-800 text-white p-4 rounded-lg">
+        <h2 className="text-xl font-bold mb-2">Erreur de chargement</h2>
         <p>Impossible de charger le contexte d'authentification. Veuillez rafraîchir la page ou vous reconnecter.</p>
+        <div className="mt-4">
+          <a href="/" className="text-blue-400 hover:text-blue-300">Retour à l'accueil</a>
+        </div>
       </div>
     );
   }
   
-  const { currentUser, userData, isAdmin } = auth;
+  // Si l'utilisateur n'est pas connecté
+  if (!currentUser) {
+    return (
+      <div className="crash-game-error bg-gray-800 text-white p-4 rounded-lg">
+        <h2 className="text-xl font-bold mb-2">Connexion requise</h2>
+        <p>Vous devez être connecté pour jouer. Veuillez vous connecter ou créer un compte.</p>
+        <div className="mt-4">
+          <a href="/login" className="text-blue-400 hover:text-blue-300">Se connecter</a>
+        </div>
+      </div>
+    );
+  }
+  
   const [gameState, setGameState] = useState<CrashState>(DEFAULT_STATE);
   const [betAmount, setBetAmount] = useState<number>(MIN_BET);
   const [autoCashout, setAutoCashout] = useState<number | null>(null);
