@@ -13,36 +13,10 @@ interface GameType {
 }
 
 // Composant qui sert de wrapper pour les jeux
-const GameWrapper: React.FC<{gameId: string}> = ({ gameId }) => {
-  // On récupère directement les données d'authentification ici
-  const auth = useAuth();
-  
-  if (!auth || !auth.currentUser) {
-    return (
-      <div className="bg-gray-800 text-white p-4 rounded-lg">
-        <h2 className="text-xl font-bold mb-2">Connexion requise</h2>
-        <p>Vous devez être connecté pour jouer. Veuillez vous connecter ou créer un compte.</p>
-        <div className="mt-4">
-          <a href="/login" className="text-blue-400 hover:text-blue-300">Se connecter</a>
-        </div>
-      </div>
-    );
-  }
-  
-  // Rendu du jeu en fonction de son ID
-  switch (gameId) {
-    case 'crash':
-      return <CrashGame />;
-    case 'dice':
-      return <div>Jeu de dés en développement</div>;
-    default:
-      return <div>Jeu non trouvé</div>;
-  }
-};
-
 const CasinoManager: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [showGameList, setShowGameList] = useState<boolean>(true);
+  const auth = useAuth(); // Utiliser le hook une seule fois dans le composant parent
   
   // Liste des jeux disponibles
   const games: GameType[] = [
@@ -136,6 +110,29 @@ const CasinoManager: React.FC = () => {
     
     if (!selectedGame) return null;
     
+    if (!auth || !auth.currentUser) {
+      return (
+        <div className="casino-game-container">
+          <div className="game-header">
+            <button className="back-button" onClick={backToGameList}>
+              <ChevronLeft size={20} />
+              <span>Retour aux jeux</span>
+            </button>
+            <h2 className="game-title">{selectedGame.name}</h2>
+          </div>
+          <div className="game-content">
+            <div className="bg-gray-800 text-white p-4 rounded-lg">
+              <h2 className="text-xl font-bold mb-2">Connexion requise</h2>
+              <p>Vous devez être connecté pour jouer. Veuillez vous connecter ou créer un compte.</p>
+              <div className="mt-4">
+                <a href="/login" className="text-blue-400 hover:text-blue-300">Se connecter</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="casino-game-container">
         <div className="game-header">
@@ -147,9 +144,11 @@ const CasinoManager: React.FC = () => {
         </div>
         
         <div className="game-content">
-          <AuthProvider>
-            <GameWrapper gameId={selectedGame.id} />
-          </AuthProvider>
+          {selectedGame.id === 'crash' ? (
+            <CrashGame />
+          ) : (
+            <div>Jeu de dés en développement</div>
+          )}
         </div>
       </div>
     );

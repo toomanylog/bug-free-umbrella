@@ -1,78 +1,80 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
+    ".read": "auth != null",
+    ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
     
     "users": {
       ".indexOn": ["role", "email"],
-      ".read": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === $uid)",
       "$uid": {
-        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
-        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     
     "wallets": {
       ".indexOn": ["userId"],
-      ".read": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$uid": {
-        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
-        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     
     "riotAccounts": {
       ".indexOn": ["username", "tag", "region"],
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
     
     "transactions": {
       ".indexOn": ["userId", "status", "createdAt", "type", "paymentId"],
-      ".read": "auth !== null",
-      ".write": "auth !== null",
-      "$transactionId": {
-        ".read": "auth !== null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-        ".write": "auth !== null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$transaction_id": {
+        ".read": "auth != null",
+        ".write": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || newData.child('userId').val() === auth.uid)"
       }
     },
     
     "formations": {
       ".indexOn": ["published", "createdAt", "price"],
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
     
     "formationsProgress": {
       ".indexOn": ["userId", "formationId", "completed"],
-      ".read": "auth !== null",
-      ".write": "auth !== null",
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$progressId": {
-        ".read": "auth !== null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-        ".write": "auth !== null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     
     "tools": {
       ".indexOn": ["status", "price"],
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
     
     "toolsAccess": {
       ".indexOn": ["userId", "toolId"],
-      ".read": "auth !== null",
-      ".write": "auth !== null",
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$accessId": {
-        ".read": "auth !== null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-        ".write": "auth !== null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     
     "certifications": {
       ".indexOn": ["createdAt", "status"],
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$certId": {
         "submissions": {
           "$userId": {
@@ -85,38 +87,40 @@
     
     "userCertifications": {
       ".indexOn": ["userId", "certificationId", "issuedAt"],
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-        ".write": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     
     "casinoConfig": {
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
     
     "crashGame": {
+      ".read": "auth != null",
+      ".write": "auth != null",
       ".indexOn": ["createdAt", "status"],
       "currentGame": {
-        ".read": "auth !== null",
-        ".write": "auth !== null"
+        ".read": "auth != null",
+        ".write": "auth != null"
       },
       "stats": {
-        ".read": "auth !== null",
-        ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
       },
       "betHistory": {
         ".indexOn": ["userId", "timestamp", "isCashedOut"],
-        ".read": "auth !== null",
-        ".write": "auth !== null"
+        ".read": "auth != null",
+        ".write": "auth != null"
       },
       "userBets": {
         "$uid": {
-          ".read": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-          ".write": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+          ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+          ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
         }
       }
     }
