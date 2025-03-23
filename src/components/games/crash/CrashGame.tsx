@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { database } from '../../../firebase/config';
-import { ref, set, get, push, update } from 'firebase/database';
+import { ref, set, get, push, update, onValue } from 'firebase/database';
 import { Check, Coins, CreditCard, DollarSign, History, Info, Keyboard, Trophy, Users, Volume2, VolumeX } from 'lucide-react';
 import './CrashGame.css';
 import { User } from 'firebase/auth';
@@ -165,11 +165,19 @@ const CrashGame: React.FC = () => {
     const [crashHistory, setCrashHistory] = useState<number[]>([]);
     const [liveBets, setLiveBets] = useState<UserBet[]>([]);
     const [showMessage, setShowMessage] = useState<{show: boolean, type: string, message: string}>({show: false, type: '', message: ''});
+    const [gameConfig, setGameConfig] = useState<{enabled: boolean, minBet: number, maxBet: number, houseEdge: number}>({
+      enabled: true,
+      minBet: MIN_BET,
+      maxBet: MAX_BET,
+      houseEdge: HOUSE_EDGE * 100
+    });
+    const [isGameDisabled, setIsGameDisabled] = useState<boolean>(false);
 
     const animationRef = useRef<number | null>(null);
     const lastUpdateTimeRef = useRef<number>(0);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const crashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastMultiplierRef = useRef<number>(1.00);
     const { playSound } = useMemo(() => initializeSounds(), []);
   
     // Charger les données du portefeuille de l'utilisateur
@@ -191,10 +199,34 @@ const CrashGame: React.FC = () => {
       }
     }, [currentUser]);
 
+    // Charger la configuration du jeu
+    const loadGameConfig = useCallback(async () => {
+      try {
+        const configRef = ref(database, 'casinoConfig/crash');
+        const snapshot = await get(configRef);
+        
+        if (snapshot.exists()) {
+          const config = snapshot.val();
+          setGameConfig({
+            enabled: config.enabled,
+            minBet: config.minBet,
+            maxBet: config.maxBet,
+            houseEdge: config.houseEdge
+          });
+          
+          // Si le jeu est désactivé et que l'utilisateur n'est pas admin
+          setIsGameDisabled(!config.enabled && !isAdmin);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement de la configuration:", error);
+      }
+    }, [isAdmin]);
+
     // Initialiser le jeu
     useEffect(() => {
       console.log("Initialisation du jeu Crash...");
       loadUserBalance();
+      loadGameConfig();
       loadGameState();
       loadBetHistory();
       
@@ -221,7 +253,29 @@ const CrashGame: React.FC = () => {
           window.cancelAnimationFrame(animationRef.current);
         }
       };
-    }, [currentUser, loadUserBalance]);
+    }, [currentUser, loadUserBalance, loadGameConfig]);
+
+    // Surveiller les changements de configuration du jeu
+    useEffect(() => {
+      const configRef = ref(database, 'casinoConfig/crash');
+      
+      const unsubscribe = onValue(configRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const config = snapshot.val();
+          setGameConfig({
+            enabled: config.enabled,
+            minBet: config.minBet,
+            maxBet: config.maxBet,
+            houseEdge: config.houseEdge
+          });
+          
+          // Si le jeu est désactivé et que l'utilisateur n'est pas admin
+          setIsGameDisabled(!config.enabled && !isAdmin);
+        }
+      });
+      
+      return () => unsubscribe();
+    }, [isAdmin]);
 
     // Charger l'état actuel du jeu
     const loadGameState = async () => {
@@ -234,10 +288,41 @@ const CrashGame: React.FC = () => {
           const state = snapshot.val() as CrashState;
           // S'assurer que bets est toujours un tableau
           if (!state.bets) state.bets = [];
+          
+          // S'assurer que le crash time est valide
+          if (state.status === 'running' && state.startTime && state.crashTime) {
+            const now = Date.now();
+            
+            // Si le crash time est déjà passé mais le status est toujours "running"
+            if (now > state.crashTime) {
+              console.log("Le jeu aurait dû être terminé, correction de l'état...");
+              if (state.crashMultiplier) {
+                // Mise à jour manuelle de l'état
+                await handleCrash(state.crashMultiplier);
+                setIsLoading(false);
+                return;
+              } else {
+                // Réinitialiser le jeu si nous n'avons pas de multiplicateur valide
+                await initializeNewGame();
+                setIsLoading(false);
+                return;
+              }
+            }
+          }
+          
           setGameState(state);
           
           // Si le jeu est en cours, commencer l'animation
           if (state.status === 'running' && state.startTime) {
+            // Calculer le multiplicateur actuel basé sur le temps écoulé
+            const elapsed = Date.now() - state.startTime;
+            const currentMult = calculateMultiplierAtTime(elapsed);
+            
+            // Définir le multiplicateur de départ
+            setCurrentMultiplier(Math.max(1.01, currentMult));
+            lastMultiplierRef.current = Math.max(1.01, currentMult);
+            
+            // Démarrer l'animation
             startAnimation();
           }
           
@@ -255,10 +340,12 @@ const CrashGame: React.FC = () => {
           
           // Charger l'historique des crashs
           if (state.crashHistory) {
-            setGameState(prev => ({
-              ...prev,
-              crashHistory: state.crashHistory
-            }));
+            setCrashHistory(state.crashHistory);
+          }
+          
+          // Mettre à jour les paris en direct
+          if (state.bets) {
+            setLiveBets(state.bets);
           }
         } else {
           // Créer un nouvel état de jeu
@@ -278,6 +365,7 @@ const CrashGame: React.FC = () => {
       try {
         // Réinitialiser l'état local immédiatement pour une meilleure réactivité
         setCurrentMultiplier(1.00);
+        lastMultiplierRef.current = 1.00;
         setUserBet(null);
         setIsCashedOut(false);
         
@@ -311,6 +399,171 @@ const CrashGame: React.FC = () => {
         }, 5000);
       }
     };
+
+    // Générer un point de crash aléatoire
+    const generateCrashPoint = (): number => {
+      try {
+        // Utiliser la valeur de houseEdge depuis la configuration, avec un fallback
+        const houseEdgeValue = gameConfig.houseEdge ? gameConfig.houseEdge / 100 : HOUSE_EDGE;
+        
+        // Chance de crasher à 1.00x (jeu immédiatement perdu)
+        if (Math.random() < 0.01) return 1.00;
+        
+        const rand = Math.random();
+        // Utiliser une distribution exponentielle pour créer la courbe typique des jeux crash
+        let multiplier = 0.9 / (rand * (1 - houseEdgeValue)) + 1;
+        
+        // Limiter le multiplicateur maximum et minimum
+        multiplier = Math.min(multiplier, MAX_MULTIPLIER);
+        multiplier = Math.max(multiplier, MIN_MULTIPLIER);
+        
+        // S'assurer que le résultat est un nombre valide
+        if (isNaN(multiplier) || !isFinite(multiplier)) {
+          console.error(`Multiplicateur invalide: ${multiplier}, utilisation de la valeur par défaut 2.00`);
+          return 2.00;
+        }
+        
+        // Arrondir à 2 décimales pour éviter les problèmes de précision
+        return Math.round(multiplier * 100) / 100;
+      } catch (error) {
+        console.error("Erreur dans generateCrashPoint:", error);
+        // En cas d'erreur, retourner une valeur sûre
+        return 2.00;
+      }
+    };
+
+    // Démarrer l'animation de la courbe
+    const startAnimation = () => {
+      if (!gameState.startTime) return;
+      
+      // S'assurer que le multiplicateur commence à 1.00 minimum
+      setCurrentMultiplier(Math.max(1.00, lastMultiplierRef.current));
+      lastUpdateTimeRef.current = performance.now();
+      
+      // Nettoyer l'animation précédente si elle existe
+      if (animationRef.current !== null) {
+        window.cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      
+      // Ajouter un log de débogage
+      console.log("Animation démarrée à", new Date().toISOString(), "avec multiplicateur initial", lastMultiplierRef.current);
+      
+      // Fonction d'animation avec plus de robustesse
+      const animate = (timestamp: number) => {
+        try {
+          // Calculer le temps écoulé depuis le début du jeu
+          if (gameState.status === 'running' && gameState.startTime) {
+            const timeSinceStart = Date.now() - gameState.startTime;
+            
+            // Calculer le nouveau multiplicateur
+            const newMultiplier = calculateMultiplierAtTime(timeSinceStart);
+            
+            // Debug pour voir si le multiplicateur est calculé correctement
+            if (Math.floor(timeSinceStart / 1000) % 2 === 0) {
+              console.log(`Temps écoulé: ${timeSinceStart}ms, Multiplicateur: ${newMultiplier.toFixed(2)}`);
+            }
+            
+            // Vérifier que le multiplicateur est une valeur valide
+            if (!isNaN(newMultiplier) && isFinite(newMultiplier) && newMultiplier >= 1.00) {
+              // Ne jamais diminuer le multiplicateur, toujours augmenter
+              if (newMultiplier > lastMultiplierRef.current) {
+                lastMultiplierRef.current = newMultiplier;
+                setCurrentMultiplier(newMultiplier);
+              }
+              
+              // Mettre à jour l'affichage immédiatement
+              drawCurve(newMultiplier);
+              
+              // Vérifier l'auto-cashout seulement si une valeur est définie
+              if (userBet && userBet.autoCashout && userBet.autoCashout > 0 && newMultiplier >= userBet.autoCashout && !isCashedOut) {
+                console.log(`Auto-encaissement déclenché à ${newMultiplier.toFixed(2)}x (seuil: ${userBet.autoCashout}x)`);
+                cashOut();
+              }
+            }
+            
+            // Continuer l'animation seulement si le jeu est en cours
+            if (gameState.status === 'running') {
+              animationRef.current = window.requestAnimationFrame(animate);
+            }
+          }
+        } catch (error) {
+          console.error("Erreur dans l'animation:", error);
+          // En cas d'erreur, on essaie de continuer l'animation
+          animationRef.current = window.requestAnimationFrame(animate);
+        }
+      };
+      
+      // Démarrer l'animation
+      animationRef.current = window.requestAnimationFrame(animate);
+    };
+
+    // Surveiller les changements d'état du jeu
+    useEffect(() => {
+      // Écouter les changements d'état du jeu dans Firebase
+      const gameStateRef = ref(database, 'crashGame/currentGame');
+      
+      const unsubscribe = onValue(gameStateRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const newState = snapshot.val() as CrashState;
+          if (!newState.bets) newState.bets = [];
+          
+          // Vérifier si l'état a réellement changé
+          const hasChanged = JSON.stringify(newState) !== JSON.stringify(gameState);
+          
+          if (hasChanged) {
+            console.log("État du jeu mis à jour depuis Firebase:", newState.status);
+            
+            setGameState(newState);
+            setLiveBets(newState.bets || []);
+            
+            // Si le jeu démarre et que nous n'avions pas encore commencé l'animation
+            if (newState.status === 'running' && newState.startTime && 
+                (gameState.status !== 'running' || !animationRef.current)) {
+              // Calculer le multiplicateur actuel basé sur le temps écoulé
+              const elapsed = Date.now() - newState.startTime;
+              const currentMult = calculateMultiplierAtTime(elapsed);
+              
+              // Définir le multiplicateur de départ
+              setCurrentMultiplier(Math.max(1.01, currentMult));
+              lastMultiplierRef.current = Math.max(1.01, currentMult);
+              
+              // Démarrer l'animation si elle n'est pas déjà en cours
+              if (!animationRef.current) {
+                startAnimation();
+              }
+            }
+            
+            // Si le jeu vient de se terminer
+            if (newState.status === 'crashed' && gameState.status === 'running') {
+              // Arrêter l'animation
+              if (animationRef.current !== null) {
+                window.cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
+              }
+              
+              // Mettre à jour l'interface avec le multiplicateur final
+              if (newState.crashMultiplier) {
+                setCurrentMultiplier(newState.crashMultiplier);
+                drawCurve(newState.crashMultiplier);
+              }
+            }
+            
+            // Si le jeu vient de passer en attente, on recharge l'historique
+            if (newState.status === 'waiting' && gameState.status !== 'waiting') {
+              loadBetHistory();
+            }
+            
+            // Mettre à jour l'historique des crashes si disponible
+            if (newState.crashHistory) {
+              setCrashHistory(newState.crashHistory);
+            }
+          }
+        }
+      });
+      
+      return () => unsubscribe();
+    }, [gameState]);
 
     // Charger l'historique des paris
     const loadBetHistory = async () => {
@@ -417,34 +670,6 @@ const CrashGame: React.FC = () => {
       }
     };
 
-    // Générer un point de crash aléatoire
-    const generateCrashPoint = (): number => {
-      try {
-        // Chance de crasher à 1.00x (jeu immédiatement perdu)
-        if (Math.random() < 0.01) return 1.00;
-        
-        const rand = Math.random();
-        // Utiliser une distribution exponentielle pour créer la courbe typique des jeux crash
-        let multiplier = 0.9 / (rand * (1 - HOUSE_EDGE)) + 1;
-        
-        // Limiter le multiplicateur maximum et minimum
-        multiplier = Math.min(multiplier, MAX_MULTIPLIER);
-        multiplier = Math.max(multiplier, MIN_MULTIPLIER);
-        
-        // S'assurer que le résultat est un nombre valide
-        if (isNaN(multiplier) || !isFinite(multiplier)) {
-          console.error(`Multiplicateur invalide: ${multiplier}, utilisation de la valeur par défaut 2.00`);
-          return 2.00;
-        }
-        
-        return multiplier;
-      } catch (error) {
-        console.error("Erreur dans generateCrashPoint:", error);
-        // En cas d'erreur, retourner une valeur sûre
-        return 2.00;
-      }
-    };
-
     // Calculer le temps jusqu'au crash basé sur le multiplicateur
     const calculateCrashTimeFromMultiplier = (multiplier: number): number => {
       // Temps en ms. Plus le multiplicateur est élevé, plus le temps est long
@@ -457,76 +682,6 @@ const CrashGame: React.FC = () => {
       // Formule logarithmique pour une courbe exponentielle
       const timeMs = baseTime * Math.log(multiplier) / Math.log(logBase);
       return Math.max(1000, Math.round(timeMs)); // Au moins 1 seconde
-    };
-
-    // Démarrer l'animation de la courbe
-    const startAnimation = () => {
-      if (!gameState.startTime) return;
-      
-      // Réinitialiser le multiplicateur à 1.00 pour s'assurer qu'il commence correctement
-      setCurrentMultiplier(1.00);
-      lastUpdateTimeRef.current = performance.now();
-      
-      // Nettoyer l'animation précédente si elle existe
-      if (animationRef.current !== null) {
-        window.cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-      
-      // Ajouter un log de débogage
-      console.log("Animation démarrée à", new Date().toISOString());
-      
-      // Fonction d'animation avec plus de robustesse
-      const animate = (timestamp: number) => {
-        try {
-          // Calculer le temps écoulé depuis la dernière frame
-          const elapsed = timestamp - lastUpdateTimeRef.current;
-          lastUpdateTimeRef.current = timestamp;
-          
-          if (gameState.status === 'running' && gameState.startTime) {
-            const timeSinceStart = Date.now() - gameState.startTime;
-            
-            // Calculer le nouveau multiplicateur
-            const newMultiplier = calculateMultiplierAtTime(timeSinceStart);
-            
-            // Debug pour voir si le multiplicateur est calculé correctement
-            if (Math.floor(timeSinceStart / 1000) % 2 === 0) {
-              console.log(`Temps écoulé: ${timeSinceStart}ms, Multiplicateur: ${newMultiplier.toFixed(2)}`);
-            }
-            
-            // Vérifier que le multiplicateur est une valeur valide
-            if (!isNaN(newMultiplier) && isFinite(newMultiplier) && newMultiplier >= 1.00) {
-              // Forcer une mise à jour directe du state pour éviter les problèmes de rendu
-              setCurrentMultiplier(prev => {
-                // Ne mettre à jour que si la nouvelle valeur est supérieure
-                // Cela évite les "retours en arrière" visuels
-                return Math.max(prev, newMultiplier);
-              });
-              
-              // Mettre à jour l'affichage immédiatement
-              drawCurve(newMultiplier);
-              
-              // Vérifier l'auto-cashout seulement si une valeur est définie
-              if (userBet && userBet.autoCashout && userBet.autoCashout > 0 && newMultiplier >= userBet.autoCashout && !isCashedOut) {
-                console.log(`Auto-encaissement déclenché à ${newMultiplier.toFixed(2)}x (seuil: ${userBet.autoCashout}x)`);
-                cashOut();
-              }
-            }
-            
-            // Continuer l'animation seulement si le jeu est en cours
-            if (gameState.status === 'running') {
-              animationRef.current = window.requestAnimationFrame(animate);
-            }
-          }
-        } catch (error) {
-          console.error("Erreur dans l'animation:", error);
-          // En cas d'erreur, on essaie de continuer l'animation
-          animationRef.current = window.requestAnimationFrame(animate);
-        }
-      };
-      
-      // Démarrer l'animation
-      animationRef.current = window.requestAnimationFrame(animate);
     };
 
     // Calculer le multiplicateur à un moment donné
@@ -845,18 +1000,27 @@ const CrashGame: React.FC = () => {
         return;
       }
       
+      if (isGameDisabled) {
+        setMessage({ text: "Ce jeu est actuellement désactivé", type: 'error' });
+        return;
+      }
+      
       if (gameState.status !== 'waiting') {
         setMessage({ text: "Les paris ne sont acceptés qu'avant le début de la partie", type: 'error' });
         return;
       }
       
-      if (betAmount < MIN_BET) {
-        setMessage({ text: `La mise minimale est de ${MIN_BET} €`, type: 'error' });
+      // Utiliser les valeurs de mise minimale et maximale de la configuration
+      const minBet = gameConfig.minBet || MIN_BET;
+      const maxBet = gameConfig.maxBet || MAX_BET;
+      
+      if (betAmount < minBet) {
+        setMessage({ text: `La mise minimale est de ${minBet} €`, type: 'error' });
         return;
       }
       
-      if (betAmount > MAX_BET) {
-        setMessage({ text: `La mise maximale est de ${MAX_BET} €`, type: 'error' });
+      if (betAmount > maxBet) {
+        setMessage({ text: `La mise maximale est de ${maxBet} €`, type: 'error' });
         return;
       }
       
@@ -893,6 +1057,7 @@ const CrashGame: React.FC = () => {
         const currentBets = Array.isArray(gameState.bets) ? gameState.bets : [];
         const updatedBets = [...currentBets, newBet];
         
+        // Mettre à jour l'état local
         setGameState(prev => ({
           ...prev,
           bets: updatedBets
@@ -1123,6 +1288,21 @@ const CrashGame: React.FC = () => {
       setShowHistory(prevShow => !prevShow);
     }, []);
 
+    // Si le jeu est désactivé et l'utilisateur n'est pas admin, afficher un message
+    if (isGameDisabled) {
+      return (
+        <div className="crash-game">
+          <div className="crash-game-error bg-gray-800 text-white p-4 rounded-lg">
+            <h2 className="text-xl font-bold mb-2">Jeu temporairement indisponible</h2>
+            <p>Ce jeu est actuellement désactivé par les administrateurs. Veuillez revenir plus tard.</p>
+            <div className="mt-4">
+              <a href="/" className="text-blue-400 hover:text-blue-300">Retour à l'accueil</a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="crash-game">
         {isLoading && (
@@ -1211,8 +1391,8 @@ const CrashGame: React.FC = () => {
                 <div className="bet-input-container">
                   <input
                     type="number"
-                    min={MIN_BET}
-                    max={MAX_BET}
+                    min={gameConfig.minBet || MIN_BET}
+                    max={gameConfig.maxBet || MAX_BET}
                     value={betAmount}
                     onChange={handleBetAmountChange}
                     disabled={gameState.status !== 'waiting' || userBet !== null}
@@ -1253,7 +1433,7 @@ const CrashGame: React.FC = () => {
                   {!userBet && gameState.status === 'waiting' && (
                     <button
                       onClick={placeBet}
-                      disabled={!currentUser || betAmount < MIN_BET || betAmount > MAX_BET || betAmount > userBalance}
+                      disabled={!currentUser || betAmount < gameConfig.minBet || betAmount > gameConfig.maxBet || betAmount > userBalance}
                       className="bet-button"
                     >
                       <Coins size={18} className="inline-icon" />
@@ -1277,7 +1457,7 @@ const CrashGame: React.FC = () => {
               <div className="crash-history">
                 <h3>Historique des crashs</h3>
                 <div className="crash-history-items">
-                  {gameState.crashHistory?.map((multiplier, index) => (
+                  {crashHistory.map((multiplier, index) => (
                     <div
                       key={index}
                       className={`crash-history-item ${getMultiplierColor(multiplier)}`}
@@ -1371,16 +1551,17 @@ const CrashGame: React.FC = () => {
           <div className="key-indicators">
             <div className="key-indicator">
               <Keyboard size={14} className="inline-icon" />
-              <span>MIN: {MIN_BET}€</span>
+              <span>MIN: {gameConfig.minBet || MIN_BET}€</span>
             </div>
             <div className="key-indicator">
               <Keyboard size={14} className="inline-icon" />
-              <span>MAX: {MAX_BET}€</span>
+              <span>MAX: {gameConfig.maxBet || MAX_BET}€</span>
             </div>
             
             {/* Indicateur d'état plus complet */}
             <div className="key-indicator">
               <span>État: {gameState.status} | Multiplicateur: {currentMultiplier.toFixed(2)}×</span>
+              {!gameConfig.enabled && <span className="ml-2 text-red-500">(Jeu désactivé)</span>}
             </div>
           </div>
         </div>
