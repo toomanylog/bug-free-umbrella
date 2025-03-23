@@ -103,9 +103,9 @@ const CasinoManager: React.FC = () => {
                 <p className="game-card-description">{game.description}</p>
               </div>
               
-              {game.status === 'active' && game.id === 'crash' && (
-                <div className="rocket-animation">
-                  <Rocket size={24} />
+              {game.status === 'active' && (
+                <div className="game-card-action">
+                  <ChevronRight size={20} />
                 </div>
               )}
             </div>
@@ -186,13 +186,11 @@ const CasinoManager: React.FC = () => {
         </div>
         
         <div className="game-content">
-          <AuthProvider>
-            {selectedGame.id === 'crash' ? (
-              <CrashGame />
-            ) : (
-              <div>Jeu de dés en développement</div>
-            )}
-          </AuthProvider>
+          {selectedGame.id === 'crash' ? (
+            <CrashGame />
+          ) : (
+            <div>Jeu de dés en développement</div>
+          )}
         </div>
       </div>
     );

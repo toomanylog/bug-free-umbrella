@@ -82,30 +82,13 @@ const LoginRequired = () => (
 );
 
 const CrashGame: React.FC = () => {
-  // État pour suivre si on a récupéré l'authentification
-  const [authLoaded, setAuthLoaded] = useState(false);
-  const [authError, setAuthError] = useState(false);
+  // Récupérer les informations d'authentification de manière sécurisée
+  const auth = useAuth();
+  const currentUser = auth?.currentUser;
+  const userData = auth?.userData;
+  const isAdmin = auth?.isAdmin || false;
   
-  // Utiliser try-catch pour gérer le cas où le contexte d'auth n'est pas disponible
-  let currentUser: User | null = null;
-  let userData: UserData | null = null;
-  let isAdmin = false;
-  
-  try {
-    const auth = useAuth();
-    currentUser = auth.currentUser;
-    userData = auth.userData;
-    isAdmin = auth.isAdmin;
-  } catch (error) {
-    console.error("Erreur de contexte d'authentification:", error);
-    return <AuthErrorFallback />;
-  }
-  
-  // Si l'utilisateur n'est pas connecté
-  if (!currentUser) {
-    return <LoginRequired />;
-  }
-  
+  // État du jeu
   const [gameState, setGameState] = useState<CrashState>(DEFAULT_STATE);
   const [betAmount, setBetAmount] = useState<number>(MIN_BET);
   const [autoCashout, setAutoCashout] = useState<number | null>(null);
