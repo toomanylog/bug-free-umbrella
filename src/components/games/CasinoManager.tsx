@@ -25,28 +25,14 @@ const CasinoManager: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
-  // Récupérer le contexte d'authentification
+  // Récupérer le contexte d'authentification une seule fois au niveau du composant principal
+  // et non dans les gestionnaires d'événements
   const auth = useAuth();
   
-  // Utiliser useEffect pour surveiller l'état de l'authentification directement
+  // Synchroniser l'état local avec le contexte d'authentification
   useEffect(() => {
-    try {
-      // S'assurer que nous sommes en phase avec le contexte d'authentification
-      setCurrentUser(auth.currentUser);
-      setIsLoading(auth.isLoading);
-      
-      // Fallback au cas où le contexte ne fonctionne pas
-      const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-        setCurrentUser(user);
-        setIsLoading(false);
-      });
-      
-      // Nettoyer la souscription quand le composant est démonté
-      return () => unsubscribe();
-    } catch (error) {
-      console.error("Erreur d'authentification:", error);
-      setIsLoading(false);
-    }
+    setCurrentUser(auth.currentUser);
+    setIsLoading(auth.isLoading);
   }, [auth.currentUser, auth.isLoading]);
   
   // Liste des jeux disponibles
@@ -67,21 +53,15 @@ const CasinoManager: React.FC = () => {
     }
   ];
   
-  // Sélectionner un jeu de manière sécurisée
+  // Sélectionner un jeu de manière sécurisée, sans appel à useAuth() ici
   const selectGame = (gameId: string) => {
-    try {
-      // Vérifier l'authentification avant de changer d'écran
-      if (gameId === 'crash' && auth.currentUser === null) {
-        console.log("L'utilisateur doit être connecté pour jouer");
-        // On continue tout de même pour afficher l'écran de connexion requise
-      }
-      
-      setActiveGame(gameId);
-      setShowGameList(false);
-    } catch (error) {
-      console.error("Erreur lors de la sélection du jeu:", error);
-      // En cas d'erreur, rester sur la liste des jeux
-    }
+    // Pas d'accès au contexte d'authentification ici
+    // On utilise uniquement l'état local qui est déjà synchronisé avec le contexte
+    console.log(`Sélection du jeu: ${gameId}`);
+    
+    // Navigation simple sans logique complexe
+    setActiveGame(gameId);
+    setShowGameList(false);
   };
   
   // Retourner à la liste des jeux
@@ -90,7 +70,7 @@ const CasinoManager: React.FC = () => {
     setShowGameList(true);
   };
   
-  // Afficher la liste des jeux
+  // Afficher la liste des jeux avec une approche simplifiée
   const renderGameList = () => {
     return (
       <div className="casino-game-list">
@@ -215,6 +195,7 @@ const CasinoManager: React.FC = () => {
     );
   };
   
+  // Le rendu principal reste simple et prévisible
   return (
     <div className="casino-manager">
       {showGameList ? renderGameList() : renderGame()}
