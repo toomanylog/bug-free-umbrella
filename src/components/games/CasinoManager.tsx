@@ -16,7 +16,15 @@ interface GameType {
 const CasinoManager: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [showGameList, setShowGameList] = useState<boolean>(true);
-  const auth = useAuth(); // Utiliser le hook une seule fois dans le composant parent
+  
+  // Utiliser try-catch pour gérer le cas où le contexte d'auth n'est pas disponible
+  let auth = null;
+  try {
+    auth = useAuth();
+  } catch (error) {
+    console.error("Erreur de contexte d'authentification:", error);
+    // Continuez l'exécution, nous gérerons l'état non authentifié plus tard
+  }
   
   // Liste des jeux disponibles
   const games: GameType[] = [
