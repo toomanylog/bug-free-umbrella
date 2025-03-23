@@ -16,6 +16,7 @@ import {
 } from '../firebase/services/nowpayments';
 import { ref, update } from 'firebase/database';
 import { database } from '../firebase/config';
+import CasinoManager from './games/CasinoManager';
 
 interface DashboardProps {
   onClose: () => void;
@@ -1800,14 +1801,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           
           {activeSection === 'casino' && (
             <div className="space-y-6">
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
-                <DollarSign size={64} className="mx-auto text-yellow-500 mb-4" />
-                <h2 className="text-3xl font-bold mb-4">Casino - Coming Soon</h2>
-                <p className="text-xl text-gray-300 mb-6">Préparez-vous pour une expérience de jeu excitante!</p>
-                <p className="text-gray-400 max-w-2xl mx-auto">
-                  Notre casino en ligne sera bientôt disponible. Vous pourrez profiter de mini-jeux, de paris et tenter de gagner des récompenses exclusives.
-                </p>
-              </div>
+              <CasinoManager />
             </div>
           )}
           

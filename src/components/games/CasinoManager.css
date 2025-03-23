@@ -1,0 +1,221 @@
+/* Styles pour le Casino Manager */
+
+.casino-manager {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.casino-game-list {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.casino-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.casino-title-icon {
+  color: #f59e0b;
+}
+
+.casino-description {
+  font-size: 1.125rem;
+  color: #cbd5e1;
+  margin-bottom: 2rem;
+  max-width: 800px;
+}
+
+.game-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.game-card {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.7));
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  overflow: hidden;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  height: 100%;
+  min-height: 200px;
+}
+
+.game-card:hover:not(.coming-soon) {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.game-card.coming-soon {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.game-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(145deg, rgba(30, 58, 138, 0.3), rgba(37, 99, 235, 0.3));
+  border-radius: 16px;
+  margin-bottom: 0.5rem;
+  color: #60a5fa;
+}
+
+.game-card-content {
+  flex: 1;
+}
+
+.game-card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.coming-soon-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+}
+
+.game-card-description {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.game-card-action {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  color: #60a5fa;
+  transition: transform 0.2s ease;
+}
+
+.game-card:hover .game-card-action {
+  transform: translateX(5px);
+}
+
+.casino-rules {
+  background-color: rgba(15, 23, 42, 0.5);
+  border-radius: 16px;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.casino-rules h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #f8fafc;
+}
+
+.casino-rules ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+}
+
+.casino-rules li {
+  font-size: 0.875rem;
+  color: #cbd5e1;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Styles pour l'affichage du jeu sélectionné */
+.casino-game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #60a5fa;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0.5rem 0;
+}
+
+.back-button:hover {
+  color: #93c5fd;
+}
+
+.game-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-left: 2rem;
+}
+
+.game-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .casino-title {
+    font-size: 1.75rem;
+  }
+  
+  .game-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .game-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+  
+  .game-title {
+    margin-left: 0;
+  }
+} 

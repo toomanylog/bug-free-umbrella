@@ -7,6 +7,7 @@ import CertificationManager from './CertificationManager';
 import ToolManager from './ToolManager';
 import AdminWalletManager from './AdminWalletManager';
 import RiotManager from './RiotManager';
+import CasinoManager from './CasinoManager';
 import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Menu, X, CreditCard, Activity, DollarSign, UserCheck, Clock, Gamepad } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
 import { getAllUsers } from '../../firebase/auth';
@@ -541,17 +542,7 @@ const AdminDashboard: React.FC = () => {
         {activeSection === 'users' && <UserManager />}
         {activeSection === 'wallet' && <AdminWalletManager />}
         {activeSection === 'riot' && <RiotManager />}
-        {activeSection === 'casino' && (
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">Casino - Gestion des jeux</h2>
-            <div className="p-8 bg-gray-700/50 rounded-lg text-center">
-              <DollarSign size={48} className="text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2">Coming Soon</h3>
-              <p className="text-gray-400 mb-6">La section de gestion des jeux de casino sera bientôt disponible.</p>
-              <p className="text-gray-300">Cette fonctionnalité permettra de gérer les paramètres des jeux, les gains des joueurs et les statistiques.</p>
-            </div>
-          </div>
-        )}
+        {activeSection === 'casino' && <CasinoManager />}
         {activeSection === 'settings' && (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-xl font-semibold mb-4">Paramètres du site</h2>
