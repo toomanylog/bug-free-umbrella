@@ -112,6 +112,35 @@
   line-height: 1.5;
 }
 
+/* Animation de la fusée */
+.rocket-animation {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  color: #60a5fa;
+  transition: all 0.5s ease;
+}
+
+.game-card:hover .rocket-animation {
+  transform: translateY(-15px);
+  color: #f59e0b;
+}
+
+.game-card:hover .rocket-animation svg {
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+  animation: rocket-thrust 0.5s infinite alternate;
+}
+
+@keyframes rocket-thrust {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Supprimer l'ancien style de l'action card qui n'est plus utilisé */
 .game-card-action {
   position: absolute;
   bottom: 1.5rem;

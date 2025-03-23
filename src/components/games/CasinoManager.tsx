@@ -27,13 +27,18 @@ const CasinoManager: React.FC = () => {
   
   // Utiliser useEffect pour surveiller l'état de l'authentification directement
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-      setCurrentUser(user);
+    try {
+      const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+        setCurrentUser(user);
+        setIsLoading(false);
+      });
+      
+      // Nettoyer la souscription quand le composant est démonté
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Erreur d'authentification:", error);
       setIsLoading(false);
-    });
-    
-    // Nettoyer la souscription quand le composant est démonté
-    return () => unsubscribe();
+    }
   }, []);
   
   // Liste des jeux disponibles
@@ -98,9 +103,9 @@ const CasinoManager: React.FC = () => {
                 <p className="game-card-description">{game.description}</p>
               </div>
               
-              {game.status === 'active' && (
-                <div className="game-card-action">
-                  <ChevronRight size={20} />
+              {game.status === 'active' && game.id === 'crash' && (
+                <div className="rocket-animation">
+                  <Rocket size={24} />
                 </div>
               )}
             </div>
