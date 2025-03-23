@@ -21,16 +21,26 @@ const defaultContextValue: AuthContextType = {
   userData: null,
   isAdmin: false,
   isLoading: true,
-  refreshUserData: async () => {},
-  logout: async () => {}
+  refreshUserData: async () => {
+    console.warn("refreshUserData appelé en dehors du contexte AuthProvider");
+  },
+  logout: async () => {
+    console.warn("logout appelé en dehors du contexte AuthProvider");
+  }
 };
 
 // Créer le contexte avec la valeur par défaut
-const AuthContext = createContext<AuthContextType>(defaultContextValue);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 // Hook personnalisé pour utiliser le contexte d'authentification
-export const useAuth = () => {
-  return useContext(AuthContext) || defaultContextValue;
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  // Si le contexte est null, on renvoie la valeur par défaut
+  if (!context) {
+    console.warn("useAuth() appelé en dehors du AuthProvider. Utilisation des valeurs par défaut.");
+    return defaultContextValue;
+  }
+  return context;
 };
 
 // Props du provider

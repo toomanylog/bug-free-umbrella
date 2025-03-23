@@ -83,13 +83,12 @@ const LoginRequired = () => (
 
 const CrashGame: React.FC = () => {
   // On récupère le contexte d'authentification de manière sécurisée
-  // La méthode useAuth() renvoie désormais une valeur par défaut si le contexte est null
   const auth = useAuth();
-  const currentUser = auth.currentUser;
-  const userData = auth.userData;
-  const isAdmin = auth.isAdmin;
+  const currentUser: User | null = auth.currentUser;
+  const userData: UserData | null = auth.userData;
+  const isAdmin: boolean = auth.isAdmin;
   
-  // Si l'utilisateur n'est pas connecté
+  // Si l'utilisateur n'est pas connecté, afficher le message approprié
   if (!currentUser) {
     return <LoginRequired />;
   }

@@ -1,14 +1,10 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft } from 'lucide-react';
 import CrashGame from './crash/CrashGame';
 import './CasinoManager.css';
-import { AuthProvider, useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { User } from 'firebase/auth';
 import { UserData } from '../../firebase/auth';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth as firebaseAuth } from '../../firebase/config';
-import { ref, get } from 'firebase/database';
-import { database } from '../../firebase/config';
 
 interface GameType {
   id: string;
@@ -22,19 +18,11 @@ interface GameType {
 const CasinoManager: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [showGameList, setShowGameList] = useState<boolean>(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   
-  // Récupérer le contexte d'authentification une seule fois au niveau du composant principal
-  // et non dans les gestionnaires d'événements
+  // Récupérer le contexte d'authentification de façon sécurisée
   const auth = useAuth();
-  
-  // Synchroniser l'état local avec le contexte d'authentification
-  useEffect(() => {
-    setCurrentUser(auth.currentUser);
-    setIsLoading(auth.isLoading);
-  }, [auth.currentUser, auth.isLoading]);
-  
+  const { currentUser, isLoading } = auth;
+
   // Liste des jeux disponibles
   const games: GameType[] = [
     {
@@ -53,13 +41,9 @@ const CasinoManager: React.FC = () => {
     }
   ];
   
-  // Sélectionner un jeu de manière sécurisée, sans appel à useAuth() ici
+  // Sélectionner un jeu de manière sécurisée
   const selectGame = (gameId: string) => {
-    // Pas d'accès au contexte d'authentification ici
-    // On utilise uniquement l'état local qui est déjà synchronisé avec le contexte
     console.log(`Sélection du jeu: ${gameId}`);
-    
-    // Navigation simple sans logique complexe
     setActiveGame(gameId);
     setShowGameList(false);
   };
