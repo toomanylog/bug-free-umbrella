@@ -91,6 +91,34 @@
         ".read": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
         ".write": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
+    },
+    
+    "casinoConfig": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    
+    "crashGame": {
+      ".indexOn": ["createdAt", "status"],
+      "currentGame": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "stats": {
+        ".read": "auth !== null",
+        ".write": "auth !== null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      },
+      "betHistory": {
+        ".indexOn": ["userId", "timestamp", "isCashedOut"],
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "userBets": {
+        "$uid": {
+          ".read": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+          ".write": "auth !== null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        }
+      }
     }
   }
 }

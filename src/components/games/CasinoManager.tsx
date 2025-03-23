@@ -17,6 +17,18 @@ const CasinoManager: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [showGameList, setShowGameList] = useState<boolean>(true);
   
+  // Rendre le jeu en fonction de son ID plutôt que d'utiliser le component prédéfini
+  const renderGameContent = (gameId: string) => {
+    switch (gameId) {
+      case 'crash':
+        return <CrashGame />;
+      case 'dice':
+        return <div>Jeu de dés en développement</div>;
+      default:
+        return <div>Jeu non trouvé</div>;
+    }
+  };
+  
   // Liste des jeux disponibles
   const games: GameType[] = [
     {
@@ -24,7 +36,7 @@ const CasinoManager: React.FC = () => {
       name: 'Rocket Crash',
       description: 'Regardez la fusée décoller et encaissez avant le crash pour gagner!',
       icon: <Rocket size={32} />,
-      component: <AuthProvider><CrashGame /></AuthProvider>,
+      component: null, // Utilisera renderGameContent au lieu de stocker le composant ici
       status: 'active'
     },
     {
@@ -122,7 +134,9 @@ const CasinoManager: React.FC = () => {
         </div>
         
         <div className="game-content">
-          {selectedGame.component}
+          <AuthProvider>
+            {renderGameContent(selectedGame.id)}
+          </AuthProvider>
         </div>
       </div>
     );

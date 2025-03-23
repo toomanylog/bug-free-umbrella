@@ -58,7 +58,21 @@ const GAME_TIMER = 5; // Secondes d'attente entre les parties
 const MAX_MULTIPLIER = 100; // Multiplicateur maximum théorique
 
 const CrashGame: React.FC = () => {
-  const { currentUser, userData, isAdmin } = useAuth();
+  // Vérifier que le contexte d'authentification est disponible
+  let auth;
+  try {
+    auth = useAuth();
+  } catch (error) {
+    console.error("Erreur de contexte d'authentification:", error);
+    return (
+      <div className="crash-game-error">
+        <h2>Erreur de chargement</h2>
+        <p>Impossible de charger le contexte d'authentification. Veuillez rafraîchir la page ou vous reconnecter.</p>
+      </div>
+    );
+  }
+  
+  const { currentUser, userData, isAdmin } = auth;
   const [gameState, setGameState] = useState<CrashState>(DEFAULT_STATE);
   const [betAmount, setBetAmount] = useState<number>(MIN_BET);
   const [autoCashout, setAutoCashout] = useState<number | null>(null);
