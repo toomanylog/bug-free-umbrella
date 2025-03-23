@@ -196,6 +196,9 @@ const RiotManager: React.FC = () => {
   const [draggingEnabled, setDraggingEnabled] = useState<boolean>(false);
   const [editingOwnedItems, setEditingOwnedItems] = useState<string | null>(null);
   
+  // Ajouter l'état pour la recherche de skins
+  const [skinSearchQuery, setSkinSearchQuery] = useState<string>("");
+  
   // Chargement des comptes depuis Firebase
   useEffect(() => {
     const loadAccounts = async () => {
@@ -439,26 +442,83 @@ const RiotManager: React.FC = () => {
     return ranks[Math.max(0, Math.min(rankIndex, ranks.length - 1))];
   };
   
-  // Obtenir l'icône du rang à partir de l'ID de tier
-  const getRankIcon = (tier: number): string => {
-    // Utiliser les icônes locales plutôt que l'API valorant-api.com
-    const rankName = getRankName(tier);
-    
-    if (rankName === "Radiant") {
-      return `/img/rank_png/Radiant_Rank.png`;
+  // Modifier la fonction getRankIconByName pour utiliser les liens d'images externes
+  const getRankIconByName = (rankName: string): string => {
+    // Si pas de rankName ou "Non classé", retourner une icône par défaut
+    if (!rankName || rankName.toLowerCase() === "non classé") {
+      return "https://i.ibb.co/MDKnWB3w/Iron-1-Rank.png"; // Image par défaut Iron 1
     }
-    
-    // Extraire le nom et le numéro du rang
-    const parts = rankName.split(' ');
-    if (parts.length < 2) {
-      return "/img/rank_png/Iron_1_Rank.png"; // Image par défaut
+
+    try {
+      // Cas spécial pour "Radiant"
+      if (rankName.toLowerCase() === "radiant") {
+        return "https://i.ibb.co/ffMr9D1/Radiant-Rank.png";
+      }
+
+      // Extraire le nom du rang et le numéro (si présent)
+      const parts = rankName.split(' ');
+      if (parts.length < 2) {
+        console.warn(`Format de rang incomplet: ${rankName}`);
+        return "https://i.ibb.co/MDKnWB3w/Iron-1-Rank.png";
+      }
+
+      const rank = parts[0];
+      const number = parts[1];
+
+      // Utiliser les liens externes selon le rang et le numéro
+      const rankImageLinks: Record<string, Record<string, string>> = {
+        "Iron": {
+          "1": "https://i.ibb.co/MDKnWB3w/Iron-1-Rank.png",
+          "2": "https://i.ibb.co/nMh2T11t/Iron-2-Rank.png",
+          "3": "https://i.ibb.co/0VndgK5p/Iron-3-Rank.png"
+        },
+        "Bronze": {
+          "1": "https://i.ibb.co/spMqTvDw/Bronze-1-Rank.png",
+          "2": "https://i.ibb.co/7xHxz929/Bronze-2-Rank.png",
+          "3": "https://i.ibb.co/PGvzzhTw/Bronze-3-Rank.png"
+        },
+        "Silver": {
+          "1": "https://i.ibb.co/Y7mzJCdQ/Silver-1-Rank.png",
+          "2": "https://i.ibb.co/MyX1JK9C/Silver-2-Rank.png",
+          "3": "https://i.ibb.co/1tbw3xYh/Silver-3-Rank.png"
+        },
+        "Gold": {
+          "1": "https://i.ibb.co/2Yps71Kn/Gold-1-Rank.png",
+          "2": "https://i.ibb.co/27KjRckc/Gold-2-Rank.png",
+          "3": "https://i.ibb.co/zkZf9pv/Gold-3-Rank.png"
+        },
+        "Platinum": {
+          "1": "https://i.ibb.co/Y4nPcYWz/Platinum-1-Rank.png",
+          "2": "https://i.ibb.co/Kc0xdpb8/Platinum-2-Rank.png",
+          "3": "https://i.ibb.co/9zbzBK3/Platinum-3-Rank.png"
+        },
+        "Diamond": {
+          "1": "https://i.ibb.co/nMBhbz7X/Diamond-1-Rank.png",
+          "2": "https://i.ibb.co/kVrtYDDZ/Diamond-2-Rank.png",
+          "3": "https://i.ibb.co/YTwQRtFT/Diamond-3-Rank.png"
+        },
+        "Ascendant": {
+          "1": "https://i.ibb.co/ZsrxFXL/Ascendant-1-Rank.png",
+          "2": "https://i.ibb.co/4ZbD6gJf/Ascendant-2-Rank.png",
+          "3": "https://i.ibb.co/9kG52C7P/Ascendant-3-Rank.png"
+        },
+        "Immortal": {
+          "1": "https://i.ibb.co/bRmVbSFQ/Immortal-1-Rank.png",
+          "2": "https://i.ibb.co/Zzmq5nXv/Immortal-2-Rank.png",
+          "3": "https://i.ibb.co/SwDFzvY4/Immortal-3-Rank.png"
+        }
+      };
+
+      if (rankImageLinks[rank] && rankImageLinks[rank][number]) {
+        return rankImageLinks[rank][number];
+      }
+
+      console.warn(`Image de rang non trouvée pour: ${rankName}`);
+      return "https://i.ibb.co/MDKnWB3w/Iron-1-Rank.png"; // Image par défaut en cas d'erreur
+    } catch (error) {
+      console.error("Erreur lors de la génération du chemin de l'image de rang:", error);
+      return "https://i.ibb.co/MDKnWB3w/Iron-1-Rank.png"; // Image par défaut en cas d'erreur
     }
-    
-    const rank = parts[0];
-    const number = parts[1];
-    
-    // Utiliser les images locales
-    return `/img/rank_png/${rank}_${number}_Rank.png`;
   };
   
   // Actualiser les données du compte
@@ -494,7 +554,7 @@ const RiotManager: React.FC = () => {
           account.rank = {
             currentRank: currentSeason?.currenttierpatched || "Non classé",
             currentTier: currentSeason?.currenttier?.toString() || "0",
-            rankIcon: getRankIcon(parseInt(currentSeason?.currenttier) || 0),
+            rankIcon: getRankIconByName(currentSeason?.currenttierpatched || "Non classé"),
             bestRank: currentSeason?.highesttierpatched || "Non classé",
             bestTier: currentSeason?.highesttier?.toString() || "0"
           };
@@ -1031,43 +1091,6 @@ const RiotManager: React.FC = () => {
     return index;
   };
   
-  // Modifier la fonction getRankIconByName pour utiliser correctement les images locales
-  const getRankIconByName = (rankName: string): string => {
-    // Si pas de rankName ou "Non classé", retourner une icône par défaut
-    if (!rankName || rankName.toLowerCase() === "non classé") {
-      return "/img/rank_png/Iron_1_Rank.png"; // Image par défaut
-    }
-
-    try {
-      // Cas spécial pour "Radiant"
-      if (rankName.toLowerCase() === "radiant") {
-        return `/img/rank_png/Radiant_Rank.png`;
-      }
-
-      // Extraire le nom du rang et le numéro (si présent)
-      const parts = rankName.split(' ');
-      if (parts.length < 2) {
-        console.warn(`Format de rang incomplet: ${rankName}`);
-        return "/img/rank_png/Iron_1_Rank.png";
-      }
-
-      const rank = parts[0];
-      const number = parts[1];
-
-      // S'assurer que l'URL est toujours un chemin relatif
-      const imgPath = `/img/rank_png/${rank}_${number}_Rank.png`;
-      // Vérifier que l'URL ne contient pas de domaine externe
-      if (imgPath.startsWith('http')) {
-        console.warn(`L'URL de l'image contient un domaine externe: ${imgPath}`);
-        return "/img/rank_png/Iron_1_Rank.png";
-      }
-      return imgPath;
-    } catch (error) {
-      console.error("Erreur lors de la génération du chemin de l'image de rang:", error);
-      return "/img/rank_png/Iron_1_Rank.png"; // Image par défaut en cas d'erreur
-    }
-  };
-  
   // Ajouter une fonction pour réparer/normaliser la structure des comptes existants
   const normalizeAccounts = async () => {
     try {
@@ -1286,6 +1309,14 @@ const RiotManager: React.FC = () => {
     }
     
     setEditingOwnedItems(isCurrentlyEditing ? null : `${type}-${accountId}`);
+  };
+  
+  // Corriger la fonction getRankIcon manquante
+  // Obtenir l'icône du rang à partir de l'ID de tier
+  const getRankIcon = (tier: number): string => {
+    // Utiliser les liens externes pour les icônes
+    const rankName = getRankName(tier);
+    return getRankIconByName(rankName);
   };
   
   // Rendu du composant
@@ -1726,38 +1757,77 @@ const RiotManager: React.FC = () => {
                               </div>
                               
                                 {editingOwnedItems === `skins-${account.id}` ? (
-                                  <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg max-h-60 overflow-y-auto">
+                                  <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg max-h-80 overflow-y-auto">
+                                    {/* Champ de recherche pour les skins */}
+                                    <div className="sticky top-0 bg-gray-800 p-2 mb-3 rounded-md z-10">
+                                      <div className="relative">
+                                        <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input
+                                          type="text"
+                                          placeholder="Rechercher un skin..."
+                                          className="w-full pl-9 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                          value={skinSearchQuery}
+                                          onChange={(e) => setSkinSearchQuery(e.target.value)}
+                                        />
+                                        {skinSearchQuery && (
+                                          <button
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                                            onClick={() => setSkinSearchQuery("")}
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    
                                     <div className="space-y-3">
-                                      {weapons.map(weapon => (
-                                        <div key={weapon.uuid}>
-                                          <h5 className="text-xs font-medium mb-2">{weapon.displayName}</h5>
-                                          <div className="grid grid-cols-3 gap-2">
-                                            {weapon.skins.slice(0, 6).map(skin => (
-                                              <div 
-                                                key={skin.uuid}
-                                                className={`p-1 rounded-md cursor-pointer ${
-                                                  account.ownedSkins?.includes(skin.uuid) 
-                                                    ? 'bg-blue-900/50 border border-blue-500' 
-                                                    : 'bg-gray-700 hover:bg-gray-600'
-                                                }`}
-                                                onClick={() => toggleSkinOwnership(account.id, skin.uuid)}
-                                              >
-                                                <div className="aspect-video rounded overflow-hidden bg-gray-800 flex items-center justify-center">
-                                                  <img 
-                                                    src={skin.displayIcon || weapon.displayIcon} 
-                                                    alt={skin.displayName} 
-                                                    className="h-full max-h-10 object-contain"
-                                                  />
-                                </div>
-                                                <p className="text-[10px] text-center mt-1 truncate">{skin.displayName}</p>
+                                      {weapons
+                                        .filter(weapon => 
+                                          weapon.skins.some(skin => 
+                                            skin.displayName.toLowerCase().includes(skinSearchQuery.toLowerCase())
+                                          )
+                                        )
+                                        .map(weapon => {
+                                          // Filtrer les skins qui correspondent à la recherche
+                                          const filteredSkins = weapon.skins.filter(skin => 
+                                            skin.displayName.toLowerCase().includes(skinSearchQuery.toLowerCase())
+                                          );
+                                          
+                                          // Ne pas afficher l'arme si aucun skin ne correspond à la recherche
+                                          if (filteredSkins.length === 0) return null;
+                                          
+                                          return (
+                                            <div key={weapon.uuid}>
+                                              <h5 className="text-xs font-medium mb-2">{weapon.displayName}</h5>
+                                              <div className="grid grid-cols-3 gap-2">
+                                                {filteredSkins.map(skin => (
+                                                  <div 
+                                                    key={skin.uuid}
+                                                    className={`p-1 rounded-md cursor-pointer ${
+                                                      account.ownedSkins?.includes(skin.uuid) 
+                                                        ? 'bg-blue-900/50 border border-blue-500' 
+                                                        : 'bg-gray-700 hover:bg-gray-600'
+                                                    }`}
+                                                    onClick={() => toggleSkinOwnership(account.id, skin.uuid)}
+                                                  >
+                                                    <div className="aspect-video rounded overflow-hidden bg-gray-800 flex items-center justify-center">
+                                                      <img 
+                                                        src={skin.displayIcon || weapon.displayIcon} 
+                                                        alt={skin.displayName} 
+                                                        className="h-full max-h-10 object-contain"
+                                                      />
+                                                    </div>
+                                                    <p className="text-[10px] text-center mt-1 truncate">{skin.displayName}</p>
+                                                  </div>
+                                                ))}
                                               </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      ))}
-                            </div>
-                          </div>
-                        ) : (
+                                            </div>
+                                          );
+                                        })
+                                        .filter(Boolean)}
+                                    </div>
+                                  </div>
+                                ) : (
                                   <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg">
                                     {account.ownedSkins && account.ownedSkins.length > 0 ? (
                                       <div className="flex flex-wrap gap-2">
