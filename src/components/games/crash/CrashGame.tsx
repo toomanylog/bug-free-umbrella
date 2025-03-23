@@ -216,6 +216,8 @@ const CrashGame: React.FC = () => {
         
         if (snapshot.exists()) {
           const state = snapshot.val() as CrashState;
+          // S'assurer que bets est toujours un tableau
+          if (!state.bets) state.bets = [];
           setGameState(state);
           
           // Si le jeu est en cours, commencer l'animation
@@ -601,7 +603,7 @@ const CrashGame: React.FC = () => {
       try {
         // Vérifier si l'utilisateur a déjà un pari en cours
         const userId = currentUser.uid;
-        const existingBet = gameState.bets.find(bet => bet.userId === userId);
+        const existingBet = gameState.bets?.find(bet => bet.userId === userId);
         if (existingBet) {
           setMessage({ text: "Vous avez déjà placé un pari pour cette partie", type: 'error' });
           return;
@@ -619,7 +621,7 @@ const CrashGame: React.FC = () => {
         };
         
         // Mettre à jour l'état du jeu avec le nouveau pari
-        const updatedBets = [...gameState.bets, newBet];
+        const updatedBets = [...(gameState.bets || []), newBet];
         
         await update(ref(database, 'crashGame/currentGame'), {
           bets: updatedBets
@@ -963,7 +965,7 @@ const CrashGame: React.FC = () => {
                 </h3>
               </div>
               <div className="live-bets-list">
-                {gameState.bets.length === 0 ? (
+                {!gameState.bets || gameState.bets.length === 0 ? (
                   <p className="empty-message">Aucune mise pour cette partie.</p>
                 ) : (
                   gameState.bets.map(bet => (
