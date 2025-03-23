@@ -1184,28 +1184,33 @@ const RiotManager: React.FC = () => {
       const account = accounts.find(acc => acc.id === accountId);
       if (!account) return;
       
-      const ownedSkins = account.ownedSkins || [];
-      const updatedSkins = ownedSkins.includes(skinId)
-        ? ownedSkins.filter(id => id !== skinId)
-        : [...ownedSkins, skinId];
+      let ownedSkins = [...(account.ownedSkins || [])];
       
-      // Mettre à jour dans Firebase
-      const accountRef = ref(database, `riotAccounts/${accountId}`);
-      await update(accountRef, { ownedSkins: updatedSkins });
+      if (ownedSkins.includes(skinId)) {
+        // Retirer le skin
+        ownedSkins = ownedSkins.filter(id => id !== skinId);
+      } else {
+        // Ajouter le skin
+        ownedSkins.push(skinId);
+      }
+      
+      // Mettre à jour Firebase
+      const accountRef = ref(database, `riotAccounts/${accountId}/ownedSkins`);
+      await set(accountRef, ownedSkins);
       
       // Mettre à jour l'état local
-      setAccounts(accounts.map(acc => 
-        acc.id === accountId 
-          ? { ...acc, ownedSkins: updatedSkins } 
-          : acc
-      ));
+      setAccounts(accounts.map(acc => {
+        if (acc.id === accountId) {
+          return {...acc, ownedSkins};
+        }
+        return acc;
+      }));
       
-      setSuccess(`Skin ${ownedSkins.includes(skinId) ? 'retiré' : 'ajouté'} au compte`);
-      setTimeout(() => setSuccess(null), 2000);
+      // Supprimer les notifications de succès
+      // setSuccess(`Skin ${ownedSkins.includes(skinId) ? 'ajouté au' : 'retiré du'} compte`);
     } catch (err) {
-      console.error('Erreur lors de la mise à jour des skins:', err);
-      setError('Impossible de mettre à jour les skins du compte');
-      setTimeout(() => setError(null), 3000);
+      console.error('Erreur lors de la modification des skins:', err);
+      setError('Impossible de modifier les skins du compte');
     }
   };
   
@@ -1215,28 +1220,33 @@ const RiotManager: React.FC = () => {
       const account = accounts.find(acc => acc.id === accountId);
       if (!account) return;
       
-      const ownedAgents = account.ownedAgents || [];
-      const updatedAgents = ownedAgents.includes(agentId)
-        ? ownedAgents.filter(id => id !== agentId)
-        : [...ownedAgents, agentId];
+      let ownedAgents = [...(account.ownedAgents || [])];
       
-      // Mettre à jour dans Firebase
-      const accountRef = ref(database, `riotAccounts/${accountId}`);
-      await update(accountRef, { ownedAgents: updatedAgents });
+      if (ownedAgents.includes(agentId)) {
+        // Retirer l'agent
+        ownedAgents = ownedAgents.filter(id => id !== agentId);
+      } else {
+        // Ajouter l'agent
+        ownedAgents.push(agentId);
+      }
+      
+      // Mettre à jour Firebase
+      const accountRef = ref(database, `riotAccounts/${accountId}/ownedAgents`);
+      await set(accountRef, ownedAgents);
       
       // Mettre à jour l'état local
-      setAccounts(accounts.map(acc => 
-        acc.id === accountId 
-          ? { ...acc, ownedAgents: updatedAgents } 
-          : acc
-      ));
+      setAccounts(accounts.map(acc => {
+        if (acc.id === accountId) {
+          return {...acc, ownedAgents};
+        }
+        return acc;
+      }));
       
-      setSuccess(`Agent ${ownedAgents.includes(agentId) ? 'retiré' : 'ajouté'} au compte`);
-      setTimeout(() => setSuccess(null), 2000);
+      // Supprimer les notifications de succès
+      // setSuccess(`Agent ${ownedAgents.includes(agentId) ? 'ajouté au' : 'retiré du'} compte`);
     } catch (err) {
-      console.error('Erreur lors de la mise à jour des agents:', err);
-      setError('Impossible de mettre à jour les agents du compte');
-      setTimeout(() => setError(null), 3000);
+      console.error('Erreur lors de la modification des agents:', err);
+      setError('Impossible de modifier les agents du compte');
     }
   };
   
@@ -1260,11 +1270,15 @@ const RiotManager: React.FC = () => {
     <div className="p-4">
       {/* En-tête avec titre et boutons */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestion des comptes RIOT</h1>
-        <div className="space-x-2">
+        <div>
+          <h1 className="text-2xl font-bold">Gestion des comptes RIOT</h1>
+          <p className="text-gray-400 text-sm">Gérez vos comptes RIOT pour accéder aux statistiques de Valorant</p>
+        </div>
+
+        <div className="flex space-x-2">
           <button
             onClick={normalizeAccounts}
-            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg flex items-center"
+            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg flex items-center shadow-md"
             title="Réparer les structures des comptes existants"
           >
             <RefreshCw size={16} className="mr-1" />
@@ -1276,7 +1290,7 @@ const RiotManager: React.FC = () => {
               setIsEditing(false);
               setShowForm(true);
             }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center shadow-md"
           >
             <Plus size={16} className="mr-1" />
             Ajouter un compte
@@ -1285,7 +1299,7 @@ const RiotManager: React.FC = () => {
       </div>
       
       {/* Tabs de navigation */}
-      <div className="flex border-b border-gray-700 mb-6">
+      <div className="border-b border-gray-700 mb-6 flex items-center">
         <button
           className={`py-3 px-6 font-medium text-sm ${activeTab === 'accounts' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400 hover:text-white'}`}
           onClick={() => setActiveTab('accounts')}
@@ -1465,13 +1479,83 @@ const RiotManager: React.FC = () => {
                         
                               {/* Informations du compte */}
                               <div className="mb-4 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-                                <h4 className="text-sm font-medium text-blue-300 mb-2">Identifiants de connexion</h4>
+                                <h4 className="text-sm font-medium text-blue-300 mb-3">Identifiants de connexion</h4>
                                 
-                                {/* Contenu existant des identifiants */}
-                          </div>
-                        
-                        {/* Statistiques de rang */}
-                        {account.rank ? (
+                                <div className="space-y-2">
+                                  {/* Login */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <p className="text-xs text-gray-400 mb-1">Login</p>
+                                      <p className="text-sm font-mono bg-gray-800 px-2 py-1 rounded truncate">
+                                        {account.login || account.username || "Non défini"}
+                                      </p>
+                                    </div>
+                                    <button 
+                                      onClick={() => {
+                                        const textToCopy = account.login || account.username || "";
+                                        navigator.clipboard.writeText(textToCopy);
+                                        setCopiedField({accountId: account.id, field: 'login'});
+                                        setTimeout(() => setCopiedField(null), 2000);
+                                      }}
+                                      className={`ml-2 p-2 rounded-md ${copiedField?.accountId === account.id && copiedField?.field === 'login' ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                      title="Copier le login"
+                                    >
+                                      {copiedField?.accountId === account.id && copiedField?.field === 'login' ? <Check size={16} /> : "Copier"}
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Mot de passe */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <p className="text-xs text-gray-400 mb-1">Mot de passe</p>
+                                      <p className="text-sm font-mono bg-gray-800 px-2 py-1 rounded truncate">
+                                        {account.password ? "••••••••" : "Non défini"}
+                                      </p>
+                                    </div>
+                                    <button 
+                                      onClick={() => {
+                                        if (account.password) {
+                                          const decrypted = decryptPassword(account.password);
+                                          navigator.clipboard.writeText(decrypted);
+                                          setCopiedField({accountId: account.id, field: 'password'});
+                                          setTimeout(() => setCopiedField(null), 2000);
+                                        }
+                                      }}
+                                      className={`ml-2 p-2 rounded-md ${copiedField?.accountId === account.id && copiedField?.field === 'password' ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                      title="Copier le mot de passe"
+                                      disabled={!account.password}
+                                    >
+                                      {copiedField?.accountId === account.id && copiedField?.field === 'password' ? <Check size={16} /> : "Copier"}
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Email */}
+                                  {account.email && (
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        <p className="text-xs text-gray-400 mb-1">Email</p>
+                                        <p className="text-sm font-mono bg-gray-800 px-2 py-1 rounded truncate">
+                                          {account.email}
+                                        </p>
+                                      </div>
+                                      <button 
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(account.email || "");
+                                          setCopiedField({accountId: account.id, field: 'email'});
+                                          setTimeout(() => setCopiedField(null), 2000);
+                                        }}
+                                        className={`ml-2 p-2 rounded-md ${copiedField?.accountId === account.id && copiedField?.field === 'email' ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                        title="Copier l'email"
+                                      >
+                                        {copiedField?.accountId === account.id && copiedField?.field === 'email' ? <Check size={16} /> : "Copier"}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Statistiques de rang */}
+                              {account.rank ? (
                                 <div className="mb-4 p-3 bg-gray-800 border border-gray-700 rounded-lg">
                                   <h4 className="text-sm font-medium text-blue-300 mb-2">Statistiques de rang</h4>
                                   <div className="flex">
