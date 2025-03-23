@@ -29,18 +29,19 @@ const defaultContextValue: AuthContextType = {
   }
 };
 
-// Créer le contexte avec la valeur par défaut
-const AuthContext = createContext<AuthContextType | null>(null);
+// Créer le contexte avec la valeur par défaut (et non null)
+const AuthContext = createContext<AuthContextType>(defaultContextValue);
 
 // Hook personnalisé pour utiliser le contexte d'authentification
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  // Si le contexte est null, on renvoie la valeur par défaut
-  if (!context) {
-    console.warn("useAuth() appelé en dehors du AuthProvider. Utilisation des valeurs par défaut.");
+  try {
+    const context = useContext(AuthContext);
+    // Retourner toujours un contexte valide
+    return context || defaultContextValue;
+  } catch (error) {
+    console.error("Erreur lors de l'utilisation du hook useAuth:", error);
     return defaultContextValue;
   }
-  return context;
 };
 
 // Props du provider
@@ -145,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 }; 

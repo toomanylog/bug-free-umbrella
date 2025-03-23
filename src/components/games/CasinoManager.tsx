@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft } from 'lucide-react';
 import CrashGame from './crash/CrashGame';
 import './CasinoManager.css';
@@ -41,18 +41,29 @@ const CasinoManager: React.FC = () => {
     }
   ];
   
-  // Sélectionner un jeu de manière sécurisée
-  const selectGame = (gameId: string) => {
+  // Sélectionner un jeu de manière sécurisée avec useCallback pour éviter les problèmes de contexte
+  const selectGame = useCallback((gameId: string) => {
     console.log(`Sélection du jeu: ${gameId}`);
-    setActiveGame(gameId);
-    setShowGameList(false);
-  };
+    try {
+      setActiveGame(gameId);
+      setShowGameList(false);
+    } catch (error) {
+      console.error("Erreur lors de la sélection du jeu:", error);
+    }
+  }, []);
   
   // Retourner à la liste des jeux
-  const backToGameList = () => {
+  const backToGameList = useCallback(() => {
     setActiveGame(null);
     setShowGameList(true);
-  };
+  }, []);
+  
+  // Gestionnaire de clic sécurisé pour les cartes de jeu
+  const handleGameCardClick = useCallback((game: GameType) => {
+    if (game.status === 'active') {
+      selectGame(game.id);
+    }
+  }, [selectGame]);
   
   // Afficher la liste des jeux avec une approche simplifiée
   const renderGameList = () => {
@@ -72,7 +83,7 @@ const CasinoManager: React.FC = () => {
             <div 
               key={game.id}
               className={`game-card ${game.status === 'coming-soon' ? 'coming-soon' : ''}`}
-              onClick={() => game.status === 'active' && selectGame(game.id)}
+              onClick={() => handleGameCardClick(game)}
             >
               <div className="game-card-icon">
                 {game.icon}
@@ -170,7 +181,7 @@ const CasinoManager: React.FC = () => {
         
         <div className="game-content">
           {selectedGame.id === 'crash' ? (
-            <CrashGame />
+            <CrashGame key="crash-game-instance" />
           ) : (
             <div>Jeu de dés en développement</div>
           )}
