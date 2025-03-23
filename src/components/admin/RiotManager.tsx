@@ -602,6 +602,32 @@ const RiotManager: React.FC = () => {
         const accountRef = ref(database, `riotAccounts/${selectedAccount.id}`);
         // Supprimer l'ID avant de mettre à jour (il ne doit pas être inclus dans les données Firebase)
         const { id, ...updateData } = completeAccountData;
+
+        // Nettoyer les propriétés contenant des valeurs undefined
+        // Pour rank, vérifier s'il existe et supprimer tous les champs undefined à l'intérieur
+        if (updateData.rank) {
+          // Utiliser une assertion de type pour éviter les erreurs TypeScript
+          const rankObj = updateData.rank as Record<string, unknown>;
+          Object.keys(rankObj).forEach(key => {
+            if (rankObj[key] === undefined) {
+              delete rankObj[key];
+            }
+          });
+          // Si rank est un objet vide après le nettoyage, le supprimer complètement
+          if (Object.keys(rankObj).length === 0) {
+            delete updateData.rank;
+          }
+        }
+
+        // Vérifier s'il y a d'autres propriétés undefined au niveau supérieur
+        // Utiliser une assertion de type pour éviter les erreurs TypeScript
+        const dataObj = updateData as Record<string, unknown>;
+        Object.keys(dataObj).forEach(key => {
+          if (dataObj[key] === undefined) {
+            delete dataObj[key];
+          }
+        });
+
         await update(accountRef, updateData);
         
         setAccounts(accounts.map(account => 
@@ -618,6 +644,29 @@ const RiotManager: React.FC = () => {
         
         // Supprimer l'ID avant de sauvegarder (il est déjà utilisé comme clé dans Firebase)
         const { id, ...saveData } = completeAccountData;
+
+        // Même nettoyage pour les nouveaux comptes
+        if (saveData.rank) {
+          // Utiliser une assertion de type pour éviter les erreurs TypeScript
+          const rankObj = saveData.rank as Record<string, unknown>;
+          Object.keys(rankObj).forEach(key => {
+            if (rankObj[key] === undefined) {
+              delete rankObj[key];
+            }
+          });
+          if (Object.keys(rankObj).length === 0) {
+            delete saveData.rank;
+          }
+        }
+
+        // Utiliser une assertion de type pour éviter les erreurs TypeScript
+        const dataObj = saveData as Record<string, unknown>;
+        Object.keys(dataObj).forEach(key => {
+          if (dataObj[key] === undefined) {
+            delete dataObj[key];
+          }
+        });
+
         await set(accountRef, saveData);
         
         setAccounts([
