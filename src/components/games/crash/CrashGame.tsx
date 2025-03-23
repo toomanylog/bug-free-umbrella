@@ -58,6 +58,7 @@ const MIN_BET = 5; // Mise minimale en EUR
 const MAX_BET = 5000; // Mise maximale en EUR
 const GAME_TIMER = 5; // Secondes d'attente entre les parties
 const MAX_MULTIPLIER = 100; // Multiplicateur maximum théorique
+const MIN_MULTIPLIER = 1.01; // Multiplicateur minimum
 
 // Composant de secours en cas d'erreur d'authentification
 const AuthErrorFallback = () => (
@@ -275,22 +276,36 @@ const CrashGame: React.FC = () => {
     const initializeNewGame = async () => {
       console.log("Initialisation d'un nouveau jeu...");
       try {
+        // Réinitialiser l'état local immédiatement pour une meilleure réactivité
+        setCurrentMultiplier(1.00);
+        setUserBet(null);
+        setIsCashedOut(false);
+        
+        // S'assurer que l'historique des crashs existe et est un tableau
+        const crashHistory = Array.isArray(gameState.crashHistory) ? gameState.crashHistory : [];
+        
         const newState: CrashState = {
           status: 'waiting',
           startTime: null,
           crashTime: null,
           crashMultiplier: null,
           bets: [],
-          crashHistory: gameState.crashHistory || []
+          crashHistory: crashHistory
         };
         
-        await set(ref(database, 'crashGame/currentGame'), newState);
+        // Mettre à jour l'état local avant même d'avoir la confirmation de Firebase
         setGameState(newState);
+        
+        // Mettre à jour Firebase
+        await set(ref(database, 'crashGame/currentGame'), newState);
+        
+        // Démarrer le compte à rebours immédiatement
         startCountdown();
       } catch (error) {
         console.error("Erreur lors de l'initialisation d'un nouveau jeu:", error);
         setMessage({ text: "Erreur lors de l'initialisation du jeu. Réessayez plus tard.", type: 'error' });
-        // En cas d'erreur, on tente à nouveau après un délai
+        
+        // En cas d'erreur, attendre et réessayer
         setTimeout(() => {
           initializeNewGame();
         }, 5000);
@@ -325,6 +340,7 @@ const CrashGame: React.FC = () => {
     // Démarrer le compte à rebours
     const startCountdown = () => {
       console.log("Démarrage du compte à rebours...");
+      // Réinitialiser et démarrer immédiatement le compte à rebours
       setCountDown(GAME_TIMER);
       
       const timer = setInterval(() => {
@@ -332,12 +348,15 @@ const CrashGame: React.FC = () => {
           if (prev === null || prev <= 1) {
             clearInterval(timer);
             console.log("Compte à rebours terminé, démarrage du jeu...");
-            startGame();
+            setTimeout(() => startGame(), 200); // Léger délai pour éviter les problèmes de synchronisation
             return null;
           }
           return prev - 1;
         });
       }, 1000);
+      
+      // Nettoyage automatique pour éviter les problèmes de mémoire
+      return () => clearInterval(timer);
     };
 
     // Démarrer le jeu
@@ -353,6 +372,12 @@ const CrashGame: React.FC = () => {
         
         console.log(`Crashpoint généré: ${crashPoint.toFixed(2)}, temps de crash: ${crashTimeMs}ms`);
         
+        // Valider le crashPoint pour éviter les valeurs aberrantes
+        if (crashPoint < MIN_MULTIPLIER || isNaN(crashPoint) || !isFinite(crashPoint)) {
+          console.error(`Crashpoint invalide généré: ${crashPoint}. Génération d'un nouveau point.`);
+          throw new Error('Crashpoint invalide');
+        }
+        
         const updatedState: CrashState = {
           ...gameState,
           status: 'running',
@@ -361,20 +386,24 @@ const CrashGame: React.FC = () => {
           crashMultiplier: crashPoint,
         };
         
-        await update(ref(database, 'crashGame/currentGame'), {
-          status: 'running',
-          startTime,
-          crashTime: startTime + crashTimeMs,
-          crashMultiplier: crashPoint
-        });
-        
+        // Mettre à jour l'état local immédiatement
         setGameState(updatedState);
+        
+        // Démarrer l'animation
         startAnimation();
         
         // Programmer le crash
         if (crashTimeoutRef.current) {
           clearTimeout(crashTimeoutRef.current);
         }
+        
+        // Mettre à jour Firebase
+        await update(ref(database, 'crashGame/currentGame'), {
+          status: 'running',
+          startTime,
+          crashTime: startTime + crashTimeMs,
+          crashMultiplier: crashPoint
+        });
         
         crashTimeoutRef.current = setTimeout(() => {
           handleCrash(crashPoint);
@@ -390,19 +419,30 @@ const CrashGame: React.FC = () => {
 
     // Générer un point de crash aléatoire
     const generateCrashPoint = (): number => {
-      // Formule pour générer des crashpoints réalistes avec l'avantage de la maison
-      // Plus la valeur est élevée, plus elle est rare
-      
-      // Chance de crasher à 1.00x (jeu immédiatement perdu)
-      // C'est une partie de l'avantage de la maison
-      if (Math.random() < 0.01) return 1.00;
-      
-      const rand = Math.random();
-      // Utiliser une distribution exponentielle pour créer la courbe typique des jeux crash
-      const multiplier = 0.9 / (rand * (1 - HOUSE_EDGE)) + 1;
-      
-      // Limiter le multiplicateur maximum possible
-      return Math.min(multiplier, MAX_MULTIPLIER);
+      try {
+        // Chance de crasher à 1.00x (jeu immédiatement perdu)
+        if (Math.random() < 0.01) return 1.00;
+        
+        const rand = Math.random();
+        // Utiliser une distribution exponentielle pour créer la courbe typique des jeux crash
+        let multiplier = 0.9 / (rand * (1 - HOUSE_EDGE)) + 1;
+        
+        // Limiter le multiplicateur maximum et minimum
+        multiplier = Math.min(multiplier, MAX_MULTIPLIER);
+        multiplier = Math.max(multiplier, MIN_MULTIPLIER);
+        
+        // S'assurer que le résultat est un nombre valide
+        if (isNaN(multiplier) || !isFinite(multiplier)) {
+          console.error(`Multiplicateur invalide: ${multiplier}, utilisation de la valeur par défaut 2.00`);
+          return 2.00;
+        }
+        
+        return multiplier;
+      } catch (error) {
+        console.error("Erreur dans generateCrashPoint:", error);
+        // En cas d'erreur, retourner une valeur sûre
+        return 2.00;
+      }
     };
 
     // Calculer le temps jusqu'au crash basé sur le multiplicateur
@@ -423,29 +463,51 @@ const CrashGame: React.FC = () => {
     const startAnimation = () => {
       if (!gameState.startTime) return;
       
-      lastUpdateTimeRef.current = performance.now();
+      // Réinitialiser le multiplicateur à 1.00 pour s'assurer qu'il commence correctement
       setCurrentMultiplier(1.00);
+      lastUpdateTimeRef.current = performance.now();
       
+      // Nettoyer l'animation précédente si elle existe
+      if (animationRef.current !== null) {
+        window.cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      
+      // Fonction d'animation avec plus de robustesse
       const animate = (timestamp: number) => {
-        const elapsed = timestamp - lastUpdateTimeRef.current;
-        lastUpdateTimeRef.current = timestamp;
-        
-        if (gameState.status === 'running' && gameState.startTime) {
-          const timeSinceStart = Date.now() - gameState.startTime;
-          const newMultiplier = calculateMultiplierAtTime(timeSinceStart);
+        try {
+          // Calculer le temps écoulé depuis la dernière frame
+          const elapsed = timestamp - lastUpdateTimeRef.current;
+          lastUpdateTimeRef.current = timestamp;
           
-          setCurrentMultiplier(newMultiplier);
-          drawCurve(newMultiplier);
-          
-          // Vérifier l'auto-cashout
-          if (userBet && autoCashout && newMultiplier >= autoCashout && !isCashedOut) {
-            cashOut();
+          if (gameState.status === 'running' && gameState.startTime) {
+            const timeSinceStart = Date.now() - gameState.startTime;
+            
+            // Calculer le nouveau multiplicateur
+            const newMultiplier = calculateMultiplierAtTime(timeSinceStart);
+            
+            // Vérifier que le multiplicateur est une valeur valide
+            if (!isNaN(newMultiplier) && isFinite(newMultiplier) && newMultiplier >= 1.00) {
+              setCurrentMultiplier(newMultiplier);
+              drawCurve(newMultiplier);
+              
+              // Vérifier l'auto-cashout
+              if (userBet && autoCashout && newMultiplier >= autoCashout && !isCashedOut) {
+                cashOut();
+              }
+            }
+            
+            // Continuer l'animation
+            animationRef.current = window.requestAnimationFrame(animate);
           }
-          
+        } catch (error) {
+          console.error("Erreur dans l'animation:", error);
+          // En cas d'erreur, on essaie de continuer l'animation
           animationRef.current = window.requestAnimationFrame(animate);
         }
       };
       
+      // Démarrer l'animation
       animationRef.current = window.requestAnimationFrame(animate);
     };
 
@@ -467,109 +529,118 @@ const CrashGame: React.FC = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       
-      // Redimensionner le canvas pour correspondre à sa taille affichée
-      const rect = canvas.getBoundingClientRect();
-      if (canvas.width !== rect.width || canvas.height !== rect.height) {
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-      }
-      
-      const width = canvas.width;
-      const height = canvas.height;
-      
-      // Effacer le canvas
-      ctx.clearRect(0, 0, width, height);
-      
-      // Dessiner le fond
-      ctx.fillStyle = 'rgba(17, 24, 39, 0.7)';
-      ctx.fillRect(0, 0, width, height);
-      
-      // Points pour dessiner la courbe
-      const points: [number, number][] = [];
-      
-      // Calculer les points de la courbe
-      const numPoints = 100;
-      const maxShownMultiplier = Math.max(currentMultiplier, 2); // Au moins montrer jusqu'à 2x
-      
-      for (let i = 0; i <= numPoints; i++) {
-        const multiplier = 1 + (i / numPoints) * (maxShownMultiplier - 1);
-        const x = (i / numPoints) * width;
-        // Inverser l'axe Y car les coordonnées du canvas commencent en haut
-        const y = height - ((multiplier - 1) / (maxShownMultiplier - 1)) * height * 0.8;
-        points.push([x, y]);
-      }
-      
-      // Dessiner la courbe
-      ctx.beginPath();
-      ctx.moveTo(0, height);
-      
-      // Ajouter le point de départ à (0, height - 0)
-      points.unshift([0, height]);
-      
-      // Dessiner la courbe à travers tous les points
-      for (let i = 0; i < points.length; i++) {
-        ctx.lineTo(points[i][0], points[i][1]);
-      }
-      
-      // Dessiner le gradient
-      const gradient = ctx.createLinearGradient(0, 0, 0, height);
-      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)'); // Bleu en haut
-      gradient.addColorStop(1, 'rgba(17, 24, 39, 0.1)'); // Transparent en bas
-      
-      ctx.lineTo(width, height);
-      ctx.closePath();
-      ctx.fillStyle = gradient;
-      ctx.fill();
-      
-      // Dessiner la ligne de la courbe
-      ctx.beginPath();
-      ctx.moveTo(points[1][0], points[1][1]); // Premier point après le point d'ancrage
-      
-      for (let i = 2; i < points.length; i++) {
-        ctx.lineTo(points[i][0], points[i][1]);
-      }
-      
-      ctx.strokeStyle = 'rgba(96, 165, 250, 0.8)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      
-      // Dessiner le point actuel
-      const currentPointX = width;
-      const currentPointY = points[points.length - 1][1];
-      
-      ctx.beginPath();
-      ctx.arc(currentPointX, currentPointY, 8, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
-      ctx.fill();
-      
-      // Dessiner le texte du multiplicateur
-      ctx.font = 'bold 32px Inter, sans-serif';
-      ctx.fillStyle = isCashedOut ? '#10B981' : '#F59E0B';
-      ctx.textAlign = 'center';
-      
-      const multiplierText = `${currentMultiplier.toFixed(2)}×`;
-      ctx.fillText(multiplierText, width / 2, height / 2);
-      
-      // Dessiner le message sous le multiplicateur
-      ctx.font = '16px Inter, sans-serif';
-      ctx.fillStyle = '#E5E7EB';
-      
-      let statusText = '';
-      if (gameState.status === 'waiting') {
-        statusText = 'En attente de la prochaine partie...';
-      } else if (gameState.status === 'running') {
-        if (userBet && !isCashedOut) {
-          statusText = 'Cliquez sur ENCAISSER pour sécuriser vos gains!';
-        } else if (isCashedOut) {
-          statusText = 'Gains sécurisés!';
-        } else {
-          statusText = 'La fusée décolle!';
+      try {
+        // Redimensionner le canvas pour correspondre à sa taille affichée
+        const rect = canvas.getBoundingClientRect();
+        if (canvas.width !== rect.width || canvas.height !== rect.height) {
+          canvas.width = rect.width;
+          canvas.height = rect.height;
         }
-      } else if (gameState.status === 'crashed') {
-        statusText = 'CRASH!';
+        
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Effacer le canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Dessiner le fond
+        ctx.fillStyle = 'rgba(17, 24, 39, 0.7)';
+        ctx.fillRect(0, 0, width, height);
+        
+        // S'assurer que le multiplicateur est valide
+        const validMultiplier = isNaN(currentMultiplier) || !isFinite(currentMultiplier) 
+          ? 1.00 
+          : Math.max(1.00, currentMultiplier);
+        
+        // Points pour dessiner la courbe
+        const points: [number, number][] = [];
+        
+        // Calculer les points de la courbe
+        const numPoints = 100;
+        const maxShownMultiplier = Math.max(validMultiplier, 2); // Au moins montrer jusqu'à 2x
+        
+        for (let i = 0; i <= numPoints; i++) {
+          const multiplier = 1 + (i / numPoints) * (maxShownMultiplier - 1);
+          const x = (i / numPoints) * width;
+          // Inverser l'axe Y car les coordonnées du canvas commencent en haut
+          const y = height - ((multiplier - 1) / (maxShownMultiplier - 1)) * height * 0.8;
+          points.push([x, y]);
+        }
+        
+        // Dessiner la courbe
+        ctx.beginPath();
+        ctx.moveTo(0, height);
+        
+        // Ajouter le point de départ à (0, height - 0)
+        points.unshift([0, height]);
+        
+        // Dessiner la courbe à travers tous les points
+        for (let i = 0; i < points.length; i++) {
+          ctx.lineTo(points[i][0], points[i][1]);
+        }
+        
+        // Dessiner le gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)'); // Bleu en haut
+        gradient.addColorStop(1, 'rgba(17, 24, 39, 0.1)'); // Transparent en bas
+        
+        ctx.lineTo(width, height);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // Dessiner la ligne de la courbe
+        ctx.beginPath();
+        ctx.moveTo(points[1][0], points[1][1]); // Premier point après le point d'ancrage
+        
+        for (let i = 2; i < points.length; i++) {
+          ctx.lineTo(points[i][0], points[i][1]);
+        }
+        
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.8)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Dessiner le point actuel
+        const currentPointX = width;
+        const currentPointY = points[points.length - 1][1];
+        
+        ctx.beginPath();
+        ctx.arc(currentPointX, currentPointY, 8, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+        ctx.fill();
+        
+        // Dessiner le texte du multiplicateur
+        ctx.font = 'bold 32px Inter, sans-serif';
+        ctx.fillStyle = isCashedOut ? '#10B981' : '#F59E0B';
+        ctx.textAlign = 'center';
+        
+        const multiplierText = `${validMultiplier.toFixed(2)}×`;
+        ctx.fillText(multiplierText, width / 2, height / 2);
+        
+        // Dessiner le message sous le multiplicateur
+        ctx.font = '16px Inter, sans-serif';
+        ctx.fillStyle = '#E5E7EB';
+        
+        let statusText = '';
+        if (gameState.status === 'waiting') {
+          statusText = 'En attente de la prochaine partie...';
+        } else if (gameState.status === 'running') {
+          if (userBet && !isCashedOut) {
+            statusText = 'Cliquez sur ENCAISSER pour sécuriser vos gains!';
+          } else if (isCashedOut) {
+            statusText = 'Gains sécurisés!';
+          } else {
+            statusText = 'La fusée décolle!';
+          }
+        } else if (gameState.status === 'crashed') {
+          statusText = 'CRASH!';
+        }
+        
+        ctx.fillText(statusText, width / 2, height / 2 + 30);
+      } catch (error) {
+        console.error("Erreur lors du dessin de la courbe:", error);
       }
-      
-      ctx.fillText(statusText, width / 2, height / 2 + 30);
     };
 
     // Gérer le crash
@@ -579,38 +650,54 @@ const CrashGame: React.FC = () => {
       try {
         if (!isMuted) playSound('crash');
         
+        // S'assurer que le crashPoint est valide
+        const validCrashPoint = isNaN(crashPoint) || !isFinite(crashPoint) || crashPoint < MIN_MULTIPLIER 
+          ? 1.01 
+          : crashPoint;
+        
         // Arrêter l'animation
         if (animationRef.current !== null) {
           window.cancelAnimationFrame(animationRef.current);
           animationRef.current = null;
         }
         
-        // Mettre à jour l'état du jeu
-        await update(ref(database, 'crashGame/currentGame'), {
-          status: 'crashed',
-          crashMultiplier: crashPoint
-        });
+        // Mettre à jour l'interface avec le multiplicateur final
+        setCurrentMultiplier(validCrashPoint);
+        drawCurve(validCrashPoint);
         
+        // Mettre à jour l'état du jeu localement d'abord
         setGameState(prev => {
+          // S'assurer que l'historique existe et est un tableau
+          const prevHistory = Array.isArray(prev.crashHistory) ? prev.crashHistory : [];
           // Ajouter ce crash à l'historique
-          const updatedHistory = [crashPoint, ...(prev.crashHistory || [])].slice(0, 10);
-          
-          // Mettre à jour la base de données avec le nouvel historique
-          update(ref(database, 'crashGame/currentGame'), {
-            crashHistory: updatedHistory
-          });
+          const updatedHistory = [validCrashPoint, ...prevHistory].slice(0, 10);
           
           return {
             ...prev,
             status: 'crashed',
-            crashMultiplier: crashPoint,
+            crashMultiplier: validCrashPoint,
             crashHistory: updatedHistory
           };
         });
         
-        // Mettre à jour l'interface avec le multiplicateur final
-        setCurrentMultiplier(crashPoint);
-        drawCurve(crashPoint);
+        // Mettre à jour Firebase
+        try {
+          const gameStateRef = ref(database, 'crashGame/currentGame');
+          const snapshot = await get(gameStateRef);
+          
+          if (snapshot.exists()) {
+            const currentState = snapshot.val();
+            const currentHistory = Array.isArray(currentState.crashHistory) ? currentState.crashHistory : [];
+            
+            await update(gameStateRef, {
+              status: 'crashed',
+              crashMultiplier: validCrashPoint,
+              crashHistory: [validCrashPoint, ...currentHistory].slice(0, 10)
+            });
+          }
+        } catch (firebaseError) {
+          console.error("Erreur lors de la mise à jour de Firebase:", firebaseError);
+        }
         
         // Après un délai, préparer la prochaine partie
         setTimeout(() => {
@@ -676,9 +763,19 @@ const CrashGame: React.FC = () => {
           autoCashout: autoCashout || undefined
         };
         
-        // Mettre à jour l'état du jeu avec le nouveau pari
-        const updatedBets = [...(gameState.bets || []), newBet];
+        // Mettre à jour l'état local immédiatement
+        setUserBet(newBet);
         
+        // S'assurer que gameState.bets est un tableau
+        const currentBets = Array.isArray(gameState.bets) ? gameState.bets : [];
+        const updatedBets = [...currentBets, newBet];
+        
+        setGameState(prev => ({
+          ...prev,
+          bets: updatedBets
+        }));
+        
+        // Mettre à jour Firebase
         await update(ref(database, 'crashGame/currentGame'), {
           bets: updatedBets
         });
@@ -698,12 +795,6 @@ const CrashGame: React.FC = () => {
           
           setUserBalance(newBalance);
         }
-        
-        setUserBet(newBet);
-        setGameState(prev => ({
-          ...prev,
-          bets: updatedBets
-        }));
         
         setMessage({ text: "Pari placé avec succès", type: 'success' });
       } catch (error) {
@@ -1046,6 +1137,7 @@ const CrashGame: React.FC = () => {
                     <button
                       onClick={cashOut}
                       className="cashout-button"
+                      title="Cliquez pour encaisser vos gains"
                     >
                       <Check size={18} className="inline-icon" />
                       Encaisser <span className="multiplier">x{currentMultiplier.toFixed(2)}</span>
@@ -1158,9 +1250,9 @@ const CrashGame: React.FC = () => {
               <span>MAX: {MAX_BET}€</span>
             </div>
             
-            {/* Ajouter l'état du jeu pour déboguer */}
+            {/* Indicateur d'état plus complet */}
             <div className="key-indicator">
-              <span>État: {gameState.status}</span>
+              <span>État: {gameState.status} | Multiplicateur: {currentMultiplier.toFixed(2)}×</span>
             </div>
           </div>
         </div>
