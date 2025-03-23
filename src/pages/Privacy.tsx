@@ -57,6 +57,9 @@ const Privacy = () => {
                 <li>
                   <strong>Données de transactions</strong> : historique des achats effectués sur la plateforme (sans informations bancaires)
                 </li>
+                <li>
+                  <strong>Données de jeu</strong> : historique des parties jouées dans les jeux de casino, mises virtuelles, gains virtuels et performances
+                </li>
               </ul>
               <p className="mt-2">
                 Nous ne collectons pas :
@@ -80,6 +83,8 @@ const Privacy = () => {
                 <li>Suivre votre progression dans les formations</li>
                 <li>Communiquer avec vous concernant votre compte ou vos achats</li>
                 <li>Assurer la sécurité de notre plateforme</li>
+                <li>Gérer les jeux de casino virtuels et suivre les statistiques de jeu</li>
+                <li>Prévenir la fraude et les abus dans l'utilisation des jeux</li>
               </ul>
               <p className="mt-2">
                 Nous n'utilisons pas vos données à des fins de marketing, de profilage ou de publicité ciblée. Nous ne vendons ni ne partageons vos données avec des tiers à des fins commerciales.
@@ -93,6 +98,9 @@ const Privacy = () => {
               </p>
               <p className="mt-2">
                 Vos données de progression dans les formations et votre historique d'achats sont conservés tant que votre compte est actif, pour vous permettre d'accéder aux services que vous avez achetés.
+              </p>
+              <p className="mt-2">
+                Les données relatives aux jeux de casino virtuels (historique des parties, statistiques) sont également conservées tant que votre compte est actif. Ces données nous permettent de surveiller l'utilisation des jeux, de prévenir les abus et d'améliorer l'expérience utilisateur.
               </p>
             </section>
 

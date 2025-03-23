@@ -33,6 +33,9 @@ const CGU = () => {
               <p className="mt-2">
                 Tous nos contenus et services sont fournis à des fins strictement éducatives et informatives. L'objectif est de permettre aux utilisateurs de mieux comprendre et se protéger contre les tentatives de fraude et les menaces de sécurité.
               </p>
+              <p className="mt-2">
+                Notre plateforme propose également des jeux de casino virtuels, disponibles uniquement à des fins de divertissement. Ces jeux utilisent une monnaie virtuelle sans valeur réelle et ne permettent pas de gagner de l'argent réel ou des biens de valeur. L'utilisation de ces jeux est soumise à des conditions spécifiques détaillées dans la section "Utilisation des jeux de casino".
+              </p>
             </section>
 
             <section>
@@ -56,6 +59,8 @@ const CGU = () => {
                 <li>Ne pas copier, modifier, distribuer, vendre ou louer une partie de nos services sans autorisation explicite</li>
                 <li>Ne pas utiliser les connaissances et outils fournis à des fins malveillantes ou préjudiciables</li>
                 <li>Ne pas utiliser nos services d'une manière qui pourrait endommager, désactiver, surcharger ou altérer notre plateforme</li>
+                <li>Ne pas exploiter les jeux de casino à des fins commerciales ou pour contourner les mécanismes de jeu</li>
+                <li>Ne pas utiliser de logiciels automatisés ou de scripts pour interagir avec les jeux de casino</li>
               </ul>
             </section>
 
@@ -70,7 +75,22 @@ const CGU = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-blue-400">6. Limitation de responsabilité</h2>
+              <h2 className="text-xl font-semibold mb-3 text-blue-400">6. Utilisation des jeux de casino</h2>
+              <p>
+                Les jeux de casino proposés sur notre plateforme sont destinés uniquement au divertissement et utilisent une monnaie virtuelle sans valeur réelle. En utilisant ces jeux, vous reconnaissez et acceptez que :
+              </p>
+              <ul className="list-disc pl-6 mt-2 space-y-1">
+                <li>Vous devez être âgé d'au moins 18 ans pour accéder aux jeux de casino, même s'ils n'impliquent pas d'argent réel</li>
+                <li>La monnaie virtuelle utilisée dans les jeux n'a aucune valeur monétaire réelle et ne peut être échangée contre de l'argent réel ou des biens</li>
+                <li>Les résultats des jeux sont déterminés par un générateur de nombres aléatoires</li>
+                <li>Nous nous réservons le droit de modifier, suspendre ou supprimer tout jeu ou fonctionnalité à tout moment</li>
+                <li>Nous ne sommes pas responsables de toute perte de monnaie virtuelle due à des problèmes techniques ou des erreurs</li>
+                <li>Toute tentative de manipulation ou d'exploitation des jeux pourra entraîner la suspension ou la suppression de votre compte</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-3 text-blue-400">7. Limitation de responsabilité</h2>
               <p>
                 Nos services sont fournis "tels quels" sans garantie d'aucune sorte, expresse ou implicite. Nous ne garantissons pas que nos services seront ininterrompus, opportuns, sûrs ou exempts d'erreurs.
               </p>
@@ -80,17 +100,20 @@ const CGU = () => {
               <p className="mt-2">
                 Les connaissances et outils fournis sont destinés à des fins éducatives et informatives uniquement. L'utilisateur assume l'entière responsabilité de l'utilisation qu'il fait de ces informations.
               </p>
+              <p className="mt-2">
+                En ce qui concerne les jeux de casino, nous ne sommes pas responsables de toute dépendance au jeu pouvant résulter de leur utilisation. Si vous pensez développer des comportements problématiques liés au jeu, nous vous encourageons à consulter des ressources spécialisées dans l'addiction au jeu.
+              </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-blue-400">7. Liens vers des sites tiers</h2>
+              <h2 className="text-xl font-semibold mb-3 text-blue-400">8. Liens vers des sites tiers</h2>
               <p>
                 Notre plateforme peut contenir des liens vers des sites web tiers. Ces liens sont fournis uniquement pour votre commodité. Nous n'avons aucun contrôle sur le contenu de ces sites et n'assumons aucune responsabilité pour leur contenu, leurs pratiques de confidentialité ou leur fonctionnement.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-blue-400">8. Modification des conditions</h2>
+              <h2 className="text-xl font-semibold mb-3 text-blue-400">9. Modification des conditions</h2>
               <p>
                 Nous nous réservons le droit de modifier ces conditions générales d'utilisation à tout moment. Les modifications entreront en vigueur dès leur publication sur la plateforme. Il est de votre responsabilité de consulter régulièrement ces conditions.
               </p>
@@ -100,14 +123,14 @@ const CGU = () => {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-blue-400">9. Résiliation</h2>
+              <h2 className="text-xl font-semibold mb-3 text-blue-400">10. Résiliation</h2>
               <p>
                 Nous nous réservons le droit, à notre seule discrétion, de suspendre ou de résilier votre accès à tout ou partie de notre plateforme, à tout moment et pour quelque raison que ce soit, y compris, sans limitation, la violation des présentes conditions générales d'utilisation.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-blue-400">10. Droit applicable</h2>
+              <h2 className="text-xl font-semibold mb-3 text-blue-400">11. Droit applicable</h2>
               <p>
                 Les présentes conditions générales d'utilisation sont régies et interprétées conformément aux lois en vigueur. Tout litige relatif à l'utilisation de notre plateforme sera soumis à la compétence exclusive des tribunaux compétents.
               </p>

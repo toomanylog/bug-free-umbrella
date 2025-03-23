@@ -34,9 +34,13 @@ const CGV = () => {
                 <li>Formations en ligne dans le domaine de la cybersécurité et de la protection contre les fraudes</li>
                 <li>Outils spécialisés pour les campagnes emails et la sécurité des systèmes</li>
                 <li>Ressources éducatives et informatives</li>
+                <li>Jeux de casino virtuels à des fins de divertissement utilisant une monnaie virtuelle sans valeur réelle</li>
               </ul>
               <p className="mt-2">
                 Tous nos services sont fournis exclusivement à des fins éducatives et informatives. Ils visent à améliorer les connaissances des utilisateurs en matière de sécurité informatique et à les aider à se protéger contre les tentatives de fraude.
+              </p>
+              <p className="mt-2">
+                Les jeux de casino proposés sur notre plateforme sont uniquement destinés au divertissement et n'impliquent aucune mise d'argent réel. La monnaie virtuelle utilisée dans ces jeux n'a aucune valeur monétaire et ne peut être échangée contre de l'argent réel ou des biens.
               </p>
             </section>
 
@@ -76,6 +80,9 @@ const CGV = () => {
               <p className="mt-2">
                 L'accès aux services s'effectue via l'espace personnel de l'utilisateur sur notre plateforme, accessible à l'aide de ses identifiants de connexion. L'utilisateur est responsable de la confidentialité de ses identifiants et de toutes les activités effectuées via son compte.
               </p>
+              <p className="mt-2">
+                L'accès aux jeux de casino virtuels peut être soumis à des restrictions d'âge. L'utilisateur déclare être âgé d'au moins 18 ans pour accéder à ces fonctionnalités, même si elles n'impliquent pas d'argent réel.
+              </p>
             </section>
 
             <section>
@@ -108,6 +115,9 @@ const CGV = () => {
               </p>
               <p className="mt-2">
                 Les connaissances et outils fournis sont destinés uniquement à des fins éducatives et informatives. Ils ne doivent pas être utilisés à des fins illégales ou malveillantes. L'utilisateur est seul responsable de l'usage qu'il fait des informations et outils mis à sa disposition.
+              </p>
+              <p className="mt-2">
+                En ce qui concerne les jeux de casino virtuels, nous ne garantissons pas leur disponibilité continue et nous nous réservons le droit de les modifier ou de les supprimer à tout moment. Les résultats des jeux sont déterminés par un générateur de nombres aléatoires et nous ne garantissons pas de gains. Nous ne sommes pas responsables de toute perte de monnaie virtuelle due à des problèmes techniques ou des erreurs. Nous déclinons également toute responsabilité concernant d'éventuels comportements addictifs liés à l'utilisation de ces jeux.
               </p>
             </section>
 
