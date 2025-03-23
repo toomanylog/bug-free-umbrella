@@ -1054,8 +1054,14 @@ const RiotManager: React.FC = () => {
       const rank = parts[0];
       const number = parts[1];
 
-      // URL du fichier image local selon convention de nommage
-      return `/img/rank_png/${rank}_${number}_Rank.png`;
+      // S'assurer que l'URL est toujours un chemin relatif
+      const imgPath = `/img/rank_png/${rank}_${number}_Rank.png`;
+      // Vérifier que l'URL ne contient pas de domaine externe
+      if (imgPath.startsWith('http')) {
+        console.warn(`L'URL de l'image contient un domaine externe: ${imgPath}`);
+        return "/img/rank_png/Iron_1_Rank.png";
+      }
+      return imgPath;
     } catch (error) {
       console.error("Erreur lors de la génération du chemin de l'image de rang:", error);
       return "/img/rank_png/Iron_1_Rank.png"; // Image par défaut en cas d'erreur
@@ -1264,6 +1270,23 @@ const RiotManager: React.FC = () => {
       setAccountOrder(sortedAccounts.map(account => account.id));
     }
   }, [accounts, accountOrder.length]);
+  
+  // Ajouter cette fonction juste après la définition des fonctions toggleAgentOwnership et toggleSkinOwnership
+  // Fonction pour gérer le clic sur "Modifier" pour les agents et skins
+  const handleEditItemsClick = (type: string, accountId: string) => {
+    const isCurrentlyEditing = editingOwnedItems === `${type}-${accountId}`;
+    
+    if (!isCurrentlyEditing) {
+      // Charger les données si elles ne sont pas déjà chargées
+      if (type === 'agents' && agents.length === 0) {
+        loadAgents();
+      } else if (type === 'skins' && weapons.length === 0) {
+        loadWeapons();
+      }
+    }
+    
+    setEditingOwnedItems(isCurrentlyEditing ? null : `${type}-${accountId}`);
+  };
   
   // Rendu du composant
   return (
@@ -1483,72 +1506,75 @@ const RiotManager: React.FC = () => {
                                 
                                 <div className="space-y-2">
                                   {/* Login */}
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                      <p className="text-xs text-gray-400 mb-1">Login</p>
-                                      <p className="text-sm font-mono bg-gray-800 px-2 py-1 rounded truncate">
+                                  <div className="relative">
+                                    <p className="text-xs text-gray-400 mb-1">Login</p>
+                                    <div className="flex rounded-md overflow-hidden">
+                                      <div className="flex-1 bg-gray-800 text-sm font-mono px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap border-l border-t border-b border-gray-700">
                                         {account.login || account.username || "Non défini"}
-                                      </p>
+                                      </div>
+                                      <button 
+                                        onClick={() => {
+                                          const textToCopy = account.login || account.username || "";
+                                          navigator.clipboard.writeText(textToCopy);
+                                          setCopiedField({accountId: account.id, field: 'login'});
+                                          setTimeout(() => setCopiedField(null), 2000);
+                                        }}
+                                        className={`px-3 py-2 border-r border-t border-b border-gray-700 flex items-center transition-colors ${copiedField?.accountId === account.id && copiedField?.field === 'login' ? 'bg-green-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+                                        title="Copier le login"
+                                      >
+                                        {copiedField?.accountId === account.id && copiedField?.field === 'login' ? <Check size={16} className="mr-1" /> : null}
+                                        <span className="text-xs font-medium">Copier</span>
+                                      </button>
                                     </div>
-                                    <button 
-                                      onClick={() => {
-                                        const textToCopy = account.login || account.username || "";
-                                        navigator.clipboard.writeText(textToCopy);
-                                        setCopiedField({accountId: account.id, field: 'login'});
-                                        setTimeout(() => setCopiedField(null), 2000);
-                                      }}
-                                      className={`ml-2 p-2 rounded-md ${copiedField?.accountId === account.id && copiedField?.field === 'login' ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                                      title="Copier le login"
-                                    >
-                                      {copiedField?.accountId === account.id && copiedField?.field === 'login' ? <Check size={16} /> : "Copier"}
-                                    </button>
                                   </div>
                                   
                                   {/* Mot de passe */}
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                      <p className="text-xs text-gray-400 mb-1">Mot de passe</p>
-                                      <p className="text-sm font-mono bg-gray-800 px-2 py-1 rounded truncate">
+                                  <div className="relative">
+                                    <p className="text-xs text-gray-400 mb-1">Mot de passe</p>
+                                    <div className="flex rounded-md overflow-hidden">
+                                      <div className="flex-1 bg-gray-800 text-sm font-mono px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap border-l border-t border-b border-gray-700">
                                         {account.password ? "••••••••" : "Non défini"}
-                                      </p>
+                                      </div>
+                                      <button 
+                                        onClick={() => {
+                                          if (account.password) {
+                                            const decrypted = decryptPassword(account.password);
+                                            navigator.clipboard.writeText(decrypted);
+                                            setCopiedField({accountId: account.id, field: 'password'});
+                                            setTimeout(() => setCopiedField(null), 2000);
+                                          }
+                                        }}
+                                        className={`px-3 py-2 border-r border-t border-b border-gray-700 flex items-center transition-colors ${copiedField?.accountId === account.id && copiedField?.field === 'password' ? 'bg-green-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+                                        title="Copier le mot de passe"
+                                        disabled={!account.password}
+                                      >
+                                        {copiedField?.accountId === account.id && copiedField?.field === 'password' ? <Check size={16} className="mr-1" /> : null}
+                                        <span className="text-xs font-medium">Copier</span>
+                                      </button>
                                     </div>
-                                    <button 
-                                      onClick={() => {
-                                        if (account.password) {
-                                          const decrypted = decryptPassword(account.password);
-                                          navigator.clipboard.writeText(decrypted);
-                                          setCopiedField({accountId: account.id, field: 'password'});
-                                          setTimeout(() => setCopiedField(null), 2000);
-                                        }
-                                      }}
-                                      className={`ml-2 p-2 rounded-md ${copiedField?.accountId === account.id && copiedField?.field === 'password' ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                                      title="Copier le mot de passe"
-                                      disabled={!account.password}
-                                    >
-                                      {copiedField?.accountId === account.id && copiedField?.field === 'password' ? <Check size={16} /> : "Copier"}
-                                    </button>
                                   </div>
                                   
                                   {/* Email */}
                                   {account.email && (
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <p className="text-xs text-gray-400 mb-1">Email</p>
-                                        <p className="text-sm font-mono bg-gray-800 px-2 py-1 rounded truncate">
+                                    <div className="relative">
+                                      <p className="text-xs text-gray-400 mb-1">Email</p>
+                                      <div className="flex rounded-md overflow-hidden">
+                                        <div className="flex-1 bg-gray-800 text-sm font-mono px-3 py-2 overflow-hidden text-ellipsis whitespace-nowrap border-l border-t border-b border-gray-700">
                                           {account.email}
-                                        </p>
+                                        </div>
+                                        <button 
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(account.email || "");
+                                            setCopiedField({accountId: account.id, field: 'email'});
+                                            setTimeout(() => setCopiedField(null), 2000);
+                                          }}
+                                          className={`px-3 py-2 border-r border-t border-b border-gray-700 flex items-center transition-colors ${copiedField?.accountId === account.id && copiedField?.field === 'email' ? 'bg-green-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+                                          title="Copier l'email"
+                                        >
+                                          {copiedField?.accountId === account.id && copiedField?.field === 'email' ? <Check size={16} className="mr-1" /> : null}
+                                          <span className="text-xs font-medium">Copier</span>
+                                        </button>
                                       </div>
-                                      <button 
-                                        onClick={() => {
-                                          navigator.clipboard.writeText(account.email || "");
-                                          setCopiedField({accountId: account.id, field: 'email'});
-                                          setTimeout(() => setCopiedField(null), 2000);
-                                        }}
-                                        className={`ml-2 p-2 rounded-md ${copiedField?.accountId === account.id && copiedField?.field === 'email' ? 'bg-green-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                                        title="Copier l'email"
-                                      >
-                                        {copiedField?.accountId === account.id && copiedField?.field === 'email' ? <Check size={16} /> : "Copier"}
-                                      </button>
                                     </div>
                                   )}
                                 </div>
@@ -1630,7 +1656,7 @@ const RiotManager: React.FC = () => {
                                 <div className="flex justify-between items-center mb-2">
                                   <h4 className="text-sm font-medium text-blue-300">Agents ({account.ownedAgents?.length || 0})</h4>
                                   <button
-                                    onClick={() => setEditingOwnedItems(editingOwnedItems === `agents-${account.id}` ? null : `agents-${account.id}`)}
+                                    onClick={() => handleEditItemsClick('agents', account.id)}
                                     className="text-xs text-blue-400 hover:text-blue-300"
                                   >
                                     {editingOwnedItems === `agents-${account.id}` ? 'Terminer' : 'Modifier'}
@@ -1692,7 +1718,7 @@ const RiotManager: React.FC = () => {
                                 <div className="flex justify-between items-center mb-2">
                                   <h4 className="text-sm font-medium text-blue-300">Skins ({account.ownedSkins?.length || 0})</h4>
                                   <button
-                                    onClick={() => setEditingOwnedItems(editingOwnedItems === `skins-${account.id}` ? null : `skins-${account.id}`)}
+                                    onClick={() => handleEditItemsClick('skins', account.id)}
                                     className="text-xs text-blue-400 hover:text-blue-300"
                                   >
                                     {editingOwnedItems === `skins-${account.id}` ? 'Terminer' : 'Modifier'}
@@ -1783,38 +1809,21 @@ const RiotManager: React.FC = () => {
                         </p>
                         
                         {/* Actions */}
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <button 
-                            onClick={() => openEditForm(account)}
-                            className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
+                        <div className="flex space-x-2 mt-4">
+                          <button
+                            onClick={() => {
+                              openEditForm(account);
+                              setShowForm(true);
+                            }}
+                            className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm flex items-center justify-center"
                           >
                             <Edit size={16} className="mr-1" />
                             Modifier
                           </button>
-                                
-                                <button 
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    // Déchiffrer le mot de passe avant la copie
-                                    const originalPassword = account.password ? decryptPassword(account.password) : '';
-                                    navigator.clipboard.writeText(originalPassword);
-                                    setCopiedField({accountId: account.id, field: 'password'});
-                                    setTimeout(() => setCopiedField(null), 2000);
-                                  }}
-                                  className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
-                                  title="Copier le mot de passe"
-                                >
-                                  {copiedField?.accountId === account.id && copiedField?.field === 'password' ? (
-                                    <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
-                                      Copié!
-                                    </span>
-                                  ) : null}
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                          </button>
                           
-                          <button 
+                          <button
                             onClick={() => deleteAccount(account.id)}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg flex items-center"
+                            className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm flex items-center justify-center"
                           >
                             <Trash2 size={16} className="mr-1" />
                             Supprimer
