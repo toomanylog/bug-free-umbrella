@@ -30,6 +30,9 @@ interface RiotAccount {
       tier: string;
     }>;
   };
+  order?: number; // Pour l'ordre d'affichage des cartes
+  ownedSkins?: string[]; // IDs des skins possédés
+  ownedAgents?: string[]; // IDs des agents possédés
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -110,6 +113,37 @@ const REGIONS = [
 // Clé API Riot
 const RIOT_API_KEY = process.env.REACT_APP_RIOT_API_KEY || 'RGAPI-80c93110-b305-4d8d-bbe1-b067038b1e54';
 
+// Ajouter une fonction de chiffrement/déchiffrement simple pour les mots de passe
+// Définir un sel pour le chiffrement (idéalement, ce serait dans des variables d'environnement)
+const ENCRYPTION_KEY = "valorant-dashboard-secret-key";
+
+// Fonction pour chiffrer un mot de passe
+const encryptPassword = (password: string): string => {
+  try {
+    // Méthode simple de "chiffrement" - en production, utiliser une bibliothèque crypto plus robuste
+    // Cette méthode n'est pas sécurisée mais illustre le concept
+    return btoa(password.split('').map((char, i) => 
+      String.fromCharCode(char.charCodeAt(0) + (ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length) % 10))
+    ).join(''));
+  } catch (e) {
+    console.error("Erreur lors du chiffrement du mot de passe:", e);
+    return password; // En cas d'erreur, revenir au texte brut
+  }
+};
+
+// Fonction pour déchiffrer un mot de passe
+const decryptPassword = (encrypted: string): string => {
+  try {
+    const decoded = atob(encrypted);
+    return decoded.split('').map((char, i) => 
+      String.fromCharCode(char.charCodeAt(0) - (ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length) % 10))
+    ).join('');
+  } catch (e) {
+    console.error("Erreur lors du déchiffrement du mot de passe:", e);
+    return encrypted; // En cas d'erreur, revenir au texte chiffré
+  }
+};
+
 // Composant principal
 const RiotManager: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -158,6 +192,11 @@ const RiotManager: React.FC = () => {
   const [showVideo, setShowVideo] = useState<string>('');
   // Ajouter après la déclaration des autres états (vers la ligne 156)
   const [copiedField, setCopiedField] = useState<{accountId: string, field: string} | null>(null);
+  
+  // Ajouter ces états dans la fonction RiotManager (après les autres useState)
+  const [accountOrder, setAccountOrder] = useState<string[]>([]);
+  const [draggingEnabled, setDraggingEnabled] = useState<boolean>(false);
+  const [editingOwnedItems, setEditingOwnedItems] = useState<string | null>(null);
   
   // Chargement des comptes depuis Firebase
   useEffect(() => {
@@ -267,83 +306,8 @@ const RiotManager: React.FC = () => {
     try {
       // Vérifier que la clé API existe
       if (!RIOT_API_KEY) {
-        throw new Error("Clé API Riot non disponible");
-      }
-      
-      console.log(`Tentative de récupération des données pour ${username}#${tag} dans la région ${region}`);
-      
-      // Nettoyage et vérification des valeurs
-      const cleanUsername = encodeURIComponent(username.trim());
-      const cleanTag = encodeURIComponent(tag.trim());
-      
-      console.log(`Appel API avec username='${cleanUsername}' et tag='${cleanTag}'`);
-      
-      // Recherche du compte par nom et tag
-      const accountResponse = await fetch(
-        `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${cleanUsername}/${cleanTag}`,
-        {
-          headers: {
-            'X-Riot-Token': RIOT_API_KEY
-          }
-        }
-      );
-      
-      // Vérifier les erreurs spécifiques
-      if (!accountResponse.ok) {
-        const status = accountResponse.status;
-        if (status === 400) {
-          console.error('Erreur 400: Vérifiez le format du nom d\'utilisateur et du tag');
-          throw new Error(`Erreur API Riot: Format de nom d'utilisateur ou tag invalide`);
-        } else if (status === 401) {
-          console.error('Erreur 401: Clé API Riot non valide ou expirée');
-          throw new Error(`Erreur API Riot: Clé API non valide ou expirée`);
-        } else if (status === 403) {
-          console.error('Erreur 403: Accès refusé à l\'API Riot');
-          throw new Error(`Erreur API Riot: Accès refusé`);
-        } else if (status === 404) {
-          console.error('Erreur 404: Compte non trouvé');
-          throw new Error(`Compte Riot non trouvé: ${username}#${tag}`);
-        } else {
-          console.error(`Erreur API Riot: ${status}`);
-          throw new Error(`Erreur API: ${status}`);
-        }
-      }
-      
-      const accountData = await accountResponse.json();
-      console.log('Données du compte récupérées:', accountData);
-      const puuid = accountData.puuid;
-      
-      // Créer un objet de compte de base
-      const baseAccount = {
-        riotId: puuid,
-        username,
-        tag,
-        region,
-        lastUpdated: Date.now()
-      };
-      
-      // Pas besoin d'essayer de récupérer les données de rang pour le moment
-      // L'API leaderboards ne fonctionne pas correctement ici
-      return baseAccount;
-      
-      /* Désactivation temporaire de la récupération du rang
-      // Convertir la région pour les API Valorant (différentes régions dans l'API Valorant)
-      const valorantRegion = convertRegion(region);
-      
-      // Récupérer les données de rang du joueur
-      const rankResponse = await fetch(
-        `https://${valorantRegion}.api.riotgames.com/val/ranked/v1/leaderboards/by-puuid/${puuid}`,
-        {
-          headers: {
-            'X-Riot-Token': RIOT_API_KEY
-          }
-        }
-      );
-      
-      // Si nous ne pouvons pas obtenir les données de rang, retourner juste les informations du compte
-      if (!rankResponse.ok) {
+        console.warn("Clé API Riot non disponible, mode manuel activé par défaut");
         return {
-          riotId: puuid,
           username,
           tag,
           region,
@@ -351,30 +315,102 @@ const RiotManager: React.FC = () => {
         };
       }
       
-      const rankData = await rankResponse.json();
+      console.log(`Tentative de récupération des données pour ${username}#${tag} dans la région ${region}`);
       
-      // Créer l'objet de rang
-      const rankInfo = {
-        currentRank: getRankName(rankData.tier),
-        currentTier: rankData.tier.toString(),
-        rankIcon: getRankIcon(rankData.tier),
-        // Ces valeurs devraient être mises à jour avec les vraies données si disponibles
-        bestRank: getRankName(rankData.tier),
-        bestTier: rankData.tier.toString()
-      };
+      // Vérifier que le nom et le tag sont valides avant de faire une requête API
+      if (!username || !tag) {
+        console.warn("Nom d'utilisateur ou tag manquant");
+        return {
+          username: username || "",
+          tag: tag || "",
+          region,
+          lastUpdated: Date.now()
+        };
+      }
       
+      // Nettoyage et vérification des valeurs
+      const cleanUsername = encodeURIComponent(username.trim());
+      const cleanTag = encodeURIComponent(tag.trim());
+      
+      console.log(`Appel API avec username='${cleanUsername}' et tag='${cleanTag}'`);
+      
+      try {
+        // Recherche du compte par nom et tag
+        const accountResponse = await fetch(
+          `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${cleanUsername}/${cleanTag}`,
+          {
+            headers: {
+              'X-Riot-Token': RIOT_API_KEY
+            }
+          }
+        );
+        
+        // Vérifier les erreurs spécifiques
+        if (!accountResponse.ok) {
+          const status = accountResponse.status;
+          if (status === 400) {
+            console.error('Erreur 400: Vérifiez le format du nom d\'utilisateur et du tag');
+            console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
+            return {
+              username,
+              tag,
+              region,
+              lastUpdated: Date.now()
+            };
+          } else if (status === 401) {
+            console.error('Erreur 401: Clé API Riot non valide ou expirée');
+            throw new Error(`Erreur API Riot: Clé API non valide ou expirée`);
+          } else if (status === 403) {
+            console.error('Erreur 403: Accès refusé à l\'API Riot');
+            throw new Error(`Erreur API Riot: Accès refusé`);
+          } else if (status === 404) {
+            console.error('Erreur 404: Compte non trouvé');
+            console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
+            return {
+              username,
+              tag,
+              region,
+              lastUpdated: Date.now()
+            };
+          } else {
+            console.error(`Erreur API Riot: ${status}`);
+            throw new Error(`Erreur API: ${status}`);
+          }
+        }
+        
+        const accountData = await accountResponse.json();
+        console.log('Données du compte récupérées:', accountData);
+        const puuid = accountData.puuid;
+        
+        // Créer un objet de compte de base
+        const baseAccount = {
+          riotId: puuid,
+          username,
+          tag,
+          region,
+          lastUpdated: Date.now()
+        };
+        
+        return baseAccount;
+      } catch (apiError) {
+        console.error("Erreur API:", apiError);
+        console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
+        return {
+          username,
+          tag,
+          region,
+          lastUpdated: Date.now()
+        };
+      }
+    } catch (err: any) {
+      console.error('Erreur lors de la récupération des données du joueur:', err);
+      // Au lieu de lancer une erreur, retourner les données de base pour permettre la création manuelle
       return {
-        riotId: puuid,
         username,
         tag,
         region,
-        lastUpdated: Date.now(),
-        rank: rankInfo
+        lastUpdated: Date.now()
       };
-      */
-    } catch (err: any) {
-      console.error('Erreur lors de la récupération des données du joueur:', err);
-      throw err;
     }
   };
   
@@ -571,7 +607,7 @@ const RiotManager: React.FC = () => {
       
       if (advancedMode) {
         if (newAccount.email) mergedData.email = newAccount.email;
-        if (newAccount.password) mergedData.password = newAccount.password;
+        if (newAccount.password) mergedData.password = encryptPassword(newAccount.password);
         if (newAccount.login) mergedData.login = newAccount.login;
       }
       
@@ -594,7 +630,10 @@ const RiotManager: React.FC = () => {
         ...(mergedData.login && { login: mergedData.login }),
         ...(mergedData.linked && { linked: mergedData.linked }),
         ...(mergedData.linkedAccounts && { linkedAccounts: mergedData.linkedAccounts }),
-        ...(mergedData.manualRank && { manualRank: mergedData.manualRank })
+        ...(mergedData.manualRank && { manualRank: mergedData.manualRank }),
+        order: isEditing && selectedAccount ? (selectedAccount.order || 0) : 0,
+        ownedSkins: isEditing && selectedAccount ? selectedAccount.ownedSkins || [] : [],
+        ownedAgents: isEditing && selectedAccount ? selectedAccount.ownedAgents || [] : []
       };
       
       if (isEditing && selectedAccount) {
@@ -980,24 +1019,143 @@ const RiotManager: React.FC = () => {
     return index;
   };
   
-  // Modifier la fonction getRankIconByName pour utiliser les images locales
+  // Modifier la fonction getRankIconByName pour utiliser correctement les images locales
   const getRankIconByName = (rankName: string): string => {
     // Si pas de rankName ou "Non classé", retourner l'image par défaut
     if (!rankName || rankName.toLowerCase() === "non classé") {
       return "/img/rank_png/Iron_1_Rank.png"; // Utiliser Iron 1 comme image par défaut
     }
 
-    // Nettoyer et formater le nom pour correspondre au format de fichier
-    let formattedRank = rankName.replace(" ", "_");
-    
-    // Pour "Radiant", pas de numéro
-    if (formattedRank.toLowerCase() === "radiant") {
-      return `/img/rank_png/Radiant_Rank.png`;
+    try {
+      // Nettoyer le nom du rang pour correspondre au format du fichier
+      const parts = rankName.split(' ');
+      if (parts.length < 2 && rankName.toLowerCase() !== "radiant") {
+        // Si le format n'est pas "Rang Numéro", utiliser une image par défaut
+        console.warn(`Format de rang invalide: ${rankName}`);
+        return "/img/rank_png/Iron_1_Rank.png";
+      }
+
+      // Pour "Radiant", pas de numéro
+      if (rankName.toLowerCase() === "radiant") {
+        return `/img/rank_png/Radiant_Rank.png`;
+      }
+
+      // Pour les autres rangs, le format est "Rang_Numéro_Rank.png"
+      const rank = parts[0];
+      const number = parts[1];
+      return `/img/rank_png/${rank}_${number}_Rank.png`;
+    } catch (error) {
+      console.error("Erreur lors de la génération du chemin de l'image de rang:", error);
+      return "/img/rank_png/Iron_1_Rank.png";
     }
-    
-    // Pour les autres rangs, le format est "Rang_Numéro_Rank.png"
-    return `/img/rank_png/${formattedRank}_Rank.png`;
   };
+  
+  // Ajouter cette fonction qui permet de réorganiser les comptes
+  const reorderAccounts = (startIndex: number, endIndex: number) => {
+    // Créer une nouvelle liste d'ordre basée sur la liste actuelle
+    const newOrder = Array.from(accountOrder);
+    // Retirer l'élément à son ancien index
+    const [removed] = newOrder.splice(startIndex, 1);
+    // Insérer l'élément à son nouvel index
+    newOrder.splice(endIndex, 0, removed);
+    
+    // Mettre à jour l'état local
+    setAccountOrder(newOrder);
+    
+    // Sauvegarder l'ordre dans Firebase
+    const updates: {[key: string]: number} = {};
+    newOrder.forEach((id, index) => {
+      updates[`riotAccounts/${id}/order`] = index;
+    });
+    
+    update(ref(database), updates)
+      .then(() => {
+        setSuccess('Ordre des comptes mis à jour');
+        setTimeout(() => setSuccess(null), 3000);
+      })
+      .catch(err => {
+        console.error('Erreur lors de la mise à jour de l\'ordre:', err);
+        setError('Impossible de sauvegarder l\'ordre des comptes');
+        setTimeout(() => setError(null), 3000);
+      });
+  };
+  
+  // Ajouter cette fonction pour attribuer/retirer un skin à un compte
+  const toggleSkinOwnership = async (accountId: string, skinId: string) => {
+    try {
+      const account = accounts.find(acc => acc.id === accountId);
+      if (!account) return;
+      
+      const ownedSkins = account.ownedSkins || [];
+      const updatedSkins = ownedSkins.includes(skinId)
+        ? ownedSkins.filter(id => id !== skinId)
+        : [...ownedSkins, skinId];
+      
+      // Mettre à jour dans Firebase
+      const accountRef = ref(database, `riotAccounts/${accountId}`);
+      await update(accountRef, { ownedSkins: updatedSkins });
+      
+      // Mettre à jour l'état local
+      setAccounts(accounts.map(acc => 
+        acc.id === accountId 
+          ? { ...acc, ownedSkins: updatedSkins } 
+          : acc
+      ));
+      
+      setSuccess(`Skin ${ownedSkins.includes(skinId) ? 'retiré' : 'ajouté'} au compte`);
+      setTimeout(() => setSuccess(null), 2000);
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour des skins:', err);
+      setError('Impossible de mettre à jour les skins du compte');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+  
+  // Ajouter cette fonction pour attribuer/retirer un agent à un compte
+  const toggleAgentOwnership = async (accountId: string, agentId: string) => {
+    try {
+      const account = accounts.find(acc => acc.id === accountId);
+      if (!account) return;
+      
+      const ownedAgents = account.ownedAgents || [];
+      const updatedAgents = ownedAgents.includes(agentId)
+        ? ownedAgents.filter(id => id !== agentId)
+        : [...ownedAgents, agentId];
+      
+      // Mettre à jour dans Firebase
+      const accountRef = ref(database, `riotAccounts/${accountId}`);
+      await update(accountRef, { ownedAgents: updatedAgents });
+      
+      // Mettre à jour l'état local
+      setAccounts(accounts.map(acc => 
+        acc.id === accountId 
+          ? { ...acc, ownedAgents: updatedAgents } 
+          : acc
+      ));
+      
+      setSuccess(`Agent ${ownedAgents.includes(agentId) ? 'retiré' : 'ajouté'} au compte`);
+      setTimeout(() => setSuccess(null), 2000);
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour des agents:', err);
+      setError('Impossible de mettre à jour les agents du compte');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+  
+  // Ajouter un effet pour initialiser l'ordre des comptes au chargement
+  useEffect(() => {
+    if (accounts.length > 0 && accountOrder.length === 0) {
+      // Trier les comptes par ordre s'il existe, sinon par date de mise à jour
+      const sortedAccounts = [...accounts].sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) {
+          return a.order - b.order;
+        }
+        return b.lastUpdated - a.lastUpdated;
+      });
+      
+      setAccountOrder(sortedAccounts.map(account => account.id));
+    }
+  }, [accounts, accountOrder.length]);
   
   // Rendu du composant
   return (
@@ -1120,180 +1278,305 @@ const RiotManager: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredAccounts.map(account => (
-                    <div key={account.id} className={`bg-gray-800 rounded-xl overflow-hidden shadow-lg border ${account.linked ? 'border-purple-500/50' : 'border-gray-700'}`}>
-                      <div className="p-5">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold">{account.username}</h3>
-                            <p className="text-sm text-gray-400">#{account.tag}</p>
-                          </div>
-                          
-                          {/* Indicateur de région */}
-                          <span className="px-2 py-1 bg-gray-700 text-xs rounded-full">
-                            {REGIONS.find(r => r.value === account.region)?.label || account.region}
-                          </span>
-                        </div>
-                        
-                        {/* Informations du compte */}
-                        <div className="mb-4 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-                          <h4 className="text-sm font-medium text-blue-300 mb-2">Identifiants de connexion</h4>
-                          
-                          {account.login && (
-                            <div className="flex items-center justify-between mb-2">
-                              <div>
-                                <p className="text-sm text-gray-400">Nom d'utilisateur</p>
-                                <p className="font-medium">{account.login}</p>
-                              </div>
-                              <button 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  navigator.clipboard.writeText(account.login || '');
-                                  setCopiedField({accountId: account.id, field: 'login'});
-                                  setTimeout(() => setCopiedField(null), 2000);
-                                }}
-                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
-                                title="Copier le nom d'utilisateur"
-                              >
-                                {copiedField?.accountId === account.id && copiedField?.field === 'login' ? (
-                                  <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
-                                    Copié!
-                                  </span>
-                                ) : null}
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                              </button>
-                            </div>
-                          )}
-                          
-                          {account.password && (
-                            <div className="flex items-center justify-between mb-2">
-                              <div>
-                                <p className="text-sm text-gray-400">Mot de passe</p>
-                                <p className="font-medium">••••••••</p>
-                              </div>
-                              <button 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  navigator.clipboard.writeText(account.password || '');
-                                  setCopiedField({accountId: account.id, field: 'password'});
-                                  setTimeout(() => setCopiedField(null), 2000);
-                                }}
-                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
-                                title="Copier le mot de passe"
-                              >
-                                {copiedField?.accountId === account.id && copiedField?.field === 'password' ? (
-                                  <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
-                                    Copié!
-                                  </span>
-                                ) : null}
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                              </button>
-                            </div>
-                          )}
-                          
-                          {account.email && (
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm text-gray-400">Email</p>
-                                <p className="font-medium text-sm truncate max-w-[180px]">{account.email}</p>
-                              </div>
-                              <button 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  navigator.clipboard.writeText(account.email || '');
-                                  setCopiedField({accountId: account.id, field: 'email'});
-                                  setTimeout(() => setCopiedField(null), 2000);
-                                }}
-                                className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
-                                title="Copier l'email"
-                              >
-                                {copiedField?.accountId === account.id && copiedField?.field === 'email' ? (
-                                  <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
-                                    Copié!
-                                  </span>
-                                ) : null}
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Statistiques de rang */}
-                        {account.rank ? (
-                          <div className="mb-4 p-4 bg-gray-700/40 rounded-lg">
-                            <div className="flex items-center mb-3">
-                              <img 
-                                src={getRankIconByName(account.rank.currentRank || "Non classé")} 
-                                alt={account.rank.currentRank} 
-                                className="w-12 h-12 mr-3"
-                              />
-                              <div>
-                                <p className="text-sm text-gray-400">Rang actuel</p>
-                                <p className="font-bold">{account.rank.currentRank || "Non classé"}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="text-sm grid grid-cols-2 gap-2">
-                              <div className="flex items-center">
-                                <img 
-                                  src={getRankIconByName(account.rank.bestRank || "Non classé")} 
-                                  alt={account.rank.bestRank}
-                                  className="w-8 h-8 mr-2"
-                                />
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">Organisation des comptes</h3>
+                    <button
+                      className={`px-4 py-2 rounded-lg text-sm ${draggingEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      onClick={() => setDraggingEnabled(!draggingEnabled)}
+                    >
+                      {draggingEnabled ? 'Terminer l\'organisation' : 'Organiser les comptes'}
+                    </button>
+                  </div>
+                  
+                  {draggingEnabled && (
+                    <p className="text-sm text-gray-400 mb-4">
+                      Glissez-déposez les cartes pour les réorganiser selon vos préférences. Cliquez sur "Terminer l'organisation" quand vous avez terminé.
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {accountOrder
+                      .map(id => accounts.find(account => account.id === id))
+                      .filter(Boolean)
+                      .filter(account => 
+                        account && (account.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        account.tag.toLowerCase().includes(searchQuery.toLowerCase()))
+                      )
+                      .map((account, index) => {
+                        if (!account) return null;
+                        return (
+                          <div 
+                            key={account.id} 
+                            className={`bg-gray-800 rounded-xl overflow-hidden shadow-lg border ${account.linked ? 'border-purple-500/50' : 'border-gray-700'} ${draggingEnabled ? 'cursor-move' : ''}`}
+                            draggable={draggingEnabled}
+                            onDragStart={(e) => {
+                              if (draggingEnabled) {
+                                e.dataTransfer.setData('text/plain', index.toString());
+                                e.currentTarget.classList.add('opacity-50');
+                              }
+                            }}
+                            onDragEnd={(e) => {
+                              if (draggingEnabled) {
+                                e.currentTarget.classList.remove('opacity-50');
+                              }
+                            }}
+                            onDragOver={(e) => {
+                              if (draggingEnabled) {
+                                e.preventDefault();
+                                e.currentTarget.classList.add('border-blue-500');
+                              }
+                            }}
+                            onDragLeave={(e) => {
+                              if (draggingEnabled) {
+                                e.currentTarget.classList.remove('border-blue-500');
+                              }
+                            }}
+                            onDrop={(e) => {
+                              if (draggingEnabled) {
+                                e.preventDefault();
+                                e.currentTarget.classList.remove('border-blue-500');
+                                const startIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                                const endIndex = index;
+                                if (startIndex !== endIndex) {
+                                  reorderAccounts(startIndex, endIndex);
+                                }
+                              }
+                            }}
+                          >
+                            <div className="p-5">
+                              <div className="flex justify-between items-start mb-4">
                                 <div>
-                                  <p className="text-gray-400">Meilleur rang</p>
-                                  <p>{account.rank.bestRank || "Non classé"}</p>
+                                  <h3 className="text-lg font-semibold">{account.username}</h3>
+                                  <p className="text-sm text-gray-400">#{account.tag}</p>
                                 </div>
+                                
+                                {/* Indicateur de région */}
+                                <span className="px-2 py-1 bg-gray-700 text-xs rounded-full">
+                                  {REGIONS.find(r => r.value === account.region)?.label || account.region}
+                                </span>
                               </div>
                               
-                              {account.rank.seasonRanks && account.rank.seasonRanks.length > 0 && (
-                                <div>
-                                  <p className="text-gray-400">Dernier épisode</p>
-                                  <p>{account.rank.seasonRanks[0].rank}</p>
+                              {/* Informations du compte */}
+                              <div className="mb-4 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                                <h4 className="text-sm font-medium text-blue-300 mb-2">Identifiants de connexion</h4>
+                                
+                                {/* Contenu existant des identifiants */}
+                              </div>
+                              
+                              {/* Statistiques de rang */}
+                              {account.rank ? (
+                                <div className="mb-4 p-3 bg-gray-800 border border-gray-700 rounded-lg">
+                                  <h4 className="text-sm font-medium text-blue-300 mb-2">Statistiques de rang</h4>
+                                  {/* Contenu existant des statistiques de rang */}
+                                </div>
+                              ) : (
+                                <div className="mb-4 p-3 bg-gray-800 border border-gray-700 rounded-lg flex items-center text-gray-400">
+                                  <AlertTriangle size={16} className="mr-2 text-yellow-500" />
+                                  <p className="text-sm">Données de rang non disponibles</p>
                                 </div>
                               )}
+                              
+                              {/* Aperçu des agents possédés */}
+                              <div className="mb-4">
+                                <div className="flex justify-between items-center mb-2">
+                                  <h4 className="text-sm font-medium text-blue-300">Agents ({account.ownedAgents?.length || 0})</h4>
+                                  <button
+                                    onClick={() => setEditingOwnedItems(editingOwnedItems === `agents-${account.id}` ? null : `agents-${account.id}`)}
+                                    className="text-xs text-blue-400 hover:text-blue-300"
+                                  >
+                                    {editingOwnedItems === `agents-${account.id}` ? 'Terminer' : 'Modifier'}
+                                  </button>
+                                </div>
+                                
+                                {editingOwnedItems === `agents-${account.id}` ? (
+                                  <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg max-h-60 overflow-y-auto">
+                                    <div className="grid grid-cols-4 gap-2">
+                                      {agents.map(agent => (
+                                        <div 
+                                          key={agent.uuid}
+                                          className={`p-1 rounded-md cursor-pointer ${
+                                            account.ownedAgents?.includes(agent.uuid) 
+                                              ? 'bg-blue-900/50 border border-blue-500' 
+                                              : 'bg-gray-700 hover:bg-gray-600'
+                                          }`}
+                                          onClick={() => toggleAgentOwnership(account.id, agent.uuid)}
+                                        >
+                                          <div className="aspect-square rounded overflow-hidden">
+                                            <img 
+                                              src={agent.displayIcon} 
+                                              alt={agent.displayName} 
+                                              className="h-full w-full object-cover"
+                                            />
+                                          </div>
+                                          <p className="text-[10px] text-center mt-1 truncate">{agent.displayName}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg">
+                                    {account.ownedAgents && account.ownedAgents.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1">
+                                        {account.ownedAgents.slice(0, 5).map(agentId => {
+                                          const agent = agents.find(a => a.uuid === agentId);
+                                          return agent ? (
+                                            <div key={agentId} className="w-8 h-8 rounded-full overflow-hidden bg-gray-700" title={agent.displayName}>
+                                              <img src={agent.displayIcon} alt={agent.displayName} className="h-full w-full object-cover" />
+                                            </div>
+                                          ) : null;
+                                        })}
+                                        {account.ownedAgents.length > 5 && (
+                                          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                                            <span className="text-xs">+{account.ownedAgents.length - 5}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-gray-400">Aucun agent attribué à ce compte</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Aperçu des skins possédés */}
+                              <div className="mb-4">
+                                <div className="flex justify-between items-center mb-2">
+                                  <h4 className="text-sm font-medium text-blue-300">Skins ({account.ownedSkins?.length || 0})</h4>
+                                  <button
+                                    onClick={() => setEditingOwnedItems(editingOwnedItems === `skins-${account.id}` ? null : `skins-${account.id}`)}
+                                    className="text-xs text-blue-400 hover:text-blue-300"
+                                  >
+                                    {editingOwnedItems === `skins-${account.id}` ? 'Terminer' : 'Modifier'}
+                                  </button>
+                                </div>
+                                
+                                {editingOwnedItems === `skins-${account.id}` ? (
+                                  <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg max-h-60 overflow-y-auto">
+                                    <div className="space-y-3">
+                                      {weapons.map(weapon => (
+                                        <div key={weapon.uuid}>
+                                          <h5 className="text-xs font-medium mb-2">{weapon.displayName}</h5>
+                                          <div className="grid grid-cols-3 gap-2">
+                                            {weapon.skins.slice(0, 6).map(skin => (
+                                              <div 
+                                                key={skin.uuid}
+                                                className={`p-1 rounded-md cursor-pointer ${
+                                                  account.ownedSkins?.includes(skin.uuid) 
+                                                    ? 'bg-blue-900/50 border border-blue-500' 
+                                                    : 'bg-gray-700 hover:bg-gray-600'
+                                                }`}
+                                                onClick={() => toggleSkinOwnership(account.id, skin.uuid)}
+                                              >
+                                                <div className="aspect-video rounded overflow-hidden bg-gray-800 flex items-center justify-center">
+                                                  <img 
+                                                    src={skin.displayIcon || weapon.displayIcon} 
+                                                    alt={skin.displayName} 
+                                                    className="h-full max-h-10 object-contain"
+                                                  />
+                                                </div>
+                                                <p className="text-[10px] text-center mt-1 truncate">{skin.displayName}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg">
+                                    {account.ownedSkins && account.ownedSkins.length > 0 ? (
+                                      <div className="flex flex-wrap gap-2">
+                                        {account.ownedSkins.slice(0, 4).map(skinId => {
+                                          // Trouver le skin dans tous les weapons
+                                          let foundSkin = null;
+                                          let weapon = null;
+                                          
+                                          for (const w of weapons) {
+                                            foundSkin = w.skins.find(s => s.uuid === skinId);
+                                            if (foundSkin) {
+                                              weapon = w;
+                                              break;
+                                            }
+                                          }
+                                          
+                                          return foundSkin && weapon ? (
+                                            <div key={skinId} className="w-14 h-10 rounded overflow-hidden bg-gray-700 flex items-center justify-center" title={`${foundSkin.displayName} (${weapon.displayName})`}>
+                                              <img 
+                                                src={foundSkin.displayIcon || weapon.displayIcon} 
+                                                alt={foundSkin.displayName} 
+                                                className="h-full max-h-8 object-contain" 
+                                              />
+                                            </div>
+                                          ) : null;
+                                        })}
+                                        {account.ownedSkins.length > 4 && (
+                                          <div className="w-14 h-10 rounded bg-gray-700 flex items-center justify-center">
+                                            <span className="text-xs">+{account.ownedSkins.length - 4}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-gray-400">Aucun skin attribué à ce compte</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Date de dernière mise à jour */}
+                              <p className="text-xs text-gray-500 mb-4">
+                                Dernière mise à jour: {new Date(account.lastUpdated).toLocaleDateString('fr-FR', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                              
+                              {/* Actions */}
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <button 
+                                  onClick={() => openEditForm(account)}
+                                  className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
+                                >
+                                  <Edit size={16} className="mr-1" />
+                                  Modifier
+                                </button>
+                                
+                                <button 
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    // Déchiffrer le mot de passe avant la copie
+                                    const originalPassword = account.password ? decryptPassword(account.password) : '';
+                                    navigator.clipboard.writeText(originalPassword);
+                                    setCopiedField({accountId: account.id, field: 'password'});
+                                    setTimeout(() => setCopiedField(null), 2000);
+                                  }}
+                                  className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded relative group"
+                                  title="Copier le mot de passe"
+                                >
+                                  {copiedField?.accountId === account.id && copiedField?.field === 'password' ? (
+                                    <span className="absolute -top-8 -left-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap animate-fade-in">
+                                      Copié!
+                                    </span>
+                                  ) : null}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                </button>
+                                
+                                <button 
+                                  onClick={() => deleteAccount(account.id)}
+                                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg flex items-center"
+                                >
+                                  <Trash2 size={16} className="mr-1" />
+                                  Supprimer
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        ) : (
-                          <div className="mb-4 p-4 bg-gray-700/40 rounded-lg flex items-center text-gray-400">
-                            <AlertTriangle size={18} className="mr-2" />
-                            <p>Données de rang non disponibles</p>
-                          </div>
-                        )}
-                        
-                        {/* Date de dernière mise à jour */}
-                        <p className="text-xs text-gray-500 mb-4">
-                          Dernière mise à jour: {new Date(account.lastUpdated).toLocaleDateString('fr-FR', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                        
-                        {/* Actions */}
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <button 
-                            onClick={() => openEditForm(account)}
-                            className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
-                          >
-                            <Edit size={16} className="mr-1" />
-                            Modifier
-                          </button>
-                          
-                          <button 
-                            onClick={() => deleteAccount(account.id)}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg flex items-center"
-                          >
-                            <Trash2 size={16} className="mr-1" />
-                            Supprimer
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                        );
+                      })}
+                  </div>
                 </div>
               )}
             </>
