@@ -178,7 +178,9 @@ const CrashGame: React.FC = () => {
         
         // Vérifier si l'utilisateur a déjà un pari en cours
         if (currentUser && state.bets) {
-          const userBetFound = state.bets.find(bet => bet.userId === currentUser.uid);
+          // Stocker l'ID de l'utilisateur dans une constante pour éviter l'erreur TypeScript
+          const userId = currentUser.uid;
+          const userBetFound = state.bets.find(bet => bet.userId === userId);
           if (userBetFound) {
             setUserBet(userBetFound);
             setBetAmount(userBetFound.amount);
@@ -550,7 +552,8 @@ const CrashGame: React.FC = () => {
     
     try {
       // Vérifier si l'utilisateur a déjà un pari en cours
-      const existingBet = gameState.bets.find(bet => bet.userId === currentUser.uid);
+      const userId = currentUser.uid;
+      const existingBet = gameState.bets.find(bet => bet.userId === userId);
       if (existingBet) {
         setMessage({ text: "Vous avez déjà placé un pari pour cette partie", type: 'error' });
         return;
