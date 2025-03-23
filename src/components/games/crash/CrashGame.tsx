@@ -85,36 +85,19 @@ const CrashGame: React.FC = () => {
   // État pour suivre si on a récupéré l'authentification
   const [authLoaded, setAuthLoaded] = useState(false);
   const [authError, setAuthError] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   
-  // Utiliser useEffect pour accéder au contexte d'authentification de manière sécurisée
-  useEffect(() => {
-    try {
-      const auth = useAuth();
-      setCurrentUser(auth.currentUser);
-      setUserData(auth.userData);
-      setIsAdmin(auth.isAdmin);
-      setAuthLoaded(true);
-    } catch (error) {
-      console.error("Erreur de contexte d'authentification:", error);
-      setAuthError(true);
-      setAuthLoaded(true);
-    }
-  }, []);
+  // Utiliser try-catch pour gérer le cas où le contexte d'auth n'est pas disponible
+  let currentUser: User | null = null;
+  let userData: UserData | null = null;
+  let isAdmin = false;
   
-  // Afficher un état de chargement tant que l'authentification n'est pas chargée
-  if (!authLoaded) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-  
-  // Afficher une erreur si le chargement du contexte a échoué
-  if (authError) {
+  try {
+    const auth = useAuth();
+    currentUser = auth.currentUser;
+    userData = auth.userData;
+    isAdmin = auth.isAdmin;
+  } catch (error) {
+    console.error("Erreur de contexte d'authentification:", error);
     return <AuthErrorFallback />;
   }
   
@@ -506,9 +489,10 @@ const CrashGame: React.FC = () => {
   const handleCrash = async (crashPoint: number) => {
     if (!isMuted) playSound('crash');
     
-    // Annuler l'animation en cours
+    // Arrêter l'animation
     if (animationRef.current !== null) {
       window.cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
     }
     
     // Mettre à jour l'état du jeu
@@ -824,6 +808,7 @@ const CrashGame: React.FC = () => {
       // Cleanup des sons si nécessaire
       if (animationRef.current !== null) {
         window.cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, []);
