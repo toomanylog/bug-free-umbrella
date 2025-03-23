@@ -5,6 +5,10 @@ import './CasinoManager.css';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
 import { User } from 'firebase/auth';
 import { UserData } from '../../firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth as firebaseAuth } from '../../firebase/config';
+import { ref, get } from 'firebase/database';
+import { database } from '../../firebase/config';
 
 interface GameType {
   id: string;
@@ -14,29 +18,23 @@ interface GameType {
   status: 'active' | 'coming-soon';
 }
 
-// Type pour le contexte d'authentification
-interface AuthContextType {
-  currentUser: User | null;
-  userData: UserData | null;
-  isAdmin: boolean;
-  isLoading: boolean;
-  refreshUserData: () => Promise<void>;
-  logout: () => Promise<void>;
-}
-
 // Composant qui sert de wrapper pour les jeux
 const CasinoManager: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [showGameList, setShowGameList] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
-  // Utiliser try-catch pour gérer le cas où le contexte d'auth n'est pas disponible
-  let auth: AuthContextType | null = null;
-  try {
-    auth = useAuth();
-  } catch (error) {
-    console.error("Erreur de contexte d'authentification:", error);
-    // Continuez l'exécution, nous gérerons l'état non authentifié plus tard
-  }
+  // Utiliser useEffect pour surveiller l'état de l'authentification directement
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      setCurrentUser(user);
+      setIsLoading(false);
+    });
+    
+    // Nettoyer la souscription quand le composant est démonté
+    return () => unsubscribe();
+  }, []);
   
   // Liste des jeux disponibles
   const games: GameType[] = [
@@ -130,7 +128,26 @@ const CasinoManager: React.FC = () => {
     
     if (!selectedGame) return null;
     
-    if (!auth || !auth.currentUser) {
+    if (isLoading) {
+      return (
+        <div className="casino-game-container">
+          <div className="game-header">
+            <button className="back-button" onClick={backToGameList}>
+              <ChevronLeft size={20} />
+              <span>Retour aux jeux</span>
+            </button>
+            <h2 className="game-title">{selectedGame.name}</h2>
+          </div>
+          <div className="game-content">
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    if (!currentUser) {
       return (
         <div className="casino-game-container">
           <div className="game-header">
@@ -164,11 +181,13 @@ const CasinoManager: React.FC = () => {
         </div>
         
         <div className="game-content">
-          {selectedGame.id === 'crash' ? (
-            <CrashGame />
-          ) : (
-            <div>Jeu de dés en développement</div>
-          )}
+          <AuthProvider>
+            {selectedGame.id === 'crash' ? (
+              <CrashGame />
+            ) : (
+              <div>Jeu de dés en développement</div>
+            )}
+          </AuthProvider>
         </div>
       </div>
     );
