@@ -6,7 +6,6 @@ import UserManager from './UserManager';
 import CertificationManager from './CertificationManager';
 import ToolManager from './ToolManager';
 import AdminWalletManager from './AdminWalletManager';
-import RiotManager from './RiotManager';
 import CasinoManager from './CasinoManager';
 import { Users, BookOpen, Home, Settings, ArrowLeft, Award, Wrench, Menu, X, CreditCard, Activity, DollarSign, UserCheck, Clock, Gamepad } from 'lucide-react';
 import { getAllFormations } from '../../firebase/formations';
@@ -327,13 +326,6 @@ const AdminDashboard: React.FC = () => {
               collapsed={sidebarCollapsed}
             />
             <SidebarItem 
-              icon={<Gamepad size={20} />}
-              label="Comptes RIOT"
-              active={activeSection === 'riot'}
-              onClick={() => setActiveSection('riot')}
-              collapsed={sidebarCollapsed}
-            />
-            <SidebarItem 
               icon={<DollarSign size={20} />}
               label="Casino"
               active={activeSection === 'casino'}
@@ -388,7 +380,6 @@ const AdminDashboard: React.FC = () => {
               {activeSection === 'users' && 'Gestion des utilisateurs'}
               {activeSection === 'settings' && 'Paramètres'}
               {activeSection === 'wallet' && 'Gestion des portefeuilles'}
-              {activeSection === 'riot' && 'Gestion des comptes RIOT'}
               {activeSection === 'casino' && 'Gestion du Casino'}
             </h1>
             <p className="text-gray-400 text-sm md:text-base">
@@ -541,7 +532,6 @@ const AdminDashboard: React.FC = () => {
         {activeSection === 'tools' && <ToolManager />}
         {activeSection === 'users' && <UserManager />}
         {activeSection === 'wallet' && <AdminWalletManager />}
-        {activeSection === 'riot' && <RiotManager />}
         {activeSection === 'casino' && <CasinoManager />}
         {activeSection === 'settings' && (
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">

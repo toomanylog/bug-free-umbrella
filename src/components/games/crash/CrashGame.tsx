@@ -44,19 +44,14 @@ const DEFAULT_STATE: CrashState = {
 };
 
 const SOUNDS = {
-  betPlace: new Audio('/sounds/bet-place.mp3'),
-  cashOut: new Audio('/sounds/cash-out.mp3'),
-  crash: new Audio('/sounds/crash.mp3'),
-  success: new Audio('/sounds/success.mp3'),
-  gameStart: new Audio('/sounds/game-start.mp3')
+  betPlace: `/sounds/bet-place.mp3`,
+  cashOut: `/sounds/cash-out.mp3`,
+  crash: `/sounds/crash.mp3`,
+  success: `/sounds/success.mp3`,
+  gameStart: `/sounds/game-start.mp3`
 };
 
-// Ajuster le volume des sons
-Object.values(SOUNDS).forEach(sound => {
-  sound.volume = 0.5;
-});
-
-const HOUSE_EDGE = 0.05; // 5% d'avantage pour la maison
+const HOUSE_EDGE = 0.15; // 15% d'avantage pour la maison
 const MIN_BET = 5; // Mise minimale en EUR
 const MAX_BET = 5000; // Mise maximale en EUR
 const GAME_TIMER = 5; // Secondes d'attente entre les parties
@@ -708,27 +703,27 @@ const CrashGame: React.FC = () => {
   const initializeSounds = () => {
     const soundElements: { [key: string]: HTMLAudioElement } = {};
     const soundFiles = [
-      { id: 'betPlace', file: 'bet-place.mp3', fallback: 'success.mp3' },
-      { id: 'cashOut', file: 'cash-out.mp3', fallback: 'success.mp3' },
-      { id: 'crash', file: 'crash.mp3', fallback: 'success.mp3' },
-      { id: 'success', file: 'success.mp3', fallback: 'success.mp3' },
-      { id: 'gameStart', file: 'game-start.mp3', fallback: 'success.mp3' }
+      { id: 'betPlace', file: '/bet-place.mp3', fallback: '/success.mp3' },
+      { id: 'cashOut', file: '/cash-out.mp3', fallback: '/success.mp3' },
+      { id: 'crash', file: '/crash.mp3', fallback: '/success.mp3' },
+      { id: 'success', file: '/success.mp3', fallback: '/success.mp3' },
+      { id: 'gameStart', file: '/game-start.mp3', fallback: '/success.mp3' }
     ];
 
     soundFiles.forEach(({ id, file, fallback }) => {
       try {
-        const audio = new Audio(`/sounds/${file}`);
+        const audio = new Audio(`${process.env.PUBLIC_URL}/sounds${file}`);
         // Vérifier si le son existe, sinon utiliser le fallback
         audio.addEventListener('error', () => {
           console.warn(`Erreur lors du chargement du son ${file}, utilisation du son de fallback`);
-          soundElements[id] = new Audio(`/sounds/${fallback}`);
+          soundElements[id] = new Audio(`${process.env.PUBLIC_URL}/sounds${fallback}`);
         });
         soundElements[id] = audio;
       } catch (error) {
         console.warn(`Erreur lors de l'initialisation du son ${file}:`, error);
         try {
           // Utiliser le fallback si le son principal a échoué
-          soundElements[id] = new Audio(`/sounds/${fallback}`);
+          soundElements[id] = new Audio(`${process.env.PUBLIC_URL}/sounds${fallback}`);
         } catch (fallbackError) {
           console.error(`Erreur avec le son de fallback ${fallback}:`, fallbackError);
         }

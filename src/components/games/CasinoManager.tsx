@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft } from 'lucide-react';
 import CrashGame from './crash/CrashGame';
 import './CasinoManager.css';
+import { AuthProvider } from '../../contexts/AuthContext';
 
 interface GameType {
   id: string;
@@ -23,7 +24,7 @@ const CasinoManager: React.FC = () => {
       name: 'Rocket Crash',
       description: 'Regardez la fusée décoller et encaissez avant le crash pour gagner!',
       icon: <Rocket size={32} />,
-      component: <CrashGame />,
+      component: <AuthProvider><CrashGame /></AuthProvider>,
       status: 'active'
     },
     {

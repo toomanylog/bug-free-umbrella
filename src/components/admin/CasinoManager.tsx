@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { database } from '../../firebase/config';
 import { ref, get, update, set } from 'firebase/database';
 import { DollarSign, Settings, Rocket, Trash, AlignLeft, RefreshCcw, Save } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface GameConfig {
   name: string;
@@ -22,6 +23,7 @@ interface CrashGameStats {
 }
 
 const CasinoManager: React.FC = () => {
+  const { userData } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'crash' | 'settings'>('overview');
   const [gameConfigs, setGameConfigs] = useState<Record<string, GameConfig>>({
     crash: {
@@ -50,12 +52,37 @@ const CasinoManager: React.FC = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        // Vérifier le rôle de l'utilisateur avant de charger les données
+        if (!userData || userData.role !== 'admin') {
+          throw new Error('Permission denied');
+        }
+
+        // Initialiser les stats s'ils n'existent pas
+        const statsRef = ref(database, 'crashGame/stats');
+        const statsSnapshot = await get(statsRef);
+
+        if (!statsSnapshot.exists()) {
+          // Créer les statistiques initiales
+          await set(statsRef, {
+            totalGames: 0,
+            totalBets: 0,
+            totalWagered: 0,
+            totalPayout: 0,
+            profitLoss: 0,
+            avgMultiplier: 0,
+            biggestWin: 0
+          });
+        }
+        
         // Charger les configurations
         const configRef = ref(database, 'casinoConfig');
         const configSnapshot = await get(configRef);
         
         if (configSnapshot.exists()) {
           setGameConfigs(configSnapshot.val());
+        } else {
+          // Si les configurations n'existent pas, créer les configurations par défaut
+          await set(configRef, gameConfigs);
         }
         
         // Charger les statistiques du jeu Crash
@@ -74,7 +101,7 @@ const CasinoManager: React.FC = () => {
     };
     
     loadData();
-  }, []);
+  }, [userData]);
 
   // Mettre à jour les configurations
   const saveConfigs = async () => {
