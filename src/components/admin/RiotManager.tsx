@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { database } from '../../firebase/config';
 import { ref, get, set, remove, update } from 'firebase/database';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, X, Search, Edit, Trash2, RefreshCw, Shield, Users, AlertTriangle, Target, Crosshair, Link, LinkIcon, Swords, Play } from 'lucide-react';
+import { Plus, X, Search, Edit, Trash2, RefreshCw, Shield, Users, AlertTriangle, Target, Crosshair, Link, LinkIcon, Swords, Play, Check } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface RiotAccount {
@@ -120,27 +120,25 @@ const ENCRYPTION_KEY = "valorant-dashboard-secret-key";
 // Fonction pour chiffrer un mot de passe
 const encryptPassword = (password: string): string => {
   try {
-    // Méthode simple de "chiffrement" - en production, utiliser une bibliothèque crypto plus robuste
-    // Cette méthode n'est pas sécurisée mais illustre le concept
-    return btoa(password.split('').map((char, i) => 
-      String.fromCharCode(char.charCodeAt(0) + (ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length) % 10))
-    ).join(''));
+    // Simple encodage en base64 avec un préfixe 
+    return `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.${btoa(password)}`;
   } catch (e) {
-    console.error("Erreur lors du chiffrement du mot de passe:", e);
-    return password; // En cas d'erreur, revenir au texte brut
+    console.error("Erreur lors du chiffrement:", e);
+    return password;
   }
 };
 
 // Fonction pour déchiffrer un mot de passe
 const decryptPassword = (encrypted: string): string => {
   try {
-    const decoded = atob(encrypted);
-    return decoded.split('').map((char, i) => 
-      String.fromCharCode(char.charCodeAt(0) - (ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length) % 10))
-    ).join('');
+    if (encrypted.startsWith('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.')) {
+      const base64 = encrypted.replace('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.', '');
+      return atob(base64);
+    }
+    return encrypted;
   } catch (e) {
-    console.error("Erreur lors du déchiffrement du mot de passe:", e);
-    return encrypted; // En cas d'erreur, revenir au texte chiffré
+    console.error("Erreur lors du déchiffrement:", e);
+    return encrypted;
   }
 };
 
@@ -335,63 +333,63 @@ const RiotManager: React.FC = () => {
       console.log(`Appel API avec username='${cleanUsername}' et tag='${cleanTag}'`);
       
       try {
-        // Recherche du compte par nom et tag
-        const accountResponse = await fetch(
-          `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${cleanUsername}/${cleanTag}`,
-          {
-            headers: {
-              'X-Riot-Token': RIOT_API_KEY
-            }
-          }
-        );
-        
-        // Vérifier les erreurs spécifiques
-        if (!accountResponse.ok) {
-          const status = accountResponse.status;
-          if (status === 400) {
-            console.error('Erreur 400: Vérifiez le format du nom d\'utilisateur et du tag');
-            console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
-            return {
-              username,
-              tag,
-              region,
-              lastUpdated: Date.now()
-            };
-          } else if (status === 401) {
-            console.error('Erreur 401: Clé API Riot non valide ou expirée');
-            throw new Error(`Erreur API Riot: Clé API non valide ou expirée`);
-          } else if (status === 403) {
-            console.error('Erreur 403: Accès refusé à l\'API Riot');
-            throw new Error(`Erreur API Riot: Accès refusé`);
-          } else if (status === 404) {
-            console.error('Erreur 404: Compte non trouvé');
-            console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
-            return {
-              username,
-              tag,
-              region,
-              lastUpdated: Date.now()
-            };
-          } else {
-            console.error(`Erreur API Riot: ${status}`);
-            throw new Error(`Erreur API: ${status}`);
+      // Recherche du compte par nom et tag
+      const accountResponse = await fetch(
+        `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${cleanUsername}/${cleanTag}`,
+        {
+          headers: {
+            'X-Riot-Token': RIOT_API_KEY
           }
         }
-        
-        const accountData = await accountResponse.json();
-        console.log('Données du compte récupérées:', accountData);
-        const puuid = accountData.puuid;
-        
-        // Créer un objet de compte de base
-        const baseAccount = {
-          riotId: puuid,
-          username,
-          tag,
-          region,
-          lastUpdated: Date.now()
-        };
-        
-        return baseAccount;
+      );
+      
+      // Vérifier les erreurs spécifiques
+      if (!accountResponse.ok) {
+        const status = accountResponse.status;
+        if (status === 400) {
+          console.error('Erreur 400: Vérifiez le format du nom d\'utilisateur et du tag');
+            console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
+            return {
+              username,
+              tag,
+              region,
+              lastUpdated: Date.now()
+            };
+        } else if (status === 401) {
+          console.error('Erreur 401: Clé API Riot non valide ou expirée');
+          throw new Error(`Erreur API Riot: Clé API non valide ou expirée`);
+        } else if (status === 403) {
+          console.error('Erreur 403: Accès refusé à l\'API Riot');
+          throw new Error(`Erreur API Riot: Accès refusé`);
+        } else if (status === 404) {
+          console.error('Erreur 404: Compte non trouvé');
+            console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
+            return {
+              username,
+              tag,
+              region,
+              lastUpdated: Date.now()
+            };
+        } else {
+          console.error(`Erreur API Riot: ${status}`);
+          throw new Error(`Erreur API: ${status}`);
+        }
+      }
+      
+      const accountData = await accountResponse.json();
+      console.log('Données du compte récupérées:', accountData);
+      const puuid = accountData.puuid;
+      
+      // Créer un objet de compte de base
+      const baseAccount = {
+        riotId: puuid,
+        username,
+        tag,
+        region,
+        lastUpdated: Date.now()
+      };
+      
+      return baseAccount;
       } catch (apiError) {
         console.error("Erreur API:", apiError);
         console.warn("Utilisation des données fournies manuellement au lieu de récupérer depuis l'API");
@@ -443,10 +441,24 @@ const RiotManager: React.FC = () => {
   
   // Obtenir l'icône du rang à partir de l'ID de tier
   const getRankIcon = (tier: number): string => {
-    // Cette fonction devrait retourner l'URL de l'icône du rang
-    // On pourrait utiliser valorant-api.com pour obtenir ces icônes
-    const rankName = getRankName(tier).toLowerCase();
-    return `https://valorant-api.com/assets/ranks/${rankName}.png`;
+    // Utiliser les icônes locales plutôt que l'API valorant-api.com
+    const rankName = getRankName(tier);
+    
+    if (rankName === "Radiant") {
+      return `/img/rank_png/Radiant_Rank.png`;
+    }
+    
+    // Extraire le nom et le numéro du rang
+    const parts = rankName.split(' ');
+    if (parts.length < 2) {
+      return "/img/rank_png/Iron_1_Rank.png"; // Image par défaut
+    }
+    
+    const rank = parts[0];
+    const number = parts[1];
+    
+    // Utiliser les images locales
+    return `/img/rank_png/${rank}_${number}_Rank.png`;
   };
   
   // Actualiser les données du compte
@@ -1021,32 +1033,118 @@ const RiotManager: React.FC = () => {
   
   // Modifier la fonction getRankIconByName pour utiliser correctement les images locales
   const getRankIconByName = (rankName: string): string => {
-    // Si pas de rankName ou "Non classé", retourner l'image par défaut
+    // Si pas de rankName ou "Non classé", retourner une icône par défaut
     if (!rankName || rankName.toLowerCase() === "non classé") {
-      return "/img/rank_png/Iron_1_Rank.png"; // Utiliser Iron 1 comme image par défaut
+      return "/img/rank_png/Iron_1_Rank.png"; // Image par défaut
     }
 
     try {
-      // Nettoyer le nom du rang pour correspondre au format du fichier
-      const parts = rankName.split(' ');
-      if (parts.length < 2 && rankName.toLowerCase() !== "radiant") {
-        // Si le format n'est pas "Rang Numéro", utiliser une image par défaut
-        console.warn(`Format de rang invalide: ${rankName}`);
-        return "/img/rank_png/Iron_1_Rank.png";
-      }
-
-      // Pour "Radiant", pas de numéro
+      // Cas spécial pour "Radiant"
       if (rankName.toLowerCase() === "radiant") {
         return `/img/rank_png/Radiant_Rank.png`;
       }
 
-      // Pour les autres rangs, le format est "Rang_Numéro_Rank.png"
+      // Extraire le nom du rang et le numéro (si présent)
+      const parts = rankName.split(' ');
+      if (parts.length < 2) {
+        console.warn(`Format de rang incomplet: ${rankName}`);
+        return "/img/rank_png/Iron_1_Rank.png";
+      }
+
       const rank = parts[0];
       const number = parts[1];
+
+      // URL du fichier image local selon convention de nommage
       return `/img/rank_png/${rank}_${number}_Rank.png`;
     } catch (error) {
       console.error("Erreur lors de la génération du chemin de l'image de rang:", error);
-      return "/img/rank_png/Iron_1_Rank.png";
+      return "/img/rank_png/Iron_1_Rank.png"; // Image par défaut en cas d'erreur
+    }
+  };
+  
+  // Ajouter une fonction pour réparer/normaliser la structure des comptes existants
+  const normalizeAccounts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Récupérer tous les comptes
+      const accountsRef = ref(database, 'riotAccounts');
+      const snapshot = await get(accountsRef);
+      
+      if (!snapshot.exists()) {
+        setSuccess("Aucun compte à normaliser");
+        return;
+      }
+      
+      const updates: {[key: string]: any} = {};
+      let normalizedCount = 0;
+      
+      // Parcourir tous les comptes et normaliser leur structure
+      snapshot.forEach((childSnapshot) => {
+        const accountId = childSnapshot.key;
+        if (!accountId) return;
+        
+        const accountData = childSnapshot.val();
+        let needsUpdate = false;
+        
+        // Vérifier et normaliser les champs obligatoires
+        if (accountData.order === undefined) {
+          updates[`riotAccounts/${accountId}/order`] = 999; // Valeur élevée par défaut
+          needsUpdate = true;
+        }
+        
+        // Vérifier et normaliser les champs optionnels
+        if (accountData.password && typeof accountData.password === 'string' && !accountData.password.startsWith('eyJ')) {
+          // Le mot de passe n'est pas chiffré, le chiffrer
+          updates[`riotAccounts/${accountId}/password`] = encryptPassword(accountData.password);
+          needsUpdate = true;
+        }
+        
+        // Assurer que tous les comptes ont un riotId (même vide)
+        if (accountData.riotId === undefined) {
+          updates[`riotAccounts/${accountId}/riotId`] = "";
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          normalizedCount++;
+        }
+      });
+      
+      // Appliquer les mises à jour si nécessaire
+      if (normalizedCount > 0) {
+        await update(ref(database), updates);
+        console.log(`${normalizedCount} comptes normalisés`);
+        setSuccess(`${normalizedCount} comptes ont été normalisés`);
+        
+        // Recharger manuellement les comptes pour voir les changements
+        try {
+          const riotAccountsRef = ref(database, 'riotAccounts');
+          const snapshot = await get(riotAccountsRef);
+          
+          if (snapshot.exists()) {
+            const accountsData = snapshot.val();
+            const accountsArray: RiotAccount[] = Object.entries(accountsData).map(
+              ([id, data]: [string, any]) => ({
+                id,
+                ...data
+              })
+            );
+            
+            setAccounts(accountsArray);
+          }
+        } catch (err) {
+          console.error('Erreur lors du rechargement des comptes après normalisation:', err);
+        }
+      } else {
+        setSuccess("Tous les comptes sont déjà normalisés");
+      }
+    } catch (err) {
+      console.error("Erreur lors de la normalisation des comptes:", err);
+      setError("Impossible de normaliser les comptes");
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -1159,23 +1257,31 @@ const RiotManager: React.FC = () => {
   
   // Rendu du composant
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold mb-2">Gestion des comptes RIOT</h2>
-          <p className="text-gray-400 text-sm">Gérez vos comptes RIOT pour accéder aux statistiques de Valorant</p>
-        </div>
-        
-        {activeTab === 'accounts' && (
-          <button 
-            onClick={() => { resetForm(); setShowForm(true); }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center w-full sm:w-auto justify-center"
-            disabled={loading}
+    <div className="p-4">
+      {/* En-tête avec titre et boutons */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Gestion des comptes RIOT</h1>
+        <div className="space-x-2">
+          <button
+            onClick={normalizeAccounts}
+            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg flex items-center"
+            title="Réparer les structures des comptes existants"
           >
-            <Plus size={18} className="mr-2" />
+            <RefreshCw size={16} className="mr-1" />
+            Réparer les comptes
+          </button>
+          <button
+            onClick={() => {
+              resetForm();
+              setIsEditing(false);
+              setShowForm(true);
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center"
+          >
+            <Plus size={16} className="mr-1" />
             Ajouter un compte
           </button>
-        )}
+        </div>
       </div>
       
       {/* Tabs de navigation */}
@@ -1295,7 +1401,7 @@ const RiotManager: React.FC = () => {
                     </p>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {accountOrder
                       .map(id => accounts.find(account => account.id === id))
                       .filter(Boolean)
@@ -1344,31 +1450,89 @@ const RiotManager: React.FC = () => {
                               }
                             }}
                           >
-                            <div className="p-5">
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <h3 className="text-lg font-semibold">{account.username}</h3>
-                                  <p className="text-sm text-gray-400">#{account.tag}</p>
-                                </div>
-                                
-                                {/* Indicateur de région */}
-                                <span className="px-2 py-1 bg-gray-700 text-xs rounded-full">
-                                  {REGIONS.find(r => r.value === account.region)?.label || account.region}
-                                </span>
-                              </div>
-                              
+                      <div className="p-5">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold">{account.username}</h3>
+                            <p className="text-sm text-gray-400">#{account.tag}</p>
+                          </div>
+                          
+                          {/* Indicateur de région */}
+                          <span className="px-2 py-1 bg-gray-700 text-xs rounded-full">
+                            {REGIONS.find(r => r.value === account.region)?.label || account.region}
+                          </span>
+                        </div>
+                        
                               {/* Informations du compte */}
                               <div className="mb-4 p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
                                 <h4 className="text-sm font-medium text-blue-300 mb-2">Identifiants de connexion</h4>
                                 
                                 {/* Contenu existant des identifiants */}
-                              </div>
-                              
-                              {/* Statistiques de rang */}
-                              {account.rank ? (
+                          </div>
+                        
+                        {/* Statistiques de rang */}
+                        {account.rank ? (
                                 <div className="mb-4 p-3 bg-gray-800 border border-gray-700 rounded-lg">
                                   <h4 className="text-sm font-medium text-blue-300 mb-2">Statistiques de rang</h4>
-                                  {/* Contenu existant des statistiques de rang */}
+                                  <div className="flex">
+                                    <div className="w-1/2 border-r border-gray-700 pr-3">
+                                      <p className="text-xs text-gray-400 mb-1">Rang actuel</p>
+                                      <div className="flex items-center">
+                                        <div className="w-12 h-12 flex-shrink-0 bg-gray-900 rounded-md overflow-hidden mr-2 flex items-center justify-center">
+                                          {account.rank.currentRank && account.rank.currentRank !== "Non classé" ? (
+                                            <img 
+                                              src={getRankIconByName(account.rank.currentRank)} 
+                                              alt={account.rank.currentRank} 
+                                              className="w-11 h-11 object-contain"
+                                              onError={(e) => {
+                                                // En cas d'erreur de chargement d'image, utiliser une image par défaut
+                                                const target = e.target as HTMLImageElement;
+                                                console.warn(`Impossible de charger l'image: ${target.src}`);
+                                                target.src = "/img/rank_png/Iron_1_Rank.png";
+                                              }}
+                                            />
+                                          ) : (
+                                            <div className="text-xs text-gray-400">Non classé</div>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <p className="font-medium">{account.rank.currentRank || "Non classé"}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="w-1/2 pl-3">
+                                      <p className="text-xs text-gray-400 mb-1">Meilleur rang</p>
+                                      <div className="flex items-center">
+                                        <div className="w-12 h-12 flex-shrink-0 bg-gray-900 rounded-md overflow-hidden mr-2 flex items-center justify-center">
+                                          {account.rank.bestRank && account.rank.bestRank !== "Non classé" ? (
+                                            <img 
+                                              src={getRankIconByName(account.rank.bestRank)} 
+                                              alt={account.rank.bestRank} 
+                                              className="w-11 h-11 object-contain"
+                                              onError={(e) => {
+                                                // En cas d'erreur de chargement d'image, utiliser une image par défaut
+                                                const target = e.target as HTMLImageElement;
+                                                console.warn(`Impossible de charger l'image: ${target.src}`);
+                                                target.src = "/img/rank_png/Iron_1_Rank.png";
+                                              }}
+                                            />
+                                          ) : (
+                                            <div className="text-xs text-gray-400">Non classé</div>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <p className="font-medium">{account.rank.bestRank || "Non classé"}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {account.rank.seasonRanks && account.rank.seasonRanks.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-gray-700">
+                                      <p className="text-xs text-gray-400">Dernier épisode: <span className="text-white">{account.rank.seasonRanks[0].rank}</span></p>
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="mb-4 p-3 bg-gray-800 border border-gray-700 rounded-lg flex items-center text-gray-400">
@@ -1431,14 +1595,14 @@ const RiotManager: React.FC = () => {
                                             <span className="text-xs">+{account.ownedAgents.length - 5}</span>
                                           </div>
                                         )}
-                                      </div>
+                              </div>
                                     ) : (
                                       <p className="text-xs text-gray-400">Aucun agent attribué à ce compte</p>
                                     )}
                                   </div>
                                 )}
-                              </div>
-                              
+                            </div>
+                            
                               {/* Aperçu des skins possédés */}
                               <div className="mb-4">
                                 <div className="flex justify-between items-center mb-2">
@@ -1449,8 +1613,8 @@ const RiotManager: React.FC = () => {
                                   >
                                     {editingOwnedItems === `skins-${account.id}` ? 'Terminer' : 'Modifier'}
                                   </button>
-                                </div>
-                                
+                              </div>
+                              
                                 {editingOwnedItems === `skins-${account.id}` ? (
                                   <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg max-h-60 overflow-y-auto">
                                     <div className="space-y-3">
@@ -1474,16 +1638,16 @@ const RiotManager: React.FC = () => {
                                                     alt={skin.displayName} 
                                                     className="h-full max-h-10 object-contain"
                                                   />
-                                                </div>
+                                </div>
                                                 <p className="text-[10px] text-center mt-1 truncate">{skin.displayName}</p>
                                               </div>
                                             ))}
                                           </div>
                                         </div>
                                       ))}
-                                    </div>
-                                  </div>
-                                ) : (
+                            </div>
+                          </div>
+                        ) : (
                                   <div className="p-3 bg-gray-750 border border-gray-600 rounded-lg">
                                     {account.ownedSkins && account.ownedSkins.length > 0 ? (
                                       <div className="flex flex-wrap gap-2">
@@ -1513,8 +1677,8 @@ const RiotManager: React.FC = () => {
                                         {account.ownedSkins.length > 4 && (
                                           <div className="w-14 h-10 rounded bg-gray-700 flex items-center justify-center">
                                             <span className="text-xs">+{account.ownedSkins.length - 4}</span>
-                                          </div>
-                                        )}
+                          </div>
+                        )}
                                       </div>
                                     ) : (
                                       <p className="text-xs text-gray-400">Aucun skin attribué à ce compte</p>
@@ -1522,27 +1686,27 @@ const RiotManager: React.FC = () => {
                                   </div>
                                 )}
                               </div>
-                              
-                              {/* Date de dernière mise à jour */}
-                              <p className="text-xs text-gray-500 mb-4">
-                                Dernière mise à jour: {new Date(account.lastUpdated).toLocaleDateString('fr-FR', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                              
-                              {/* Actions */}
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                <button 
-                                  onClick={() => openEditForm(account)}
-                                  className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
-                                >
-                                  <Edit size={16} className="mr-1" />
-                                  Modifier
-                                </button>
+                        
+                        {/* Date de dernière mise à jour */}
+                        <p className="text-xs text-gray-500 mb-4">
+                          Dernière mise à jour: {new Date(account.lastUpdated).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        
+                        {/* Actions */}
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button 
+                            onClick={() => openEditForm(account)}
+                            className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center"
+                          >
+                            <Edit size={16} className="mr-1" />
+                            Modifier
+                          </button>
                                 
                                 <button 
                                   onClick={(e) => {
@@ -1562,18 +1726,18 @@ const RiotManager: React.FC = () => {
                                     </span>
                                   ) : null}
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                                </button>
-                                
-                                <button 
-                                  onClick={() => deleteAccount(account.id)}
-                                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg flex items-center"
-                                >
-                                  <Trash2 size={16} className="mr-1" />
-                                  Supprimer
-                                </button>
-                              </div>
-                            </div>
-                          </div>
+                          </button>
+                          
+                          <button 
+                            onClick={() => deleteAccount(account.id)}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg flex items-center"
+                          >
+                            <Trash2 size={16} className="mr-1" />
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                         );
                       })}
                   </div>
@@ -1712,41 +1876,41 @@ const RiotManager: React.FC = () => {
                     
                     <div className="grid grid-cols-3 gap-4 mb-3">
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Nom affiché en jeu</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={newAccount.username}
-                          onChange={(e) => setNewAccount({...newAccount, username: e.target.value})}
-                          placeholder="Ex: Valorant123"
-                        />
-                      </div>
-                      
-                      <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Nom affiché en jeu</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newAccount.username}
+                    onChange={(e) => setNewAccount({...newAccount, username: e.target.value})}
+                    placeholder="Ex: Valorant123"
+                  />
+                </div>
+                
+                <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Tag</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={newAccount.tag}
-                          onChange={(e) => setNewAccount({...newAccount, tag: e.target.value})}
-                          placeholder="Ex: EU1"
-                        />
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newAccount.tag}
+                    onChange={(e) => setNewAccount({...newAccount, tag: e.target.value})}
+                    placeholder="Ex: EU1"
+                  />
                       </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">Région</label>
-                      <select
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newAccount.region}
-                        onChange={(e) => setNewAccount({...newAccount, region: e.target.value})}
-                      >
-                        {REGIONS.map(region => (
-                          <option key={region.value} value={region.value}>
-                            {region.label}
-                          </option>
-                        ))}
-                      </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Région</label>
+                  <select
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newAccount.region}
+                    onChange={(e) => setNewAccount({...newAccount, region: e.target.value})}
+                  >
+                    {REGIONS.map(region => (
+                      <option key={region.value} value={region.value}>
+                        {region.label}
+                      </option>
+                    ))}
+                  </select>
                     </div>
                   </div>
                 </div>
@@ -1762,16 +1926,16 @@ const RiotManager: React.FC = () => {
                       >
                         {advancedMode ? "Masquer" : "Afficher"}
                       </button>
-                    </div>
-                    
+                </div>
+                
                     <div className="space-y-4">
-                      <h3 className="font-medium text-blue-400 mb-2">Identifiants de connexion</h3>
-                      
-                      <div>
+                    <h3 className="font-medium text-blue-400 mb-2">Identifiants de connexion</h3>
+                    
+                    <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Nom d'utilisateur</label>
-                        <input
+                      <input
                           type="text"
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={newAccount.login || ''}
                           onChange={(e) => setNewAccount({...newAccount, login: e.target.value})}
                           placeholder="Nom d'utilisateur pour se connecter au compte RIOT"
@@ -1779,15 +1943,15 @@ const RiotManager: React.FC = () => {
                         <p className="text-xs text-gray-400 mt-1">
                           Identifiant utilisé pour vous connecter au compte RIOT (pas le nom affiché en jeu)
                         </p>
-                      </div>
-                      
-                      <div>
+                    </div>
+                    
+                    <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe</label>
-                        <input
-                          type="password"
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={newAccount.password}
-                          onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
+                      <input
+                        type="password"
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={newAccount.password}
+                        onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
                           placeholder="Mot de passe pour ce compte RIOT"
                         />
                       </div>
@@ -1800,8 +1964,8 @@ const RiotManager: React.FC = () => {
                           value={newAccount.email}
                           onChange={(e) => setNewAccount({...newAccount, email: e.target.value})}
                           placeholder="Adresse e-mail associée au compte RIOT"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
                           Cette information vous aide à retrouver quel e-mail est associé à quel compte.
                         </p>
                       </div>
@@ -1809,122 +1973,122 @@ const RiotManager: React.FC = () => {
                       <div className="p-2 bg-blue-900/20 border border-blue-700/30 rounded-lg">
                         <p className="text-xs text-blue-300">
                           Note: Les identifiants sont stockés de manière sécurisée et visibles uniquement par les administrateurs.
-                        </p>
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center mt-4 mb-2">
+                        <input
+                          type="checkbox"
+                          id="manualRank"
+                          checked={newAccount.manualRank}
+                          onChange={(e) => setNewAccount({...newAccount, manualRank: e.target.checked})}
+                          className="h-4 w-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="manualRank" className="ml-2 text-sm text-gray-300">
+                          Définir le rang manuellement
+                        </label>
                       </div>
                       
-                      <div>
-                        <div className="flex items-center mt-4 mb-2">
-                          <input
-                            type="checkbox"
-                            id="manualRank"
-                            checked={newAccount.manualRank}
-                            onChange={(e) => setNewAccount({...newAccount, manualRank: e.target.checked})}
-                            className="h-4 w-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label htmlFor="manualRank" className="ml-2 text-sm text-gray-300">
-                            Définir le rang manuellement
-                          </label>
-                        </div>
-                        
-                        {newAccount.manualRank && (
-                          <div className="mt-3 space-y-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-300 mb-1">Rang actuel</label>
-                              <select
-                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={newAccount.rank?.currentRank || "Non classé"}
-                                onChange={(e) => {
-                                  const rankValue = e.target.value;
-                                  const tierValue = getRankTier(rankValue);
-                                  setNewAccount({
-                                    ...newAccount, 
-                                    rank: {
-                                      ...newAccount.rank,
-                                      currentRank: rankValue,
-                                      currentTier: tierValue.toString(),
-                                      rankIcon: getRankIcon(tierValue),
-                                      bestRank: newAccount.rank?.bestRank || rankValue,
-                                      bestTier: newAccount.rank?.bestTier || tierValue.toString()
-                                    }
-                                  });
-                                }}
-                              >
-                                <option value="Non classé">Non classé</option>
-                                <option value="Iron 1">Iron 1</option>
-                                <option value="Iron 2">Iron 2</option>
-                                <option value="Iron 3">Iron 3</option>
-                                <option value="Bronze 1">Bronze 1</option>
-                                <option value="Bronze 2">Bronze 2</option>
-                                <option value="Bronze 3">Bronze 3</option>
-                                <option value="Silver 1">Silver 1</option>
-                                <option value="Silver 2">Silver 2</option>
-                                <option value="Silver 3">Silver 3</option>
-                                <option value="Gold 1">Gold 1</option>
-                                <option value="Gold 2">Gold 2</option>
-                                <option value="Gold 3">Gold 3</option>
-                                <option value="Platinum 1">Platinum 1</option>
-                                <option value="Platinum 2">Platinum 2</option>
-                                <option value="Platinum 3">Platinum 3</option>
-                                <option value="Diamond 1">Diamond 1</option>
-                                <option value="Diamond 2">Diamond 2</option>
-                                <option value="Diamond 3">Diamond 3</option>
-                                <option value="Ascendant 1">Ascendant 1</option>
-                                <option value="Ascendant 2">Ascendant 2</option>
-                                <option value="Ascendant 3">Ascendant 3</option>
-                                <option value="Immortal 1">Immortal 1</option>
-                                <option value="Immortal 2">Immortal 2</option>
-                                <option value="Immortal 3">Immortal 3</option>
-                                <option value="Radiant">Radiant</option>
-                              </select>
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-300 mb-1">Meilleur rang</label>
-                              <select
-                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={newAccount.rank?.bestRank || "Non classé"}
-                                onChange={(e) => {
-                                  const rankValue = e.target.value;
-                                  const tierValue = getRankTier(rankValue);
-                                  setNewAccount({
-                                    ...newAccount, 
-                                    rank: {
-                                      ...newAccount.rank,
-                                      bestRank: rankValue,
-                                      bestTier: tierValue.toString()
-                                    }
-                                  });
-                                }}
-                              >
-                                <option value="Non classé">Non classé</option>
-                                <option value="Iron 1">Iron 1</option>
-                                <option value="Iron 2">Iron 2</option>
-                                <option value="Iron 3">Iron 3</option>
-                                <option value="Bronze 1">Bronze 1</option>
-                                <option value="Bronze 2">Bronze 2</option>
-                                <option value="Bronze 3">Bronze 3</option>
-                                <option value="Silver 1">Silver 1</option>
-                                <option value="Silver 2">Silver 2</option>
-                                <option value="Silver 3">Silver 3</option>
-                                <option value="Gold 1">Gold 1</option>
-                                <option value="Gold 2">Gold 2</option>
-                                <option value="Gold 3">Gold 3</option>
-                                <option value="Platinum 1">Platinum 1</option>
-                                <option value="Platinum 2">Platinum 2</option>
-                                <option value="Platinum 3">Platinum 3</option>
-                                <option value="Diamond 1">Diamond 1</option>
-                                <option value="Diamond 2">Diamond 2</option>
-                                <option value="Diamond 3">Diamond 3</option>
-                                <option value="Ascendant 1">Ascendant 1</option>
-                                <option value="Ascendant 2">Ascendant 2</option>
-                                <option value="Ascendant 3">Ascendant 3</option>
-                                <option value="Immortal 1">Immortal 1</option>
-                                <option value="Immortal 2">Immortal 2</option>
-                                <option value="Immortal 3">Immortal 3</option>
-                                <option value="Radiant">Radiant</option>
-                              </select>
-                            </div>
-                            
+                      {newAccount.manualRank && (
+                        <div className="mt-3 space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Rang actuel</label>
+                            <select
+                              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={newAccount.rank?.currentRank || "Non classé"}
+                              onChange={(e) => {
+                                const rankValue = e.target.value;
+                                const tierValue = getRankTier(rankValue);
+                                setNewAccount({
+                                  ...newAccount, 
+                                  rank: {
+                                    ...newAccount.rank,
+                                    currentRank: rankValue,
+                                    currentTier: tierValue.toString(),
+                                    rankIcon: getRankIcon(tierValue),
+                                    bestRank: newAccount.rank?.bestRank || rankValue,
+                                    bestTier: newAccount.rank?.bestTier || tierValue.toString()
+                                  }
+                                });
+                              }}
+                            >
+                              <option value="Non classé">Non classé</option>
+                              <option value="Iron 1">Iron 1</option>
+                              <option value="Iron 2">Iron 2</option>
+                              <option value="Iron 3">Iron 3</option>
+                              <option value="Bronze 1">Bronze 1</option>
+                              <option value="Bronze 2">Bronze 2</option>
+                              <option value="Bronze 3">Bronze 3</option>
+                              <option value="Silver 1">Silver 1</option>
+                              <option value="Silver 2">Silver 2</option>
+                              <option value="Silver 3">Silver 3</option>
+                              <option value="Gold 1">Gold 1</option>
+                              <option value="Gold 2">Gold 2</option>
+                              <option value="Gold 3">Gold 3</option>
+                              <option value="Platinum 1">Platinum 1</option>
+                              <option value="Platinum 2">Platinum 2</option>
+                              <option value="Platinum 3">Platinum 3</option>
+                              <option value="Diamond 1">Diamond 1</option>
+                              <option value="Diamond 2">Diamond 2</option>
+                              <option value="Diamond 3">Diamond 3</option>
+                              <option value="Ascendant 1">Ascendant 1</option>
+                              <option value="Ascendant 2">Ascendant 2</option>
+                              <option value="Ascendant 3">Ascendant 3</option>
+                              <option value="Immortal 1">Immortal 1</option>
+                              <option value="Immortal 2">Immortal 2</option>
+                              <option value="Immortal 3">Immortal 3</option>
+                              <option value="Radiant">Radiant</option>
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Meilleur rang</label>
+                            <select
+                              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={newAccount.rank?.bestRank || "Non classé"}
+                              onChange={(e) => {
+                                const rankValue = e.target.value;
+                                const tierValue = getRankTier(rankValue);
+                                setNewAccount({
+                                  ...newAccount, 
+                                  rank: {
+                                    ...newAccount.rank,
+                                    bestRank: rankValue,
+                                    bestTier: tierValue.toString()
+                                  }
+                                });
+                              }}
+                            >
+                              <option value="Non classé">Non classé</option>
+                              <option value="Iron 1">Iron 1</option>
+                              <option value="Iron 2">Iron 2</option>
+                              <option value="Iron 3">Iron 3</option>
+                              <option value="Bronze 1">Bronze 1</option>
+                              <option value="Bronze 2">Bronze 2</option>
+                              <option value="Bronze 3">Bronze 3</option>
+                              <option value="Silver 1">Silver 1</option>
+                              <option value="Silver 2">Silver 2</option>
+                              <option value="Silver 3">Silver 3</option>
+                              <option value="Gold 1">Gold 1</option>
+                              <option value="Gold 2">Gold 2</option>
+                              <option value="Gold 3">Gold 3</option>
+                              <option value="Platinum 1">Platinum 1</option>
+                              <option value="Platinum 2">Platinum 2</option>
+                              <option value="Platinum 3">Platinum 3</option>
+                              <option value="Diamond 1">Diamond 1</option>
+                              <option value="Diamond 2">Diamond 2</option>
+                              <option value="Diamond 3">Diamond 3</option>
+                              <option value="Ascendant 1">Ascendant 1</option>
+                              <option value="Ascendant 2">Ascendant 2</option>
+                              <option value="Ascendant 3">Ascendant 3</option>
+                              <option value="Immortal 1">Immortal 1</option>
+                              <option value="Immortal 2">Immortal 2</option>
+                              <option value="Immortal 3">Immortal 3</option>
+                              <option value="Radiant">Radiant</option>
+                            </select>
+                          </div>
+                          
                             <div className="flex space-x-4 mt-4">
                               <div className="text-center">
                                 <p className="text-xs text-gray-400 mb-1">Rang actuel</p>
@@ -1946,12 +2110,12 @@ const RiotManager: React.FC = () => {
                                     alt={newAccount.rank?.bestRank} 
                                     className="w-12 h-12 mx-auto"
                                   />
-                                </div>
-                                <p className="font-bold mt-1">{newAccount.rank?.bestRank || "Non classé"}</p>
-                              </div>
                             </div>
-                          </div>
-                        )}
+                                <p className="font-bold mt-1">{newAccount.rank?.bestRank || "Non classé"}</p>
+                        </div>
+                    </div>
+                  </div>
+                )}
                       </div>
                     </div>
                   </div>
