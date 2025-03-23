@@ -145,7 +145,9 @@ const CasinoManager: React.FC = () => {
         
         <div className="game-content">
           {selectedGame.id === 'crash' ? (
-            <CrashGame />
+            <AuthProvider>
+              <CrashGame />
+            </AuthProvider>
           ) : (
             <div>Jeu de dés en développement</div>
           )}
