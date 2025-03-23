@@ -3,6 +3,8 @@ import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft } from 'lucide-rea
 import CrashGame from './crash/CrashGame';
 import './CasinoManager.css';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
+import { User } from 'firebase/auth';
+import { UserData } from '../../firebase/auth';
 
 interface GameType {
   id: string;
@@ -12,13 +14,23 @@ interface GameType {
   status: 'active' | 'coming-soon';
 }
 
+// Type pour le contexte d'authentification
+interface AuthContextType {
+  currentUser: User | null;
+  userData: UserData | null;
+  isAdmin: boolean;
+  isLoading: boolean;
+  refreshUserData: () => Promise<void>;
+  logout: () => Promise<void>;
+}
+
 // Composant qui sert de wrapper pour les jeux
 const CasinoManager: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [showGameList, setShowGameList] = useState<boolean>(true);
   
   // Utiliser try-catch pour gérer le cas où le contexte d'auth n'est pas disponible
-  let auth = null;
+  let auth: AuthContextType | null = null;
   try {
     auth = useAuth();
   } catch (error) {
