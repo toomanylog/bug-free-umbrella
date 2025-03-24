@@ -5,12 +5,34 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { DollarSign, Dice5, BarChart2, RefreshCw, Plus, Minus, Award, Clock } from 'lucide-react';
 import './DiceGame.css';
 
-// Fonction pour récupérer le solde de l'utilisateur
+// Fonction pour récupérer le solde de l'utilisateur avec retry et fallback
 const getUserBalance = async (userId: string): Promise<number> => {
   try {
+    // Essayer d'abord le chemin principal
     const balanceRef = ref(database, `users/${userId}/balance`);
     const snapshot = await get(balanceRef);
-    return snapshot.exists() ? snapshot.val() : 0;
+    
+    if (snapshot.exists()) {
+      return snapshot.val();
+    }
+    
+    // Si pas de solde, chercher dans userData
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (userSnapshot.exists()) {
+      const userData = userSnapshot.val();
+      if (userData.balance !== undefined) {
+        return userData.balance;
+      } else if (userData.wallet?.balance !== undefined) {
+        return userData.wallet.balance;
+      }
+    }
+    
+    // Si toujours pas trouvé, initialiser à 100 (valeur par défaut)
+    console.log("Initialisation du solde à 100");
+    await update(ref(database, `users/${userId}`), { balance: 100 });
+    return 100;
   } catch (error) {
     console.error("Erreur lors de la récupération du solde:", error);
     return 0;
@@ -22,6 +44,15 @@ const updateBalance = async (userId: string, newBalance: number): Promise<void> 
   try {
     const userRef = ref(database, `users/${userId}`);
     await update(userRef, { balance: newBalance });
+    
+    // Mettre à jour également dans wallet si présent
+    const userSnapshot = await get(userRef);
+    if (userSnapshot.exists()) {
+      const userData = userSnapshot.val();
+      if (userData.wallet) {
+        await update(userRef, { 'wallet/balance': newBalance });
+      }
+    }
   } catch (error) {
     console.error("Erreur lors de la mise à jour du solde:", error);
     throw error;
@@ -68,6 +99,7 @@ const DiceGame: React.FC = () => {
     totalLost: 0
   });
   const [balanceAnimation, setBalanceAnimation] = useState<string>('');
+  const statsContentRef = useRef<HTMLDivElement>(null);
   
   // Références pour l'animation
   const dice1Ref = useRef<HTMLDivElement>(null);
@@ -87,6 +119,25 @@ const DiceGame: React.FC = () => {
     doubles: 8, // 8:1 pour n'importe quelle paire
     other: 0    // Perdant pour les autres valeurs
   };
+  
+  // Empêcher la fermeture des stats lors du scroll
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      // Si on scrolle à l'intérieur du conteneur des stats, empêcher la propagation
+      if (statsContentRef.current && statsContentRef.current.contains(e.target as Node)) {
+        e.stopPropagation();
+      }
+    };
+    
+    // Capture en phase de capture pour intercepter avant la propagation
+    document.addEventListener('wheel', handleScroll, { capture: true });
+    document.addEventListener('touchmove', handleScroll, { capture: true });
+    
+    return () => {
+      document.removeEventListener('wheel', handleScroll, { capture: true });
+      document.removeEventListener('touchmove', handleScroll, { capture: true });
+    };
+  }, []);
   
   // Mise à jour des statistiques locales quand l'historique change
   useEffect(() => {
@@ -121,18 +172,28 @@ const DiceGame: React.FC = () => {
     }, 1500);
   };
   
-  // Chargement du solde utilisateur et de l'historique des parties
+  // Chargement initial du solde et détection des changements
   useEffect(() => {
     if (currentUser) {
-      // Charger le solde
+      // Fonction d'initialisation du solde
+      const initializeBalance = async () => {
+        try {
+          // Essayer de trouver le solde dans différents emplacements
+          const userBalance = await getUserBalance(currentUser.uid);
+          setBalance(userBalance);
+        } catch (error) {
+          console.error("Erreur lors de l'initialisation du solde:", error);
+        }
+      };
+      
+      // Initialiser le solde
+      initializeBalance();
+      
+      // Observer les changements de solde
       const userBalanceRef = ref(database, `users/${currentUser.uid}/balance`);
       const unsubscribeBalance = onValue(userBalanceRef, (snapshot) => {
         if (snapshot.exists()) {
           setBalance(snapshot.val());
-        } else {
-          // Si le solde n'existe pas, l'initialiser à 0
-          update(ref(database, `users/${currentUser.uid}`), { balance: 0 });
-          setBalance(0);
         }
       });
       
@@ -150,13 +211,20 @@ const DiceGame: React.FC = () => {
         }
       });
       
+      // Si userData est disponible et contient un solde
+      if (userData && typeof userData === 'object' && 'balance' in userData) {
+        setBalance(userData.balance as number);
+      } else if (userData && typeof userData === 'object' && 'wallet' in userData && userData.wallet && typeof userData.wallet === 'object' && 'balance' in userData.wallet) {
+        setBalance(userData.wallet.balance as number);
+      }
+      
       return () => {
         unsubscribeBalance();
         unsubscribeHistory();
       };
     }
-  }, [currentUser]);
-  
+  }, [currentUser, userData]);
+
   // Initialiser les statistiques du jeu si nécessaire
   useEffect(() => {
     const checkAndInitGameStats = async () => {
@@ -530,7 +598,7 @@ const DiceGame: React.FC = () => {
           </button>
           
           {showStats && (
-            <div className="player-stats">
+            <div className="player-stats" ref={statsContentRef}>
               <div className="stats-grid">
                 <div className="stat-item">
                   <span className="stat-label">Parties</span>
