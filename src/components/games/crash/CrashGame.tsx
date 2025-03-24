@@ -357,7 +357,7 @@ const CrashGame: React.FC = () => {
         const gameId = `game-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
         
         const newState: CrashState = {
-          status: 'waiting',
+          status: 'waiting' as const,
           startTime: null,
           crashTime: null,
           crashMultiplier: null,
@@ -459,7 +459,7 @@ const CrashGame: React.FC = () => {
         
         const updatedState: CrashState = {
           ...currentGameState,
-          status: 'running',
+          status: 'running' as const,
           startTime,
           crashTime: startTime + crashTimeMs,
           crashMultiplier: crashPoint,
@@ -474,7 +474,7 @@ const CrashGame: React.FC = () => {
         
         // Mettre à jour Firebase
         await update(ref(database, 'crashGame/currentGame'), {
-          status: 'running',
+          status: 'running' as const,
           startTime,
           crashTime: startTime + crashTimeMs,
           crashMultiplier: crashPoint
@@ -795,7 +795,7 @@ const CrashGame: React.FC = () => {
         // Mettre à jour l'état du jeu localement d'abord
         const updatedState = {
           ...gameStateRef.current,
-          status: 'crashed',
+          status: 'crashed' as const,
           crashMultiplier: validCrashPoint,
           crashHistory: [validCrashPoint, ...(gameStateRef.current.crashHistory || [])].slice(0, 10)
         };
