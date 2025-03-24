@@ -116,8 +116,8 @@ const CasinoManager: React.FC = () => {
           {games.map(game => (
             <div 
               key={game.id}
-              className={`game-card ${game.status !== 'active' ? game.status : ''}`}
-              onClick={() => handleGameCardClick(game)}
+              className={`game-card ${game.status !== 'active' ? game.status : ''} ${game.status === 'disabled' ? 'offline' : ''}`}
+              onClick={() => game.status === 'active' || (isAdmin && game.status === 'disabled') ? handleGameCardClick(game) : null}
             >
               <div className="game-card-icon">
                 {game.icon}
@@ -127,7 +127,7 @@ const CasinoManager: React.FC = () => {
                 <h3 className="game-card-title">
                   {game.name}
                   {game.status === 'coming-soon' && <span className="coming-soon-tag">Bientôt disponible</span>}
-                  {game.status === 'disabled' && <span className="disabled-tag">Désactivé</span>}
+                  {game.status === 'disabled' && <span className="disabled-tag">Offline</span>}
                   {game.status === 'disabled' && isAdmin && <span className="admin-access-tag">Accès Admin</span>}
                 </h3>
                 <p className="game-card-description">{game.description}</p>

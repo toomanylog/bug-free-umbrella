@@ -204,6 +204,37 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.game-card.offline {
+  opacity: 0.7;
+  cursor: not-allowed !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card.offline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(239, 68, 68, 0.1),
+    rgba(239, 68, 68, 0.1) 10px,
+    rgba(0, 0, 0, 0.15) 10px,
+    rgba(0, 0, 0, 0.15) 20px
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+.game-card.offline:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
 .disabled-tag {
   font-size: 0.75rem;
   font-weight: 600;
@@ -212,6 +243,8 @@
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   margin-left: 0.5rem;
+  position: relative;
+  z-index: 2;
 }
 
 .admin-access-tag {
