@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
 import CrashGame from './crash/CrashGame';
+import DiceGame from './dice/DiceGame';
 import './CasinoManager.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from 'firebase/auth';
@@ -39,7 +40,7 @@ const CasinoManager: React.FC = () => {
         // Initialiser la configuration par défaut si elle n'existe pas
         const defaultConfig = {
           crash: { status: 'active', updatedAt: new Date().toISOString() },
-          dice: { status: 'coming-soon', updatedAt: new Date().toISOString() }
+          dice: { status: 'active', updatedAt: new Date().toISOString() }
         };
         set(casinoConfigRef, defaultConfig);
         setGameConfigs(defaultConfig);
@@ -66,8 +67,10 @@ const CasinoManager: React.FC = () => {
       name: 'Lucky Dice',
       description: 'Lancez les dés et pariez sur le résultat. Bonus pour les combinaisons!',
       icon: <Dice5 size={32} />,
-      status: gameConfigs?.dice?.status || 'coming-soon',
-      disabledReason: gameConfigs?.dice?.disabledReason
+      status: isAdmin 
+        ? 'active' // Les admins peuvent toujours accéder aux jeux
+        : (gameConfigs?.dice?.status || 'active'),
+      disabledReason: gameConfigs?.dice?.disabledReason || 'Ce jeu est temporairement désactivé pour maintenance.'
     }
   ];
   
@@ -324,7 +327,7 @@ const CasinoManager: React.FC = () => {
             <CrashGame key={`crash-game-${Date.now()}`} />
           )}
           {selectedGame.id === 'dice' && (
-            <div>Jeu de dés en développement</div>
+            <DiceGame key={`dice-game-${Date.now()}`} />
           )}
         </div>
       </div>
