@@ -198,6 +198,160 @@
   overflow: hidden;
 }
 
+/* Styles pour jeux désactivés */
+.game-card.disabled {
+  opacity: 0.8;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.disabled-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+}
+
+.admin-access-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background-color: rgba(5, 150, 105, 0.3);
+  color: #10b981;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  margin-left: 0.5rem;
+  vertical-align: top;
+}
+
+.game-disabled-reason {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Contrôles administrateur */
+.admin-controls {
+  background-color: rgba(17, 24, 39, 0.7);
+  border-radius: 16px;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.admin-controls h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-controls h2:before {
+  content: "👑";
+  font-size: 1.125rem;
+}
+
+.admin-control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.admin-button {
+  background-color: rgba(31, 41, 55, 0.7);
+  border: 1px solid rgba(75, 85, 99, 0.5);
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-button:hover:not(:disabled) {
+  background-color: rgba(55, 65, 81, 0.9);
+  transform: translateY(-2px);
+}
+
+.admin-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Messages de jeu désactivé ou en développement */
+.game-disabled-message,
+.game-coming-soon-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: rgba(31, 41, 55, 0.8);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  max-width: 500px;
+  margin: 4rem auto;
+}
+
+.game-disabled-message h2,
+.game-coming-soon-message h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #f8fafc;
+}
+
+.game-disabled-message p,
+.game-coming-soon-message p {
+  font-size: 1rem;
+  color: #cbd5e1;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.disabled-icon {
+  color: #ef4444;
+  margin-bottom: 1.5rem;
+}
+
+.back-to-games-button {
+  background-color: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-to-games-button:hover {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+}
+
+/* Indicateur de mode admin */
+.admin-mode-indicator {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background-color: rgba(239, 68, 68, 0.7);
+  color: #ffffff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.75rem;
+  vertical-align: middle;
+  letter-spacing: 0.5px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .casino-title {
@@ -217,5 +371,15 @@
   
   .game-title {
     margin-left: 0;
+  }
+  
+  .admin-control-buttons {
+    flex-direction: column;
+  }
+  
+  .game-disabled-message,
+  .game-coming-soon-message {
+    padding: 2rem 1rem;
+    margin: 2rem 1rem;
   }
 } 
