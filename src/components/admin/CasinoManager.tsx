@@ -10,6 +10,12 @@ interface GameConfig {
   maxBet: number;
   houseEdge: number;
   enabled: boolean;
+  payouts?: {
+    seven: number;
+    snakeEyes: number;
+    boxCars: number;
+    doubles: number;
+  }
 }
 
 interface CrashGameStats {
@@ -30,6 +36,16 @@ interface DiceGameStats {
   totalPayout: number;
   profitLoss: number;
   biggestWin: number;
+}
+
+interface TopPlayer {
+  id: string;
+  displayName: string;
+  email: string;
+  gamesPlayed: number;
+  totalWagered: number;
+  totalWon: number;
+  balance: number;
 }
 
 const CasinoManager: React.FC = () => {
@@ -71,6 +87,8 @@ const CasinoManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' | null }>({ text: '', type: null });
+  const [topPlayersFilter, setTopPlayersFilter] = useState<'winners' | 'losers'>('winners');
+  const [topDicePlayers, setTopDicePlayers] = useState<TopPlayer[]>([]);
 
   // Charger les configurations et les statistiques
   useEffect(() => {
@@ -152,6 +170,70 @@ const CasinoManager: React.FC = () => {
     
     loadData();
   }, [userData]);
+
+  // Charger les meilleurs joueurs
+  useEffect(() => {
+    const loadTopPlayers = async () => {
+      try {
+        const usersRef = ref(database, 'users');
+        const usersSnapshot = await get(usersRef);
+        
+        if (usersSnapshot.exists()) {
+          const users = usersSnapshot.val();
+          const playersData: TopPlayer[] = [];
+          
+          // Parcourir tous les utilisateurs
+          for (const userId in users) {
+            const user = users[userId];
+            if (user.games?.dice?.history) {
+              // Calculer les statistiques du joueur
+              const history = Object.values(user.games.dice.history);
+              const gamesPlayed = history.length;
+              
+              let totalWagered = 0;
+              let totalWon = 0;
+              
+              history.forEach((game: any) => {
+                totalWagered += game.bet || 0;
+                if (game.win) {
+                  totalWon += game.winAmount || 0;
+                }
+              });
+              
+              const balance = totalWon - totalWagered;
+              
+              // Ajouter aux joueurs s'il a joué au moins 5 parties
+              if (gamesPlayed >= 5) {
+                playersData.push({
+                  id: userId,
+                  displayName: user.displayName || '',
+                  email: user.email || '',
+                  gamesPlayed,
+                  totalWagered,
+                  totalWon,
+                  balance
+                });
+              }
+            }
+          }
+          
+          // Trier selon le filtre actuel
+          const sortedPlayers = playersData.sort((a, b) => 
+            topPlayersFilter === 'winners' 
+              ? b.balance - a.balance
+              : a.balance - b.balance
+          );
+          
+          // Limiter à 10 joueurs
+          setTopDicePlayers(sortedPlayers.slice(0, 10));
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des meilleurs joueurs:", error);
+      }
+    };
+    
+    loadTopPlayers();
+  }, [topPlayersFilter]);
 
   // Mettre à jour les configurations
   const saveConfigs = async () => {
@@ -237,6 +319,37 @@ const CasinoManager: React.FC = () => {
         [field]: field === 'enabled' ? value : Number(value)
       }
     }));
+  };
+
+  // Gestion du changement des règles de gain
+  const handlePayoutChange = (payoutType: string, value: number) => {
+    const currentPayouts = gameConfigs.dice?.payouts || {
+      seven: 4,
+      snakeEyes: 30,
+      boxCars: 30,
+      doubles: 8
+    };
+    
+    const updatedPayouts = {
+      ...currentPayouts,
+      [payoutType]: value
+    };
+    
+    setGameConfigs(prev => ({
+      ...prev,
+      dice: {
+        ...prev.dice,
+        payouts: updatedPayouts
+      }
+    }));
+  };
+
+  // Calculer la valeur attendue (Expected Value)
+  const calculateEV = (multiplier: number, probability: number) => {
+    // Valeur attendue = (gain potentiel × probabilité) - (mise × probabilité)
+    // Pour une mise unitaire de 1
+    const ev = (multiplier * probability) - (1 * probability);
+    return (ev * 100).toFixed(1) + '%';
   };
 
   // Rendu de l'aperçu du casino
@@ -493,6 +606,34 @@ const CasinoManager: React.FC = () => {
               <p className="text-sm text-gray-400 mb-1">Avantage maison</p>
               <p className="text-2xl font-bold">{gameConfigs.dice?.houseEdge || 5}%</p>
             </div>
+            
+            <div className="bg-gray-700/50 p-4 rounded-lg">
+              <p className="text-sm text-gray-400 mb-1">RTP (Return to Player)</p>
+              <p className="text-2xl font-bold">{(100 - (gameConfigs.dice?.houseEdge || 5)).toFixed(1)}%</p>
+            </div>
+          </div>
+          
+          <div className="mt-6 p-4 bg-gray-700/30 rounded-lg">
+            <h4 className="text-lg font-semibold mb-3">Distribution des gains</h4>
+            <div className="w-full bg-gray-800 rounded-lg overflow-hidden">
+              <div className="h-8 flex">
+                <div 
+                  className="bg-green-500 h-full flex items-center justify-center text-xs font-bold" 
+                  style={{width: `${(diceStats.totalPayout / (diceStats.totalWagered || 1)) * 100}%`}}
+                >
+                  {((diceStats.totalPayout / (diceStats.totalWagered || 1)) * 100).toFixed(1)}%
+                </div>
+                <div 
+                  className="bg-blue-500 h-full flex-grow flex items-center justify-center text-xs font-bold"
+                >
+                  {(100 - ((diceStats.totalPayout / (diceStats.totalWagered || 1)) * 100)).toFixed(1)}%
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>Gains des joueurs</span>
+                <span>Profits du casino</span>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -558,6 +699,85 @@ const CasinoManager: React.FC = () => {
             </div>
           </div>
           
+          <div className="mt-6">
+            <h4 className="font-semibold text-lg mb-3">Configuration des règles de gain</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Gain pour un 7 (multiplicateur)</label>
+                <input 
+                  type="number" 
+                  min="2"
+                  max="10"
+                  step="0.5"
+                  value={gameConfigs.dice?.payouts?.seven || 4}
+                  onChange={(e) => handlePayoutChange('seven', parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-gray-700 rounded-md border border-gray-600 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Gain pour un 2 - Snake Eyes (multiplicateur)</label>
+                <input 
+                  type="number" 
+                  min="5"
+                  max="50"
+                  step="1"
+                  value={gameConfigs.dice?.payouts?.snakeEyes || 30}
+                  onChange={(e) => handlePayoutChange('snakeEyes', parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-gray-700 rounded-md border border-gray-600 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Gain pour un 12 - Box Cars (multiplicateur)</label>
+                <input 
+                  type="number" 
+                  min="5"
+                  max="50"
+                  step="1"
+                  value={gameConfigs.dice?.payouts?.boxCars || 30}
+                  onChange={(e) => handlePayoutChange('boxCars', parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-gray-700 rounded-md border border-gray-600 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Gain pour doubles (multiplicateur)</label>
+                <input 
+                  type="number" 
+                  min="2"
+                  max="20"
+                  step="0.5"
+                  value={gameConfigs.dice?.payouts?.doubles || 8}
+                  onChange={(e) => handlePayoutChange('doubles', parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-gray-700 rounded-md border border-gray-600 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-4 p-4 bg-gray-700/30 rounded-lg">
+              <p className="text-sm text-gray-400 mb-2">Probabilités et valeur attendue</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="p-2 bg-gray-700 rounded">
+                  <p className="text-gray-400">7 (6/36)</p>
+                  <p className="font-bold">EV: {calculateEV(gameConfigs.dice?.payouts?.seven || 4, 6/36)}</p>
+                </div>
+                <div className="p-2 bg-gray-700 rounded">
+                  <p className="text-gray-400">2 (1/36)</p>
+                  <p className="font-bold">EV: {calculateEV(gameConfigs.dice?.payouts?.snakeEyes || 30, 1/36)}</p>
+                </div>
+                <div className="p-2 bg-gray-700 rounded">
+                  <p className="text-gray-400">12 (1/36)</p>
+                  <p className="font-bold">EV: {calculateEV(gameConfigs.dice?.payouts?.boxCars || 30, 1/36)}</p>
+                </div>
+                <div className="p-2 bg-gray-700 rounded">
+                  <p className="text-gray-400">Doubles (6/36)</p>
+                  <p className="font-bold">EV: {calculateEV(gameConfigs.dice?.payouts?.doubles || 8, 6/36)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div className="mt-6 flex justify-end">
             <button 
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -568,6 +788,57 @@ const CasinoManager: React.FC = () => {
               {isSaving ? 'Sauvegarde...' : 'Sauvegarder les configurations'}
             </button>
           </div>
+        </div>
+
+        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4">Top Joueurs</h3>
+          <div className="flex mb-4">
+            <button 
+              className={`px-3 py-2 text-sm ${topPlayersFilter === 'winners' ? 'bg-green-600' : 'bg-gray-700'} rounded-l-md`}
+              onClick={() => setTopPlayersFilter('winners')}
+            >
+              Plus grands gagnants
+            </button>
+            <button 
+              className={`px-3 py-2 text-sm ${topPlayersFilter === 'losers' ? 'bg-red-600' : 'bg-gray-700'} rounded-r-md`}
+              onClick={() => setTopPlayersFilter('losers')}
+            >
+              Plus grands perdants
+            </button>
+          </div>
+          
+          {topDicePlayers.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-700">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Joueur</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parties jouées</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Total misé</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Total gagné</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Bilan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {topDicePlayers.map((player, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">{player.displayName || player.email || 'Joueur ' + (index + 1)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">{player.gamesPlayed}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">{player.totalWagered.toFixed(2)} €</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">{player.totalWon.toFixed(2)} €</td>
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${player.balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {player.balance.toFixed(2)} €
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center p-4 bg-gray-700/30 rounded-lg">
+              <p className="text-gray-400">Aucune donnée disponible</p>
+            </div>
+          )}
         </div>
       </div>
     );

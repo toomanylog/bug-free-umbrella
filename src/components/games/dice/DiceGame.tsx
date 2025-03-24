@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { database } from '../../../firebase/config';
 import { ref, onValue, update, push, set, get } from 'firebase/database';
 import { useAuth } from '../../../contexts/AuthContext';
+import { DollarSign, Dice5, BarChart2, RefreshCw, Plus, Minus, Award, Clock } from 'lucide-react';
 import './DiceGame.css';
 
 // Fonction pour récupérer le solde de l'utilisateur
@@ -59,10 +60,19 @@ const DiceGame: React.FC = () => {
     timestamp: number;
   }>>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showStats, setShowStats] = useState<boolean>(false);
+  const [localStats, setLocalStats] = useState({
+    wins: 0,
+    losses: 0,
+    totalWon: 0,
+    totalLost: 0
+  });
+  const [balanceAnimation, setBalanceAnimation] = useState<string>('');
   
   // Références pour l'animation
   const dice1Ref = useRef<HTMLDivElement>(null);
   const dice2Ref = useRef<HTMLDivElement>(null);
+  const userBalanceRef = useRef<HTMLDivElement>(null);
 
   // Configuration du jeu
   const MIN_BET = 5;
@@ -78,6 +88,39 @@ const DiceGame: React.FC = () => {
     other: 0    // Perdant pour les autres valeurs
   };
   
+  // Mise à jour des statistiques locales quand l'historique change
+  useEffect(() => {
+    if (gameHistory.length > 0) {
+      const stats = gameHistory.reduce((acc, game) => {
+        if (game.win) {
+          acc.wins++;
+          acc.totalWon += game.winAmount;
+        } else {
+          acc.losses++;
+          acc.totalLost += game.bet;
+        }
+        return acc;
+      }, {
+        wins: 0,
+        losses: 0,
+        totalWon: 0,
+        totalLost: 0
+      });
+      
+      setLocalStats(stats);
+    }
+  }, [gameHistory]);
+  
+  // Animation du changement de solde
+  const animateBalanceChange = (type: 'win' | 'lose', amount: number) => {
+    setBalanceAnimation(type === 'win' ? 'balance-increase' : 'balance-decrease');
+    
+    // Réinitialiser l'animation après son exécution
+    setTimeout(() => {
+      setBalanceAnimation('');
+    }, 1500);
+  };
+  
   // Chargement du solde utilisateur et de l'historique des parties
   useEffect(() => {
     if (currentUser) {
@@ -86,6 +129,10 @@ const DiceGame: React.FC = () => {
       const unsubscribeBalance = onValue(userBalanceRef, (snapshot) => {
         if (snapshot.exists()) {
           setBalance(snapshot.val());
+        } else {
+          // Si le solde n'existe pas, l'initialiser à 0
+          update(ref(database, `users/${currentUser.uid}`), { balance: 0 });
+          setBalance(0);
         }
       });
       
@@ -158,7 +205,6 @@ const DiceGame: React.FC = () => {
         
         // Mettre à jour les statistiques
         await update(statsRef, newStats);
-        console.log("Statistiques du jeu mises à jour:", newStats);
       }
     } catch (error) {
       console.error("Erreur lors de la mise à jour des statistiques:", error);
@@ -180,6 +226,11 @@ const DiceGame: React.FC = () => {
     return true;
   };
   
+  // Fonction pour formater un nombre avec séparateur de milliers
+  const formatNumber = (num: number) => {
+    return num.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+  };
+  
   // Calculer le gain en fonction du résultat des dés
   const calculateWinnings = (dice1: number, dice2: number, bet: number): number => {
     const total = dice1 + dice2;
@@ -197,6 +248,56 @@ const DiceGame: React.FC = () => {
     } else {
       return 0; // Perdant
     }
+  };
+  
+  // Obtenir la description du résultat
+  const getResultDescription = (dice1: number, dice2: number) => {
+    const total = dice1 + dice2;
+    const isDoubles = dice1 === dice2;
+    
+    if (total === 7) return "Sept! (4:1)";
+    if (total === 2) return "Snake Eyes! (30:1)";
+    if (total === 12) return "Box Cars! (30:1)";
+    if (isDoubles) return "Doubles! (8:1)";
+    return "Perdu";
+  };
+  
+  // Réinitialisation des champs
+  const resetGame = () => {
+    setGameResult(null);
+    setErrorMessage(null);
+  };
+  
+  // Augmenter la mise par paliers
+  const increaseBet = () => {
+    if (betAmount < 10) {
+      setBetAmount(prev => Math.min(MAX_BET, prev + 1));
+    } else if (betAmount < 50) {
+      setBetAmount(prev => Math.min(MAX_BET, prev + 5));
+    } else if (betAmount < 100) {
+      setBetAmount(prev => Math.min(MAX_BET, prev + 10));
+    } else {
+      setBetAmount(prev => Math.min(MAX_BET, prev + 50));
+    }
+  };
+  
+  // Diminuer la mise par paliers
+  const decreaseBet = () => {
+    if (betAmount <= 10) {
+      setBetAmount(prev => Math.max(MIN_BET, prev - 1));
+    } else if (betAmount <= 50) {
+      setBetAmount(prev => Math.max(MIN_BET, prev - 5));
+    } else if (betAmount <= 100) {
+      setBetAmount(prev => Math.max(MIN_BET, prev - 10));
+    } else {
+      setBetAmount(prev => Math.max(MIN_BET, prev - 50));
+    }
+  };
+  
+  // Définir la mise comme un pourcentage du solde
+  const setBetAsPercentage = (percentage: number) => {
+    const amount = Math.floor(balance * percentage / 100);
+    setBetAmount(Math.max(MIN_BET, Math.min(MAX_BET, amount)));
   };
   
   // Ajouter une entrée à l'historique des parties
@@ -229,10 +330,31 @@ const DiceGame: React.FC = () => {
     }
     
     try {
-      // Débiter la mise du solde
-      const newBalance = balance - betAmount;
-      await updateBalance(currentUser!.uid, newBalance);
-      setBalance(newBalance);
+      // Débiter la mise du solde uniquement si l'utilisateur est connecté
+      if (currentUser) {
+        // Vérifier à nouveau le solde pour éviter les problèmes de concurrence
+        const currentBalance = await getUserBalance(currentUser.uid);
+        if (currentBalance < betAmount) {
+          setErrorMessage("Solde insuffisant pour placer cette mise");
+          setIsRolling(false);
+          if (dice1Ref.current && dice2Ref.current) {
+            dice1Ref.current.classList.remove('rolling');
+            dice2Ref.current.classList.remove('rolling');
+          }
+          return;
+        }
+      
+        // Débiter la mise
+        const newBalance = currentBalance - betAmount;
+        await updateBalance(currentUser.uid, newBalance);
+        
+        // Animer la diminution du solde
+        animateBalanceChange('lose', betAmount);
+      } else {
+        setErrorMessage("Vous devez être connecté pour jouer");
+        setIsRolling(false);
+        return;
+      }
       
       // Attendre la fin de l'animation
       setTimeout(async () => {
@@ -265,10 +387,14 @@ const DiceGame: React.FC = () => {
         });
         
         // Si le joueur a gagné, ajouter les gains au solde
-        if (isWin) {
-          const finalBalance = newBalance + winAmount;
-          await updateBalance(currentUser!.uid, finalBalance);
-          setBalance(finalBalance);
+        if (isWin && currentUser) {
+          // Récupérer le solde actuel pour éviter les problèmes de concurrence
+          const updatedBalance = await getUserBalance(currentUser.uid);
+          const finalBalance = updatedBalance + winAmount;
+          await updateBalance(currentUser.uid, finalBalance);
+          
+          // Animer l'augmentation du solde
+          animateBalanceChange('win', winAmount);
         }
         
         // Arrêter l'animation
@@ -278,8 +404,10 @@ const DiceGame: React.FC = () => {
         }
         
         // Ajouter à l'historique et mettre à jour les statistiques
-        await addToHistory(result);
-        await updateGameStats(betAmount, winAmount);
+        if (currentUser) {
+          await addToHistory(result);
+          await updateGameStats(betAmount, winAmount);
+        }
         
         // Terminer le jeu
         setIsRolling(false);
@@ -297,20 +425,42 @@ const DiceGame: React.FC = () => {
     }
   };
 
+  // Calcul du temps écoulé
+  const getTimeAgo = (timestamp: number) => {
+    const secondsAgo = Math.floor((Date.now() - timestamp) / 1000);
+    
+    if (secondsAgo < 60) return `${secondsAgo}s`;
+    if (secondsAgo < 3600) return `${Math.floor(secondsAgo/60)}m`;
+    if (secondsAgo < 86400) return `${Math.floor(secondsAgo/3600)}h`;
+    return `${Math.floor(secondsAgo/86400)}j`;
+  };
+
   return (
     <div className="dice-game">
       <h1 className="dice-game-title">Lucky Dice</h1>
       
-      <div className="user-balance">
-        Solde: {balance.toFixed(2)}€
+      <div className={`user-balance ${balanceAnimation}`} ref={userBalanceRef}>
+        <DollarSign size={18} />
+        Solde: {formatNumber(balance)}€
       </div>
       
       <div className="dice-game-container">
         <div className="dice-game-controls">
-          <h2>Placez votre mise</h2>
+          <h2>
+            <Dice5 size={20} className="icon" />
+            Placez votre mise
+          </h2>
+          
           <div className="bet-controls">
             <div className="bet-amount-control">
-              <button className="bet-btn" onClick={() => setBetAmount(prev => Math.max(MIN_BET, prev - 5))}>-</button>
+              <button 
+                className="bet-btn" 
+                onClick={decreaseBet}
+                disabled={betAmount <= MIN_BET}
+              >
+                <Minus size={20} />
+              </button>
+              
               <input 
                 type="number" 
                 min={MIN_BET}
@@ -319,7 +469,21 @@ const DiceGame: React.FC = () => {
                 onChange={(e) => setBetAmount(Number(e.target.value))}
                 className="bet-input"
               />
-              <button className="bet-btn" onClick={() => setBetAmount(prev => Math.min(MAX_BET, prev + 5))}>+</button>
+              
+              <button 
+                className="bet-btn" 
+                onClick={increaseBet}
+                disabled={betAmount >= MAX_BET}
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+            
+            <div className="bet-percentage-buttons">
+              <button onClick={() => setBetAsPercentage(10)}>10%</button>
+              <button onClick={() => setBetAsPercentage(25)}>25%</button>
+              <button onClick={() => setBetAsPercentage(50)}>50%</button>
+              <button onClick={() => setBetAsPercentage(100)}>Max</button>
             </div>
             
             <button 
@@ -327,14 +491,27 @@ const DiceGame: React.FC = () => {
               disabled={isRolling || !currentUser || balance < betAmount}
               onClick={rollDice}
             >
-              {isRolling ? 'Lancement...' : 'Lancer les dés'}
+              {isRolling ? (
+                <>
+                  <RefreshCw size={18} className="spinning-icon" />
+                  Lancement...
+                </>
+              ) : (
+                <>
+                  <Dice5 size={18} />
+                  Lancer les dés
+                </>
+              )}
             </button>
             
             {errorMessage && <div className="error-message">{errorMessage}</div>}
           </div>
           
           <div className="game-rules">
-            <h3>Règles du jeu</h3>
+            <h3>
+              <Award size={18} className="icon" />
+              Règles du jeu
+            </h3>
             <ul>
               <li>7: Gain 4:1</li>
               <li>2 (Snake Eyes): Gain 30:1</li>
@@ -343,6 +520,47 @@ const DiceGame: React.FC = () => {
               <li>Autres: Perdu</li>
             </ul>
           </div>
+          
+          <button 
+            className="stats-toggle-button"
+            onClick={() => setShowStats(!showStats)}
+          >
+            <BarChart2 size={16} />
+            {showStats ? "Masquer mes statistiques" : "Voir mes statistiques"}
+          </button>
+          
+          {showStats && (
+            <div className="player-stats">
+              <div className="stats-grid">
+                <div className="stat-item">
+                  <span className="stat-label">Parties</span>
+                  <span className="stat-value">{localStats.wins + localStats.losses}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Victoires</span>
+                  <span className="stat-value win">{localStats.wins}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Défaites</span>
+                  <span className="stat-value loss">{localStats.losses}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Total Gagné</span>
+                  <span className="stat-value win">{formatNumber(localStats.totalWon)}€</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Total Perdu</span>
+                  <span className="stat-value loss">{formatNumber(localStats.totalLost)}€</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Bilan</span>
+                  <span className={`stat-value ${localStats.totalWon - localStats.totalLost >= 0 ? 'win' : 'loss'}`}>
+                    {formatNumber(localStats.totalWon - localStats.totalLost)}€
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="dice-game-board">
@@ -354,23 +572,37 @@ const DiceGame: React.FC = () => {
           {gameResult && (
             <div className="game-result">
               <h2 className={gameResult.win ? "win-text" : "lose-text"}>
-                {gameResult.win ? `Gagné: +${gameResult.winAmount.toFixed(2)}€` : "Perdu!"}
+                {gameResult.win ? `Gagné: +${formatNumber(gameResult.winAmount)}€` : "Perdu!"}
               </h2>
-              <p>Total: {gameResult.total}</p>
+              <p className="result-description">
+                {getResultDescription(gameResult.dice1, gameResult.dice2)}
+              </p>
+              <p className="dice-sum">Total: {gameResult.total}</p>
             </div>
           )}
           
           {gameHistory.length > 0 && (
             <div className="game-history">
-              <h3>Historique des parties</h3>
+              <h3>
+                <Clock size={18} className="icon" />
+                Historique des parties
+              </h3>
               <div className="history-list">
                 {gameHistory.map((game, index) => (
                   <div key={index} className={`history-item ${game.win ? 'win' : 'loss'}`}>
-                    <span className="dice-result">{game.dice1 + game.dice2}</span>
-                    <span className="dice-detail">({game.dice1}, {game.dice2})</span>
-                    <span className={`result-amount ${game.win ? 'win' : 'loss'}`}>
-                      {game.win ? `+${game.winAmount.toFixed(2)}€` : `-${game.bet.toFixed(2)}€`}
-                    </span>
+                    <div className="history-info">
+                      <span className="dice-result">{game.dice1 + game.dice2}</span>
+                      <span className="dice-detail">({game.dice1}, {game.dice2})</span>
+                    </div>
+                    <div className="history-middle">
+                      <span className="bet-amount">Mise: {game.bet}€</span>
+                    </div>
+                    <div className="history-right">
+                      <span className={`result-amount ${game.win ? 'win' : 'loss'}`}>
+                        {game.win ? `+${formatNumber(game.winAmount)}€` : `-${formatNumber(game.bet)}€`}
+                      </span>
+                      <span className="time-ago">{getTimeAgo(game.timestamp)}</span>
+                    </div>
                   </div>
                 ))}
               </div>

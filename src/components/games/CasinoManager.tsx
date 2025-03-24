@@ -155,61 +155,15 @@ const CasinoManager: React.FC = () => {
         <div className="casino-rules">
           <h2>Règles du casino</h2>
           <ul>
-            <li>Tous les jeux sont réservés aux utilisateurs inscrits et connectés.</li>
-            <li>Les mises sont débitées directement de votre portefeuille.</li>
+            <li>Vous devez être connecté pour jouer.</li>
             <li>Les gains sont automatiquement ajoutés à votre portefeuille.</li>
             <li>La mise minimale varie selon les jeux.</li>
             <li>Les administrateurs se réservent le droit de modifier ou annuler toute transaction en cas de détection de fraude.</li>
             <li>Jouez de manière responsable. Ne misez que ce que vous pouvez vous permettre de perdre.</li>
           </ul>
         </div>
-        
-        {isAdmin && (
-          <div className="admin-controls">
-            <h2>Contrôles administrateur</h2>
-            <div className="admin-control-buttons">
-              <button 
-                className="admin-button"
-                onClick={() => toggleGameStatus('crash')}
-              >
-                {gameConfigs?.crash?.status === 'disabled' ? 'Activer' : 'Désactiver'} Rocket Crash
-              </button>
-              <button 
-                className="admin-button"
-                onClick={() => toggleGameStatus('dice')}
-                disabled={gameConfigs?.dice?.status === 'coming-soon'}
-              >
-                {gameConfigs?.dice?.status === 'disabled' ? 'Activer' : 'Désactiver'} Lucky Dice
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
-  };
-  
-  // Fonction pour activer/désactiver un jeu (admin uniquement)
-  const toggleGameStatus = async (gameId: string) => {
-    if (!isAdmin) return;
-    
-    try {
-      const gameRef = ref(database, `casinoConfig/games/${gameId}`);
-      const snapshot = await get(gameRef);
-      
-      if (snapshot.exists()) {
-        const gameConfig = snapshot.val();
-        const newStatus = gameConfig.status === 'disabled' ? 'active' : 'disabled';
-        
-        await update(gameRef, {
-          status: newStatus,
-          updatedAt: new Date().toISOString()
-        });
-        
-        console.log(`Statut du jeu ${gameId} modifié à: ${newStatus}`);
-      }
-    } catch (error) {
-      console.error(`Erreur lors de la modification du statut du jeu ${gameId}:`, error);
-    }
   };
   
   // Afficher le jeu sélectionné
