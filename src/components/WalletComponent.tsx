@@ -31,11 +31,21 @@ interface Transaction extends BaseTransaction {
 // Interface pour les props du composant
 interface WalletComponentProps {
   isAdmin?: boolean;
+  userWallet?: UserWallet | null;
+  onWalletUpdate?: (newWallet: UserWallet) => void;
+  isDepositActive?: boolean;
+  initialDepositAmount?: string;
 }
 
-const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) => {
+const WalletComponent: React.FC<WalletComponentProps> = ({ 
+  isAdmin = false,
+  userWallet,
+  onWalletUpdate,
+  isDepositActive = false,
+  initialDepositAmount = ''
+}) => {
   const [user] = useAuthState(auth);
-  const [wallet, setWallet] = useState<UserWallet | null>(null);
+  const [wallet, setWallet] = useState<UserWallet | null>(userWallet || null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,20 +74,30 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
     const walletListener = onValue(walletRef, (snapshot) => {
       if (snapshot.exists()) {
         const walletData = snapshot.val();
-        setWallet({
+        const updatedWallet = {
           userId: user.uid,
           balance: walletData.balance || 0,
           currency: walletData.currency || 'EUR',
           lastUpdated: walletData.lastUpdated || new Date().toISOString()
-        });
+        };
+        setWallet(updatedWallet);
+        // Notifier le composant parent si la fonction onWalletUpdate est fournie
+        if (onWalletUpdate) {
+          onWalletUpdate(updatedWallet);
+        }
       } else {
         // Si le portefeuille n'existe pas encore, créer un objet vide
-        setWallet({
+        const emptyWallet = {
           userId: user.uid,
           balance: 0,
           currency: 'EUR',
           lastUpdated: new Date().toISOString()
-        });
+        };
+        setWallet(emptyWallet);
+        // Notifier le composant parent si la fonction onWalletUpdate est fournie
+        if (onWalletUpdate) {
+          onWalletUpdate(emptyWallet);
+        }
       }
       setLoading(false);
     }, (error) => {
@@ -146,6 +166,26 @@ const WalletComponent: React.FC<WalletComponentProps> = ({ isAdmin = false }) =>
 
     return () => clearInterval(intervalId);
   }, [transactions, user]);
+
+  // Utiliser initialDepositAmount s'il est fourni
+  useEffect(() => {
+    if (initialDepositAmount) {
+      const parsedAmount = parseFloat(initialDepositAmount);
+      if (!isNaN(parsedAmount) && parsedAmount > 0) {
+        setAmount(parsedAmount);
+        setSelectedAmount(parsedAmount);
+      }
+    }
+  }, [initialDepositAmount]);
+  
+  // Activer le formulaire de dépôt si isDepositActive est true
+  useEffect(() => {
+    if (isDepositActive && amount > 0) {
+      // Démarrer automatiquement le processus de dépôt si un montant est déjà défini
+      // Cette partie est optionnelle, on peut simplement afficher le formulaire
+      // handleDeposit();
+    }
+  }, [isDepositActive]);
 
   // Fonction pour gérer un dépôt
   const handleDeposit = async () => {

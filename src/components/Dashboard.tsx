@@ -870,17 +870,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             <Wallet size={18} className="mr-2" />
             Portefeuille
           </button>
-          <button 
-            onClick={() => setActiveSection('casino')}
-            className={`flex items-center px-4 py-2 rounded-lg ${
-              activeSection === 'casino' 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            <DollarSign size={18} className="mr-2" />
-            Casino
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => setActiveSection('casino')}
+              className={`flex items-center px-4 py-2 rounded-lg ${
+                activeSection === 'casino' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <DollarSign size={18} className="mr-2" />
+              Casino
+            </button>
+          )}
           
           {/* Menu mobile */}
           <div className="relative ml-auto md:hidden">
@@ -1803,13 +1805,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           )}
           
           {activeSection === 'wallet' && (
-            <WalletComponent />
+            <WalletComponent 
+              userWallet={userWallet as any} 
+              onWalletUpdate={(newWallet) => setUserWallet(newWallet as any)}
+              isDepositActive={activePayment}
+              initialDepositAmount={depositAmount}
+            />
           )}
           
           {activeSection === 'casino' && (
-            <div className="space-y-6">
+            isAdmin ? (
               <CasinoManager />
-            </div>
+            ) : (
+              // Rediriger vers l'aperçu si un utilisateur non-admin essaie d'accéder au casino
+              <div className="text-center py-10">
+                <div className="bg-red-900/20 border border-red-800 rounded-xl p-6 max-w-lg mx-auto">
+                  <div className="text-red-500 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold mb-2">Accès non autorisé</h2>
+                  <p className="text-gray-300 mb-4">Vous n'avez pas les permissions nécessaires pour accéder à cette section.</p>
+                  <button 
+                    onClick={() => setActiveSection('overview')}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    Retour à l'aperçu
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </main>
       </div>
