@@ -299,10 +299,9 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
         throw new Error('Transaction non créée');
       }
 
-      // Trouver la transaction dans la liste
-      const newTransaction = transactions.find(t => t.id === deposit.transactionId);
-      if (!newTransaction || !newTransaction.paymentDetails) {
-        throw new Error('Détails de paiement non disponibles');
+      // Utiliser directement l'URL de paiement retournée
+      if (deposit.paymentUrl) {
+        setDepositUrl(deposit.paymentUrl);
       }
 
       setSuccessMessage('Dépôt créé avec succès ! Veuillez procéder au paiement.');
