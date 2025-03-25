@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Check, Award, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getFormationById } from '../firebase/formations';
 import { updateFormationProgress, Formation } from '../firebase/auth';
+import { getAllTools } from '../firebase/tools';
 import ReactMarkdown from 'react-markdown';
 
 const FormationDetail: React.FC = () => {
@@ -15,6 +16,9 @@ const FormationDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [completedModules, setCompletedModules] = useState<Set<string>>(new Set());
+  const [relatedTools, setRelatedTools] = useState<any[]>([]);
+  const [formationCompleted, setFormationCompleted] = useState(false);
+  const [userHasCertification, setUserHasCertification] = useState(false);
 
   // Charger les détails de la formation
   useEffect(() => {
@@ -39,8 +43,15 @@ const FormationDetail: React.FC = () => {
             progress => progress.formationId === formationId
           );
           
-          if (userProgress && userProgress.completedModules) {
-            setCompletedModules(new Set(userProgress.completedModules));
+          if (userProgress) {
+            if (userProgress.completedModules) {
+              setCompletedModules(new Set(userProgress.completedModules));
+            }
+            
+            // Vérifier si l'utilisateur a obtenu la certification pour cette formation
+            if (userProgress.certificateUrl) {
+              setUserHasCertification(true);
+            }
           }
         }
         
@@ -54,6 +65,41 @@ const FormationDetail: React.FC = () => {
     
     loadFormation();
   }, [formationId, userData]);
+
+  // Charger les outils liés à cette formation
+  useEffect(() => {
+    const loadRelatedTools = async () => {
+      if (!formationId) return;
+      
+      try {
+        const allTools = await getAllTools();
+        
+        // Filtrer les outils qui ont cette formation comme condition
+        const related = allTools.filter(tool => {
+          if (!tool.conditions) return false;
+          
+          return tool.conditions.some((condition: any) => 
+            condition.type === 'formation_completed' && 
+            condition.value === formationId
+          );
+        });
+        
+        setRelatedTools(related);
+      } catch (err) {
+        console.error("Erreur lors du chargement des outils liés:", err);
+      }
+    };
+    
+    loadRelatedTools();
+  }, [formationId]);
+
+  // Vérifier si la formation est complétée
+  useEffect(() => {
+    if (formation && formation.modules.length > 0) {
+      const isCompleted = formation.modules.every(module => completedModules.has(module.id));
+      setFormationCompleted(isCompleted);
+    }
+  }, [formation, completedModules]);
 
   // Fonction pour basculer l'état d'expansion d'un module
   const toggleModuleExpand = (moduleId: string) => {
@@ -240,6 +286,52 @@ const FormationDetail: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {/* Afficher boutons si la formation est terminée */}
+        {formationCompleted && (
+          <div className="mt-8 p-6 bg-green-900/20 border border-green-700/50 rounded-xl">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center mr-3">
+                <Check size={24} className="text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-green-400">Formation terminée !</h3>
+            </div>
+            
+            <p className="text-gray-300 mb-6">Félicitations, vous avez terminé cette formation. Vous pouvez maintenant explorer les ressources liées.</p>
+            
+            <div className="flex flex-wrap gap-4">
+              {formation.certificationId && !userHasCertification && (
+                <button
+                  onClick={() => navigate(`/certification/${formation.certificationId}`)}
+                  className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center"
+                >
+                  <Award size={20} className="mr-2" />
+                  Passer la certification
+                </button>
+              )}
+              
+              {formation.certificationId && userHasCertification && (
+                <button
+                  onClick={() => navigate(`/certification/${formation.certificationId}`)}
+                  className="px-5 py-3 bg-green-600 hover:bg-green-700 rounded-lg flex items-center"
+                >
+                  <Award size={20} className="mr-2" />
+                  Voir ma certification
+                </button>
+              )}
+              
+              {relatedTools.length > 0 && (
+                <button
+                  onClick={() => navigate('/dashboard', { state: { activeSection: 'tools' } })}
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
+                >
+                  <Wrench size={20} className="mr-2" />
+                  Accéder aux outils liés
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

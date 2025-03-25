@@ -824,7 +824,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
           </div>
         </div>
         
-        {/* Navigation - Avec Aperçu, Outils, Mes formations et Portefeuille */}
+        {/* Navigation - Avec Aperçu, Formations, Outils, Certifications et Portefeuille */}
         <div className="flex flex-wrap gap-4 mb-8 border-b border-gray-800 pb-4">
           <button 
             onClick={() => setActiveSection('overview')}
@@ -838,6 +838,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             Aperçu
           </button>
           <button 
+            onClick={() => setActiveSection('formations')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'formations' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <BookOpen size={18} className="mr-2" />
+            Formations
+          </button>
+          <button 
             onClick={() => setActiveSection('tools')}
             className={`flex items-center px-4 py-2 rounded-lg ${
               activeSection === 'tools' 
@@ -849,26 +860,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             Outils
           </button>
           <button 
-            onClick={() => setActiveSection('formations')}
+            onClick={() => setActiveSection('certifications')}
             className={`flex items-center px-4 py-2 rounded-lg ${
-              activeSection === 'formations' 
+              activeSection === 'certifications' 
               ? 'bg-blue-600 text-white' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
             }`}
           >
-            <BookOpen size={18} className="mr-2" />
-            Mes formations
-          </button>
-          <button 
-            onClick={() => setActiveSection('wallet')}
-            className={`flex items-center px-4 py-2 rounded-lg ${
-              activeSection === 'wallet' 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            <Wallet size={18} className="mr-2" />
-            Portefeuille
+            <Award size={18} className="mr-2" />
+            Certifications
           </button>
           {isAdmin && (
             <button 
@@ -897,8 +897,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             </button>
           </div>
           
-          {/* Menu PC */}
-          <div className="hidden md:flex ml-auto">
+          {/* Menu PC avec le portefeuille à droite */}
+          <div className="hidden md:flex ml-auto gap-2">
+            <button 
+              onClick={() => setActiveSection('wallet')}
+              className={`flex items-center px-4 py-2 rounded-lg ${
+                activeSection === 'wallet' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <Wallet size={18} className="mr-2" />
+              Portefeuille
+            </button>
             <button
               ref={buttonRef}
               onClick={handleMenuToggle}
@@ -1836,6 +1847,54 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                 </div>
               </div>
             )
+          )}
+
+          {/* Ajouter la section Certifications */}
+          {activeSection === 'certifications' && (
+            <div className="space-y-8">
+              <h1 className="text-3xl font-bold">Mes Certifications</h1>
+              
+              {userCertifications.length === 0 ? (
+                <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
+                  <Award size={48} className="mx-auto text-gray-400 mb-4" />
+                  <h2 className="text-xl font-semibold mb-2">Vous n'avez pas encore de certification</h2>
+                  <p className="text-gray-400 mb-4">Terminez une formation offrant une certification pour l'obtenir.</p>
+                  <button
+                    onClick={() => setActiveSection('formations')}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
+                  >
+                    Voir les formations
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {userCertifications.map(cert => (
+                    <div key={cert.certification.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg transition-all">
+                      {cert.certification.imageUrl && (
+                        <img 
+                          src={cert.certification.imageUrl} 
+                          alt={cert.certification.title} 
+                          className="w-full h-40 object-cover rounded-lg mb-4"
+                        />
+                      )}
+                      <h3 className="text-xl font-bold mb-2">{cert.certification.title}</h3>
+                      <p className="text-gray-400 mb-4 line-clamp-3">{cert.certification.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-400">
+                          Obtenue le {formatDate(cert.earnedAt || '')}
+                        </span>
+                        <a 
+                          href={`/certification/${cert.certification.id}`} 
+                          className="text-blue-400 hover:underline text-sm"
+                        >
+                          Voir les détails
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </main>
       </div>
