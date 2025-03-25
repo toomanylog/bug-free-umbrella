@@ -15,6 +15,7 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Trash, ArrowUp, CheckCircle, XCircle, Clock, X, Plus, Minus } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 // Styles
 import './WalletComponent.css';
@@ -75,6 +76,50 @@ const TRANSACTION_STATUS = {
   EXPIRED: 'expired',
   CANCELLED: 'cancelled'
 } as const;
+
+// Ajouter ces fonctions utilitaires après les constantes
+const getStatusColor = (status: TransactionStatus): string => {
+  switch (status) {
+    case TransactionStatus.FINISHED:
+      return 'text-green-500';
+    case TransactionStatus.WAITING:
+    case TransactionStatus.CONFIRMING:
+      return 'text-yellow-500';
+    case TransactionStatus.FAILED:
+    case TransactionStatus.EXPIRED:
+    case TransactionStatus.CANCELLED:
+      return 'text-red-500';
+    default:
+      return 'text-gray-500';
+  }
+};
+
+const getStatusText = (status: TransactionStatus): string => {
+  switch (status) {
+    case TransactionStatus.WAITING:
+      return 'En attente';
+    case TransactionStatus.CONFIRMING:
+      return 'Confirmation en cours';
+    case TransactionStatus.CONFIRMED:
+      return 'Confirmé';
+    case TransactionStatus.SENDING:
+      return 'Envoi en cours';
+    case TransactionStatus.PARTIALLY_PAID:
+      return 'Partiellement payé';
+    case TransactionStatus.FINISHED:
+      return 'Terminé';
+    case TransactionStatus.FAILED:
+      return 'Échoué';
+    case TransactionStatus.REFUNDED:
+      return 'Remboursé';
+    case TransactionStatus.EXPIRED:
+      return 'Expiré';
+    case TransactionStatus.CANCELLED:
+      return 'Annulé';
+    default:
+      return 'Inconnu';
+  }
+};
 
 const WalletComponent: React.FC<WalletComponentProps> = ({ 
   isAdmin = false,
@@ -250,34 +295,17 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
 
       const deposit = await createWalletDeposit(user, amount, selectedCrypto);
       
-      if (!deposit || !deposit.paymentUrl) {
-        throw new Error('URL de paiement non disponible');
+      if (!deposit || !deposit.transactionId) {
+        throw new Error('Transaction non créée');
       }
 
-      console.log('Dépôt créé avec succès:', deposit);
+      // Trouver la transaction dans la liste
+      const newTransaction = transactions.find(t => t.id === deposit.transactionId);
+      if (!newTransaction || !newTransaction.paymentDetails) {
+        throw new Error('Détails de paiement non disponibles');
+      }
 
-      // Ouvrir l'URL de paiement dans un nouvel onglet
-      window.open(deposit.paymentUrl, '_blank');
-
-      // Ajouter la transaction à la liste
-      const newTransaction: Transaction = {
-        id: deposit.transactionId,
-        userId: user.uid,
-        amount: amount,
-        currency: 'EUR',
-        status: TransactionStatus.WAITING,
-        type: TransactionType.DEPOSIT,
-        createdAt: new Date().toISOString(),
-        paymentDetails: {
-          pay_address: '',
-          pay_amount: 0,
-          pay_currency: selectedCrypto,
-          paymentUrl: deposit.paymentUrl
-        }
-      };
-
-      setTransactions(prev => [newTransaction, ...prev]);
-      setSuccessMessage('Dépôt créé avec succès ! Veuillez compléter le paiement dans la nouvelle fenêtre.');
+      setSuccessMessage('Dépôt créé avec succès ! Veuillez procéder au paiement.');
       setShowAdd(false);
       setAmount(0);
       setSelectedAmount(null);
@@ -393,52 +421,31 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   };
 
   // Ajouter la fonction de vérification de paiement
-  const handleCheckPayment = async (transaction: Transaction) => {
-    if (!transaction.paymentId || checkingTransactions.has(transaction.paymentId)) {
-      return;
-    }
-
+  const handleCheckPayment = async (transactionId: string) => {
     try {
-      setCheckingTransactions(prev => new Set(prev).add(transaction.paymentId!));
-      const { status, actualAmount } = await checkPaymentStatus(transaction.paymentId);
-
-      // Mettre à jour le statut de la transaction
-      const transactionRef = ref(database, `transactions/${transaction.id}`);
-      await update(transactionRef, {
-        status,
-        updatedAt: new Date().toISOString(),
-        ...(status === TRANSACTION_STATUS.FINISHED ? { completedAt: new Date().toISOString() } : {}),
-        ...(actualAmount ? { actualAmount } : {})
-      });
-
-      // Si le paiement est terminé, mettre à jour le portefeuille
-      if (status === TRANSACTION_STATUS.FINISHED) {
-        const walletRef = ref(database, `wallets/${transaction.userId}`);
-        const walletSnap = await get(walletRef);
-        
-        if (walletSnap.exists()) {
-          const currentBalance = walletSnap.val().balance || 0;
-          await update(walletRef, {
-            balance: currentBalance + transaction.amount,
-            lastUpdated: new Date().toISOString()
-          });
-        } else {
-          await set(walletRef, {
-            userId: transaction.userId,
-            balance: transaction.amount,
-            currency: 'EUR',
-            lastUpdated: new Date().toISOString()
-          });
-        }
+      setCheckingTransactions(prev => new Set(prev).add(transactionId));
+      
+      // Trouver la transaction dans la liste
+      const transaction = transactions.find(t => t.id === transactionId);
+      if (!transaction || !transaction.paymentId) {
+        throw new Error('Transaction non trouvée ou ID de paiement manquant');
       }
+
+      const result = await checkPaymentStatus(transaction.paymentId);
+      
+      // Mettre à jour le statut de la transaction localement
+      setTransactions(prev => prev.map(t => 
+        t.id === transactionId 
+          ? { ...t, status: result.status }
+          : t
+      ));
     } catch (error) {
       console.error('Erreur lors de la vérification du paiement:', error);
+      setError(error instanceof Error ? error.message : 'Erreur lors de la vérification du paiement');
     } finally {
       setCheckingTransactions(prev => {
         const newSet = new Set(prev);
-        if (transaction.paymentId) {
-          newSet.delete(transaction.paymentId);
-        }
+        newSet.delete(transactionId);
         return newSet;
       });
     }
@@ -457,7 +464,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
             tx.status === TRANSACTION_STATUS.SENDING || 
             tx.status === TRANSACTION_STATUS.PARTIALLY_PAID
           )
-          .forEach(tx => handleCheckPayment(tx));
+          .forEach(tx => handleCheckPayment(tx.id));
       }, 30000); // Vérifier toutes les 30 secondes
     }
 
@@ -490,6 +497,125 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
 
     return () => clearInterval(intervalId);
   }, [transactions, user]);
+
+  // Ajouter le composant PaymentDetails
+  const PaymentDetails: React.FC<{ transaction: Transaction }> = ({ transaction }) => {
+    const { paymentDetails } = transaction;
+    if (!paymentDetails) return null;
+
+    return (
+      <div className="payment-details bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h3 className="text-xl font-semibold mb-4 text-white">Détails du paiement</h3>
+        
+        <div className="mb-6 flex justify-center">
+          <QRCodeSVG 
+            value={paymentDetails.pay_address}
+            size={200}
+            level="H"
+            includeMargin={true}
+            className="bg-white p-2 rounded"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-gray-700 p-4 rounded">
+            <p className="text-sm text-gray-300 mb-1">Adresse de paiement :</p>
+            <p className="text-white font-mono break-all">{paymentDetails.pay_address}</p>
+          </div>
+
+          <div className="bg-gray-700 p-4 rounded">
+            <p className="text-sm text-gray-300 mb-1">Montant à envoyer :</p>
+            <p className="text-white font-bold">
+              {paymentDetails.pay_amount} {paymentDetails.pay_currency.toUpperCase()}
+            </p>
+          </div>
+
+          <div className="bg-gray-700 p-4 rounded">
+            <p className="text-sm text-gray-300 mb-1">Montant en EUR :</p>
+            <p className="text-white font-bold">{transaction.amount} EUR</p>
+          </div>
+
+          <div className="mt-6">
+            <button
+              onClick={() => handleCheckPayment(transaction.id)}
+              disabled={checkingTransactions.has(transaction.id)}
+              className="check-payment-button w-full"
+            >
+              {checkingTransactions.has(transaction.id) ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Vérification en cours...
+                </span>
+              ) : (
+                'Vérifier le paiement'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Modifier la section qui affiche les transactions pour inclure PaymentDetails
+  const renderTransactions = () => {
+    if (loading) {
+      return <div className="text-center">Chargement...</div>;
+    }
+
+    if (transactions.length === 0) {
+      return <div className="text-center text-gray-500">Aucune transaction</div>;
+    }
+
+    return (
+      <div className="space-y-4">
+        {transactions.map((transaction) => (
+          <div key={transaction.id} className="bg-gray-800 rounded-lg p-4">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-lg font-semibold">
+                  {transaction.type === TransactionType.DEPOSIT ? 'Dépôt' : 'Achat'}
+                </p>
+                <p className="text-sm text-gray-400">
+                  {format(new Date(transaction.createdAt), 'dd MMMM yyyy HH:mm', { locale: fr })}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold">
+                  {transaction.amount} {transaction.currency}
+                </p>
+                <p className={`text-sm ${getStatusColor(transaction.status as TransactionStatus)}`}>
+                  {getStatusText(transaction.status as TransactionStatus)}
+                </p>
+              </div>
+            </div>
+
+            {/* Afficher les détails de paiement pour les transactions en attente */}
+            {(transaction.status === TransactionStatus.WAITING || 
+              transaction.status === TransactionStatus.CONFIRMING) && 
+              transaction.type === TransactionType.DEPOSIT && (
+              <PaymentDetails transaction={transaction} />
+            )}
+
+            {/* Boutons d'action */}
+            <div className="flex justify-end space-x-2 mt-4">
+              {(transaction.status === TransactionStatus.WAITING) && (
+                <button
+                  onClick={() => handleCancelTransaction(transaction.id)}
+                  disabled={cancellationLoading === transaction.id}
+                  className="cancel-transaction-button"
+                >
+                  Annuler
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -531,26 +657,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
         
         <div className="transactions-section">
           <h3>Dernières Transactions</h3>
-          {transactions.length > 0 ? (
-            <div className="transactions-list">
-              {transactions.map((t, index) => (
-                <div key={index} className="transaction-item">
-                  <div className="transaction-info">
-                    <span className="transaction-type">
-                      {t.type === TRANSACTION_TYPES.DEPOSIT ? 'Dépôt' : 
-                       t.type === TRANSACTION_TYPES.OTHER_PURCHASE ? 'Retrait' : 'Achat'}
-                    </span>
-                    <span className="transaction-date">{formatDate(t.createdAt)}</span>
-                  </div>
-                  <span className={`transaction-amount ${t.type === TRANSACTION_TYPES.DEPOSIT ? 'positive' : 'negative'}`}>
-                    {t.type === TRANSACTION_TYPES.DEPOSIT ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="no-transactions">Aucune transaction récente</div>
-          )}
+          {renderTransactions()}
         </div>
       </div>
       
@@ -703,10 +810,10 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
                     <span className="status-tag">En attente</span>
                     <button
                       className="check-payment-button"
-                      onClick={() => handleCheckPayment(tx)}
-                      disabled={checkingTransactions.has(tx.paymentId || '')}
+                      onClick={() => handleCheckPayment(tx.id)}
+                      disabled={checkingTransactions.has(tx.id)}
                     >
-                      {checkingTransactions.has(tx.paymentId || '') ? 'Vérification...' : 'Vérifier l\'état du paiement'}
+                      {checkingTransactions.has(tx.id) ? 'Vérification...' : 'Vérifier l\'état du paiement'}
                     </button>
                     <button
                       className="cancel-tx-button"
