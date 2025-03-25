@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Award, ArrowLeft, Clock } from 'lucide-react';
 import { getCertification, Certification as CertificationType, RequirementType, checkCertificationEligibility } from '../firebase/certifications';
 import { useAuth } from '../contexts/AuthContext';
+import { ref, get } from 'firebase/database';
+import { database } from '../firebase/config';
 
 const CertificationDetail: React.FC = () => {
   const { certificationId } = useParams<{ certificationId: string }>();
@@ -15,6 +17,7 @@ const CertificationDetail: React.FC = () => {
     eligible: false, 
     missingRequirements: [] 
   });
+  const [hasPassed, setHasPassed] = useState<boolean>(false);
 
   useEffect(() => {
     const loadCertification = async () => {
@@ -29,6 +32,17 @@ const CertificationDetail: React.FC = () => {
         if (currentUser) {
           const eligibility = await checkCertificationEligibility(currentUser.uid, certificationId);
           setEligibilityStatus(eligibility);
+          
+          // Vérifier si l'utilisateur a déjà réussi cette certification
+          const userCertificationRef = ref(database, `userCertifications/${currentUser.uid}/${certificationId}`);
+          const userCertSnapshot = await get(userCertificationRef);
+          
+          if (userCertSnapshot.exists()) {
+            const certData = userCertSnapshot.val();
+            if (certData.status === 'completed') {
+              setHasPassed(true);
+            }
+          }
         }
       } catch (err: any) {
         console.error('Erreur lors du chargement de la certification:', err);
@@ -195,24 +209,32 @@ const CertificationDetail: React.FC = () => {
             </div>
 
             <div className="mt-8 flex justify-center">
-              <button 
-                onClick={handleStartCertification}
-                disabled={!currentUser || !eligibilityStatus.eligible}
-                className={`px-8 py-3 rounded-lg font-semibold text-white flex items-center shadow-lg transition-all
-                  ${eligibilityStatus.eligible 
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-700 hover:shadow-indigo-600/30' 
-                    : 'bg-gray-700 cursor-not-allowed opacity-70'}`}
-              >
-                <Award size={20} className="mr-2" />
-                {!currentUser 
-                  ? 'Connectez-vous pour commencer' 
-                  : eligibilityStatus.eligible 
-                    ? 'Commencer la certification' 
-                    : 'Prérequis manquants'}
-              </button>
+              {hasPassed ? (
+                <div className="bg-green-900/20 backdrop-blur-sm border border-green-700/50 rounded-lg p-6 text-center">
+                  <Award size={32} className="text-green-400 mx-auto mb-3" />
+                  <h3 className="text-xl font-semibold text-green-300 mb-2">Certification déjà obtenue</h3>
+                  <p className="text-gray-300">Vous avez déjà réussi cette certification. Bravo !</p>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleStartCertification}
+                  disabled={!currentUser || !eligibilityStatus.eligible}
+                  className={`px-8 py-3 rounded-lg font-semibold text-white flex items-center shadow-lg transition-all
+                    ${eligibilityStatus.eligible 
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-700 hover:shadow-indigo-600/30' 
+                      : 'bg-gray-700 cursor-not-allowed opacity-70'}`}
+                >
+                  <Award size={20} className="mr-2" />
+                  {!currentUser 
+                    ? 'Connectez-vous pour commencer' 
+                    : eligibilityStatus.eligible 
+                      ? 'Commencer la certification' 
+                      : 'Prérequis manquants'}
+                </button>
+              )}
             </div>
             
-            {!eligibilityStatus.eligible && eligibilityStatus.missingRequirements.length > 0 && (
+            {!eligibilityStatus.eligible && eligibilityStatus.missingRequirements.length > 0 && !hasPassed && (
               <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
                 <h3 className="font-medium text-yellow-400 mb-2">Prérequis manquants :</h3>
                 <ul className="list-disc pl-5 text-gray-300 space-y-1">

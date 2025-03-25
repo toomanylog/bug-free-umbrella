@@ -148,7 +148,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
       off(walletRef);
       off(transactionsRef);
     };
-  }, [user]);
+  }, [user, onWalletUpdate]);
 
   // Vérifier l'état des transactions en attente toutes les 30 secondes
   useEffect(() => {
@@ -350,13 +350,13 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
                 <div key={index} className="transaction-item">
                   <div className="transaction-info">
                     <span className="transaction-type">
-                      {t.type === TransactionType.DEPOSIT ? 'Dépôt' : 
-                       t.type === TransactionType.OTHER_PURCHASE ? 'Retrait' : 'Achat'}
+                      {t.type === 'deposit' ? 'Dépôt' : 
+                       t.type === 'other_purchase' ? 'Retrait' : 'Achat'}
                     </span>
                     <span className="transaction-date">{formatDate(t.createdAt)}</span>
                   </div>
-                  <span className={`transaction-amount ${t.type === TransactionType.DEPOSIT ? 'positive' : 'negative'}`}>
-                    {t.type === TransactionType.DEPOSIT ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
+                  <span className={`transaction-amount ${t.type === 'deposit' ? 'positive' : 'negative'}`}>
+                    {t.type === 'deposit' ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
                   </span>
                 </div>
               ))}

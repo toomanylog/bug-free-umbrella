@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart, DollarSign } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart, DollarSign, ShieldOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress, logoutUser, assignFormationToUser } from '../firebase/auth';
 import { Link } from 'react-router-dom';
@@ -14,7 +14,7 @@ import {
   TransactionStatus,
   TransactionType 
 } from '../firebase/services/nowpayments';
-import { ref, update } from 'firebase/database';
+import { ref, update, get, onValue, off } from 'firebase/database';
 import { database } from '../firebase/config';
 import CasinoManager from './games/CasinoManager';
 
@@ -871,17 +871,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             Certifications
           </button>
           {isAdmin && (
-            <button 
-              onClick={() => setActiveSection('casino')}
-              className={`flex items-center px-4 py-2 rounded-lg ${
-                activeSection === 'casino' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <DollarSign size={18} className="mr-2" />
-              Casino
-            </button>
+          <button 
+            onClick={() => setActiveSection('casino')}
+            className={`flex items-center px-4 py-2 rounded-lg ${
+              activeSection === 'casino' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <DollarSign size={18} className="mr-2" />
+            Casino
+          </button>
           )}
           
           {/* Menu mobile */}
@@ -923,6 +923,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
         
         {/* Contenu principal */}
         <main>
+          {!isAdmin && activeSection === 'casino' && (
+            <div className="bg-red-900/20 backdrop-blur-sm border border-red-700/50 rounded-xl p-8 text-center">
+              <div className="flex flex-col items-center justify-center">
+                <div className="p-3 bg-red-900/30 rounded-full mb-4">
+                  <ShieldOff size={32} className="text-red-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Accès non autorisé</h2>
+                <p className="text-gray-300 mb-6">Vous n'avez pas les permissions nécessaires pour accéder à cette section.</p>
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  Retour à l'accueil
+                </button>
+              </div>
+            </div>
+          )}
+
           {activeSection === 'overview' && (
             <div className="space-y-8">
               {/* Statistiques */}
@@ -1824,31 +1842,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             />
           )}
           
-          {activeSection === 'casino' && (
-            isAdmin ? (
+          {isAdmin && activeSection === 'casino' && (
+            <div className="space-y-8">
+              <h1 className="text-3xl font-bold">Casino</h1>
               <CasinoManager />
-            ) : (
-              // Rediriger vers l'aperçu si un utilisateur non-admin essaie d'accéder au casino
-              <div className="text-center py-10">
-                <div className="bg-red-900/20 border border-red-800 rounded-xl p-6 max-w-lg mx-auto">
-                  <div className="text-red-500 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <h2 className="text-xl font-bold mb-2">Accès non autorisé</h2>
-                  <p className="text-gray-300 mb-4">Vous n'avez pas les permissions nécessaires pour accéder à cette section.</p>
-                  <button 
-                    onClick={() => setActiveSection('overview')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                  >
-                    Retour à l'aperçu
-                  </button>
-                </div>
-              </div>
-            )
+            </div>
           )}
-
+          
           {/* Ajouter la section Certifications */}
           {activeSection === 'certifications' && (
             <div className="space-y-8">
@@ -1859,13 +1859,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                   <Award size={48} className="mx-auto text-gray-400 mb-4" />
                   <h2 className="text-xl font-semibold mb-2">Vous n'avez pas encore de certification</h2>
                   <p className="text-gray-400 mb-4">Terminez une formation offrant une certification pour l'obtenir.</p>
-                  <button
+                      <button 
                     onClick={() => setActiveSection('formations')}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
                   >
                     Voir les formations
-                  </button>
-                </div>
+                      </button>
+                    </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {userCertifications.map(cert => (
@@ -1889,10 +1889,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                         >
                           Voir les détails
                         </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
               )}
             </div>
           )}

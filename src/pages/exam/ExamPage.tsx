@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Award, Check, Clock, AlertTriangle, Download } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Award, Check, Clock, AlertTriangle, Download, Wrench } from 'lucide-react';
 import { 
   getCertification, 
   Certification, 
@@ -8,6 +8,8 @@ import {
   submitExam
 } from '../../firebase/certifications';
 import { useAuth } from '../../contexts/AuthContext';
+import { ref, get } from 'firebase/database';
+import { database } from '../../firebase/config';
 
 interface UserAnswer {
   questionId: string;
@@ -17,6 +19,7 @@ interface UserAnswer {
 const ExamPage: React.FC = () => {
   const { certificationId } = useParams<{ certificationId: string }>();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   
   const [certification, setCertification] = useState<Certification | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -27,6 +30,7 @@ const ExamPage: React.FC = () => {
   const [examResult, setExamResult] = useState<any>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [linkedTools, setLinkedTools] = useState<{id: string, name: string}[]>([]);
 
   // Soumission de l'examen
   const handleSubmitExam = useCallback(async () => {
@@ -164,6 +168,51 @@ const ExamPage: React.FC = () => {
     }
   };
   
+  // Si l'examen est réussi, vérifier les outils liés
+  useEffect(() => {
+    if (showResults && examResult && examResult.passed && certificationId && currentUser) {
+      // Vérifier s'il y a des outils liés à cette certification
+      const fetchLinkedTools = async () => {
+        try {
+          // Vérifier si la certification a des outils liés
+          const toolsRef = ref(database, 'tools');
+          const toolsSnapshot = await get(toolsRef);
+          
+          if (toolsSnapshot.exists()) {
+            const tools = toolsSnapshot.val();
+            const linkedToolsList: {id: string, name: string}[] = [];
+            
+            // Parcourir les outils pour trouver ceux qui requièrent cette certification
+            Object.entries(tools).forEach(([id, toolData]: [string, any]) => {
+              if (toolData.conditions && 
+                  toolData.conditions.some((condition: any) => 
+                    condition.type === 'certification' && 
+                    condition.certificationId === certificationId
+                  )
+              ) {
+                linkedToolsList.push({
+                  id,
+                  name: toolData.name || `Outil ${id}`
+                });
+              }
+            });
+            
+            setLinkedTools(linkedToolsList);
+          }
+        } catch (error) {
+          console.error("Erreur lors de la recherche des outils liés:", error);
+        }
+      };
+      
+      fetchLinkedTools();
+    }
+  }, [showResults, examResult, certificationId, currentUser]);
+  
+  // Rediriger vers la page des outils
+  const handleViewTools = () => {
+    navigate('/dashboard/tools');
+  };
+  
   // Rendu conditionnel pour le chargement
   if (loading) {
     return (
@@ -285,33 +334,20 @@ const ExamPage: React.FC = () => {
                   Retour à la certification
                 </Link>
                 
-                {isPassing && (
+                {isPassing && linkedTools.length > 0 && (
                   <button 
-                    onClick={() => {
-                      // Utiliser html2canvas ou une autre méthode pour capturer le certificat
-                      // Pour l'instant, utilisons l'API d'impression du navigateur
-                      const printContent = document.getElementById('certificate');
-                      if (printContent) {
-                        const originalContents = document.body.innerHTML;
-                        document.body.innerHTML = printContent.innerHTML;
-                        window.print();
-                        document.body.innerHTML = originalContents;
-                        window.location.reload(); // Recharger pour restaurer l'état
-                      } else {
-                        window.print();
-                      }
-                    }}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
+                    onClick={handleViewTools}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
                   >
-                    <Download size={18} className="mr-2" />
-                    Télécharger mon certificat
+                    <Wrench size={18} className="mr-2" />
+                    Accéder aux outils liés
                   </button>
                 )}
                 
                 {isPassing && (
                   <Link 
                     to="/"
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center"
                   >
                     <Award size={18} className="mr-2" />
                     Voir toutes mes certifications
