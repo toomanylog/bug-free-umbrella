@@ -8,21 +8,13 @@ import {
   Transaction as BaseTransaction, 
   UserWallet,
   checkPaymentStatus,
-  checkTransactionExpiration
+  checkTransactionExpiration,
+  TransactionStatus,
+  TransactionType
 } from '../firebase/services/nowpayments';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Trash, ArrowUp, CheckCircle, XCircle, Clock, X, Plus, Minus } from 'lucide-react';
-import 'cryptocurrency-icons/svg/color/btc.svg';
-import 'cryptocurrency-icons/svg/color/eth.svg';
-import 'cryptocurrency-icons/svg/color/ltc.svg';
-import 'cryptocurrency-icons/svg/color/bch.svg';
-import 'cryptocurrency-icons/svg/color/xrp.svg';
-import 'cryptocurrency-icons/svg/color/doge.svg';
-import 'cryptocurrency-icons/svg/color/trx.svg';
-import 'cryptocurrency-icons/svg/color/usdt.svg';
-import 'cryptocurrency-icons/svg/color/bnb.svg';
-import 'cryptocurrency-icons/svg/color/sol.svg';
 
 // Styles
 import './WalletComponent.css';
@@ -49,16 +41,16 @@ interface WalletComponentProps {
 
 // Constantes pour les cryptos supportées
 const CRYPTOCURRENCIES = [
-  { id: 'btc', name: 'Bitcoin', symbol: 'BTC', icon: '/node_modules/cryptocurrency-icons/svg/color/btc.svg' },
-  { id: 'eth', name: 'Ethereum', symbol: 'ETH', icon: '/node_modules/cryptocurrency-icons/svg/color/eth.svg' },
-  { id: 'ltc', name: 'Litecoin', symbol: 'LTC', icon: '/node_modules/cryptocurrency-icons/svg/color/ltc.svg' },
-  { id: 'bch', name: 'Bitcoin Cash', symbol: 'BCH', icon: '/node_modules/cryptocurrency-icons/svg/color/bch.svg' },
-  { id: 'xrp', name: 'Ripple', symbol: 'XRP', icon: '/node_modules/cryptocurrency-icons/svg/color/xrp.svg' },
-  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', icon: '/node_modules/cryptocurrency-icons/svg/color/doge.svg' },
-  { id: 'trx', name: 'TRON', symbol: 'TRX', icon: '/node_modules/cryptocurrency-icons/svg/color/trx.svg' },
-  { id: 'usdt', name: 'Tether', symbol: 'USDT', icon: '/node_modules/cryptocurrency-icons/svg/color/usdt.svg' },
-  { id: 'bnb', name: 'Binance Coin', symbol: 'BNB', icon: '/node_modules/cryptocurrency-icons/svg/color/bnb.svg' },
-  { id: 'sol', name: 'Solana', symbol: 'SOL', icon: '/node_modules/cryptocurrency-icons/svg/color/sol.svg' }
+  { id: 'btc', name: 'Bitcoin', symbol: 'BTC', icon: 'https://cryptologos.cc/logos/bitcoin-btc-logo.svg' },
+  { id: 'eth', name: 'Ethereum', symbol: 'ETH', icon: 'https://cryptologos.cc/logos/ethereum-eth-logo.svg' },
+  { id: 'ltc', name: 'Litecoin', symbol: 'LTC', icon: 'https://cryptologos.cc/logos/litecoin-ltc-logo.svg' },
+  { id: 'bch', name: 'Bitcoin Cash', symbol: 'BCH', icon: 'https://cryptologos.cc/logos/bitcoin-cash-bch-logo.svg' },
+  { id: 'xrp', name: 'Ripple', symbol: 'XRP', icon: 'https://cryptologos.cc/logos/xrp-xrp-logo.svg' },
+  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', icon: 'https://cryptologos.cc/logos/dogecoin-doge-logo.svg' },
+  { id: 'trx', name: 'TRON', symbol: 'TRX', icon: 'https://cryptologos.cc/logos/tron-trx-logo.svg' },
+  { id: 'usdt', name: 'Tether', symbol: 'USDT', icon: 'https://cryptologos.cc/logos/tether-usdt-logo.svg' },
+  { id: 'bnb', name: 'Binance Coin', symbol: 'BNB', icon: 'https://cryptologos.cc/logos/bnb-bnb-logo.svg' },
+  { id: 'sol', name: 'Solana', symbol: 'SOL', icon: 'https://cryptologos.cc/logos/solana-sol-logo.svg' }
 ];
 
 // Types de transaction
@@ -240,29 +232,40 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
 
   // Ajouter la fonction pour créer un dépôt
   const handleDeposit = async () => {
-    if (!user) return;
-    if (!amount || amount <= 0) {
-      setError("Veuillez entrer un montant valide.");
-      return;
-    }
+    if (!user || !amount || !selectedCrypto) return;
 
     try {
-      setProcessingDeposit(true);
-      setError(null);
-
-      const result = await createWalletDeposit(user, amount, selectedCrypto);
-
-      if (result.paymentUrl) {
-        setDepositUrl(result.paymentUrl);
-        window.open(result.paymentUrl, '_blank');
-      } else {
-        throw new Error("URL de paiement non disponible");
+      setLoading(true);
+      const deposit = await createWalletDeposit(user, amount, selectedCrypto);
+      
+      if (!deposit || !deposit.paymentUrl) {
+        throw new Error('URL de paiement non disponible');
       }
-    } catch (err: any) {
-      console.error("Erreur lors de la création du dépôt:", err);
-      setError(err.message || "Une erreur est survenue lors de la création du dépôt.");
+
+      // Ouvrir l'URL de paiement dans un nouvel onglet
+      window.open(deposit.paymentUrl, '_blank');
+
+      // Ajouter la transaction à la liste
+      const newTransaction: Transaction = {
+        id: deposit.transactionId,
+        userId: user.uid,
+        amount: amount,
+        currency: selectedCrypto,
+        status: TransactionStatus.WAITING,
+        createdAt: new Date().toISOString(),
+        paymentUrl: deposit.paymentUrl,
+        paymentId: deposit.transactionId,
+        type: TransactionType.DEPOSIT
+      };
+
+      setTransactions(prev => [...prev, newTransaction]);
+      setAmount(0);
+      setSelectedCrypto('');
+    } catch (error) {
+      console.error('Erreur lors de la création du dépôt:', error);
+      alert('Une erreur est survenue lors de la création du dépôt. Veuillez réessayer.');
     } finally {
-      setProcessingDeposit(false);
+      setLoading(false);
     }
   };
 
