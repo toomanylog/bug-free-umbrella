@@ -130,31 +130,48 @@ const ToolManager: React.FC = () => {
         return;
       }
       
+      // Validation des conditions d'accès
+      const invalidConditions = form.conditions.filter(condition => {
+        if (condition.type === ConditionType.FORMATION_COMPLETED && !condition.value) {
+          return true;
+        }
+        if (condition.type === ConditionType.CERTIFICATION_OBTAINED && !condition.value) {
+          return true;
+        }
+        return false;
+      });
+      
+      if (invalidConditions.length > 0) {
+        setFormError('Certaines conditions d\'accès sont incomplètes. Veuillez sélectionner une formation ou certification valide pour chaque condition.');
+        return;
+      }
+      
+      // Préparation des données à sauvegarder
+      const toolData = {
+        name: form.name,
+        description: form.description,
+        iconType: form.iconType,
+        icon: form.icon,
+        status: form.status,
+        features: form.features.filter(f => f.trim()),
+        downloadLink: form.downloadLink,
+        conditions: form.conditions.map(condition => ({
+          ...condition,
+          // S'assurer que les valeurs sont bien des chaînes de caractères non vides
+          value: condition.value || '',
+          description: condition.description || ''
+        }))
+      };
+      
+      console.log('Sauvegarde des données de l\'outil:', toolData);
+      
       // Création ou mise à jour
       if (editingTool) {
-        await updateTool(editingTool.id, {
-          name: form.name,
-          description: form.description,
-          iconType: form.iconType,
-          icon: form.icon,
-          status: form.status,
-          features: form.features.filter(f => f.trim()),
-          downloadLink: form.downloadLink,
-          conditions: form.conditions
-        });
+        await updateTool(editingTool.id, toolData);
         
         setFormSuccess('Outil mis à jour avec succès');
       } else {
-        await createTool({
-          name: form.name,
-          description: form.description,
-          iconType: form.iconType,
-          icon: form.icon,
-          status: form.status,
-          features: form.features.filter(f => f.trim()),
-          downloadLink: form.downloadLink,
-          conditions: form.conditions
-        });
+        await createTool(toolData);
         
         setFormSuccess('Outil créé avec succès');
       }
@@ -577,8 +594,12 @@ const ToolManager: React.FC = () => {
                             onChange={(e) => {
                               const formationId = e.target.value;
                               const formation = formations.find(f => f.id === formationId);
-                              updateCondition(index, 'value', formationId);
-                              updateCondition(index, 'description', formation ? formation.title : '');
+                              if (formationId) {
+                                // S'assurer que l'ID est correctement sauvegardé
+                                console.log(`Sélection de la formation: ${formationId}`);
+                                updateCondition(index, 'value', formationId);
+                                updateCondition(index, 'description', formation ? formation.title : '');
+                              }
                             }}
                             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
@@ -589,6 +610,11 @@ const ToolManager: React.FC = () => {
                               </option>
                             ))}
                           </select>
+                          {!condition.value && (
+                            <p className="text-xs text-yellow-500 mt-1">
+                              Aucune formation sélectionnée. L'ID est nécessaire pour la vérification d'accès.
+                            </p>
+                          )}
                         </div>
                       )}
                       
@@ -600,9 +626,13 @@ const ToolManager: React.FC = () => {
                             onChange={(e) => {
                               const certificationId = e.target.value;
                               const certification = certifications.find(c => c.id === certificationId);
-                              updateCondition(index, 'value', certificationId);
-                              const certificationTitle = certification && certification.title ? certification.title : 'Certification requise';
-                              updateCondition(index, 'description', certificationTitle);
+                              if (certificationId) {
+                                // S'assurer que l'ID est correctement sauvegardé
+                                console.log(`Sélection de la certification: ${certificationId}`);
+                                updateCondition(index, 'value', certificationId);
+                                const certificationTitle = certification && certification.title ? certification.title : 'Certification requise';
+                                updateCondition(index, 'description', certificationTitle);
+                              }
                             }}
                             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
@@ -613,6 +643,11 @@ const ToolManager: React.FC = () => {
                               </option>
                             ))}
                           </select>
+                          {!condition.value && (
+                            <p className="text-xs text-yellow-500 mt-1">
+                              Aucune certification sélectionnée. L'ID est nécessaire pour la vérification d'accès.
+                            </p>
+                          )}
                         </div>
                       )}
                       

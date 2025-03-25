@@ -173,8 +173,38 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
       console.log(`[checkToolAccess] Vérification de la condition:`, JSON.stringify(condition, null, 2));
       
       switch (condition.type) {
-        case ConditionType.FORMATION_COMPLETED:
-          const formationId = condition.value;
+        case ConditionType.FORMATION_COMPLETED: {
+          let formationId = condition.value;
+          
+          // Si l'ID est manquant mais qu'on a une description, essayer de trouver la formation par son titre
+          if (!formationId && condition.description) {
+            console.log(`[checkToolAccess] ID de formation manquant, recherche par description: "${condition.description}"`);
+            try {
+              const formationsRef = ref(database, 'formations');
+              const formationsSnapshot = await get(formationsRef);
+              
+              if (formationsSnapshot.exists()) {
+                const formationsData = formationsSnapshot.val();
+                const matchingFormation = Object.values(formationsData).find(
+                  (f: any) => f.title === condition.description
+                );
+                
+                if (matchingFormation) {
+                  formationId = (matchingFormation as any).id;
+                  console.log(`[checkToolAccess] Formation trouvée par titre: ${formationId}`);
+                }
+              }
+            } catch (error) {
+              console.error(`[checkToolAccess] Erreur lors de la recherche de formation par titre:`, error);
+            }
+          }
+          
+          if (!formationId) {
+            console.log(`[checkToolAccess] Aucun ID de formation valide trouvé, condition non satisfaite`);
+            missingConditions.push(`Terminer la formation "${condition.description || 'requise'}"`);
+            break;
+          }
+          
           console.log(`[checkToolAccess] Recherche de la formation ${formationId} dans les formations de l'utilisateur`);
           
           console.log(`[checkToolAccess] Type de formationsProgress:`, userData.formationsProgress ? 
@@ -209,11 +239,11 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
               console.log(`[checkToolAccess] Données de la formation ${formationId}:`, 
                 formationSnapshot.exists() ? "trouvée" : "non trouvée");
               
-              let formationTitle = 'requise';
+              let formationTitle = condition.description || 'requise';
               if (formationSnapshot.exists()) {
                 const formationData = formationSnapshot.val();
                 console.log(`[checkToolAccess] Détails de la formation:`, JSON.stringify(formationData, null, 2));
-                formationTitle = formationData.title || 'requise';
+                formationTitle = formationData.title || formationTitle;
                 console.log(`[checkToolAccess] Titre de la formation: "${formationTitle}"`);
               } else {
                 console.log(`[checkToolAccess] Formation ${formationId} non trouvée dans la base de données`);
@@ -222,13 +252,44 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
               missingConditions.push(`Terminer la formation "${formationTitle}"`);
             } catch (error) {
               console.error(`[checkToolAccess] Erreur lors de la récupération de la formation ${formationId}:`, error);
-              missingConditions.push(`Terminer la formation requise`);
+              missingConditions.push(`Terminer la formation "${condition.description || 'requise'}"`);
             }
           }
           break;
+        }
           
-        case ConditionType.CERTIFICATION_OBTAINED:
-          const certificationId = condition.value;
+        case ConditionType.CERTIFICATION_OBTAINED: {
+          let certificationId = condition.value;
+          
+          // Si l'ID est manquant mais qu'on a une description, essayer de trouver la certification par son titre
+          if (!certificationId && condition.description) {
+            console.log(`[checkToolAccess] ID de certification manquant, recherche par description: "${condition.description}"`);
+            try {
+              const certificationsRef = ref(database, 'certifications');
+              const certificationsSnapshot = await get(certificationsRef);
+              
+              if (certificationsSnapshot.exists()) {
+                const certificationsData = certificationsSnapshot.val();
+                const matchingCertification = Object.values(certificationsData).find(
+                  (c: any) => c.title === condition.description
+                );
+                
+                if (matchingCertification) {
+                  certificationId = (matchingCertification as any).id;
+                  console.log(`[checkToolAccess] Certification trouvée par titre: ${certificationId}`);
+                }
+              }
+            } catch (error) {
+              console.error(`[checkToolAccess] Erreur lors de la recherche de certification par titre:`, error);
+            }
+          }
+          
+          if (!certificationId) {
+            console.log(`[checkToolAccess] Aucun ID de certification valide trouvé, condition non satisfaite`);
+            missingConditions.push(`Obtenir la certification "${condition.description || 'requise'}"`);
+            break;
+          }
+          
           console.log(`[checkToolAccess] Recherche de la certification ${certificationId} pour l'utilisateur`);
           
           console.log(`[checkToolAccess] Type de certifications:`, userData.certifications ? 
@@ -286,11 +347,11 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
               console.log(`[checkToolAccess] Données de la certification ${certificationId}:`, 
                 certificationSnapshot.exists() ? "trouvée" : "non trouvée");
               
-              let certificationTitle = 'requise';
+              let certificationTitle = condition.description || 'requise';
               if (certificationSnapshot.exists()) {
                 const certificationData = certificationSnapshot.val();
                 console.log(`[checkToolAccess] Détails de la certification:`, JSON.stringify(certificationData, null, 2));
-                certificationTitle = certificationData.title || 'requise';
+                certificationTitle = certificationData.title || certificationTitle;
                 console.log(`[checkToolAccess] Titre de la certification: "${certificationTitle}"`);
               } else {
                 console.log(`[checkToolAccess] Certification ${certificationId} non trouvée dans la base de données`);
@@ -299,10 +360,11 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
               missingConditions.push(`Obtenir la certification "${certificationTitle}"`);
             } catch (error) {
               console.error(`[checkToolAccess] Erreur lors de la récupération de la certification ${certificationId}:`, error);
-              missingConditions.push(`Obtenir la certification requise`);
+              missingConditions.push(`Obtenir la certification "${condition.description || 'requise'}"`);
             }
           }
           break;
+        }
           
         case ConditionType.ADMIN_ASSIGNED:
           // Vérifier si l'utilisateur a une autorisation spéciale
@@ -318,7 +380,7 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
           const toolPermissions = userData.toolPermissions || {};
           if (!toolPermissions[toolId]) {
             console.log(`[checkToolAccess] Aucune permission trouvée pour l'outil ${toolId}`);
-            missingConditions.push('Obtenir une autorisation d\'accès de l\'administrateur');
+            missingConditions.push(condition.description || 'Obtenir une autorisation d\'accès de l\'administrateur');
           } else {
             console.log(`[checkToolAccess] Permission trouvée pour l'outil ${toolId}:`, JSON.stringify(toolPermissions[toolId], null, 2));
           }
