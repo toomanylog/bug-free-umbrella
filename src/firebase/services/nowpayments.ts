@@ -6,6 +6,7 @@ import { User } from 'firebase/auth';
 // Clé API NOWPayments
 const API_KEY = process.env.REACT_APP_NOWPAYMENTS_API_KEY || '';
 const PUBLIC_KEY = process.env.REACT_APP_NOWPAYMENTS_PUBLIC_KEY || '';
+const IPN_KEY = process.env.REACT_APP_NOWPAYMENTS_IPN_KEY || '';
 const API_URL = 'https://api.nowpayments.io/v1';
 
 // Note: Les clés IPN sont uniquement utilisées côté serveur
@@ -97,6 +98,12 @@ export const createWalletDeposit = async (
       throw new Error('Le montant doit être supérieur à 0');
     }
 
+    // Vérifier si la clé API est présente
+    if (!API_KEY) {
+      console.error('Clé API NOWPayments manquante (REACT_APP_NOWPAYMENTS_API_KEY)');
+      throw new Error('Configuration NOWPayments manquante');
+    }
+
     // Vérifier si la crypto est supportée
     const isValidCrypto = SUPPORTED_CRYPTOCURRENCIES.some(crypto => crypto.id === payCurrency);
     if (!isValidCrypto) {
@@ -104,14 +111,19 @@ export const createWalletDeposit = async (
     }
 
     // Normaliser l'ID de la crypto-monnaie pour NOWPayments
-    // USDT doit être précisé comme USDT_TRX, USDT_ETH, etc.
-    // BNB doit être précisé comme BNB_BSC ou BNB_BEP2
     let paymentCurrency = payCurrency;
     if (payCurrency === 'usdt') {
-      paymentCurrency = 'usdt_trc20'; // Utiliser TRC20 par défaut pour USDT
+      paymentCurrency = 'usdt_trc20';
     } else if (payCurrency === 'bnb') {
-      paymentCurrency = 'bnb_bsc'; // Utiliser BSC (BEP20) par défaut pour BNB
+      paymentCurrency = 'bnb_bsc';
     }
+
+    console.log('Création du paiement avec les paramètres:', {
+      amount,
+      paymentCurrency,
+      userId: user.uid,
+      userEmail: user.email
+    });
 
     // Créer un paiement via l'API NOWPayments
     const response = await axios.post(
@@ -132,6 +144,8 @@ export const createWalletDeposit = async (
       }
     );
 
+    console.log('Réponse de NOWPayments:', response.data);
+
     // Si la création du paiement a réussi
     if (response.data && response.data.payment_id) {
       // S'assurer que tous les champs nécessaires sont présents
@@ -140,6 +154,11 @@ export const createWalletDeposit = async (
       const payAmount = response.data.pay_amount || 0;
       const payCurrency = response.data.pay_currency || 'btc';
       
+      if (!paymentUrl) {
+        console.error('URL de paiement manquante dans la réponse:', response.data);
+        throw new Error('URL de paiement non disponible');
+      }
+
       // Créer une nouvelle transaction dans la base de données
       const transactionsRef = ref(database, 'transactions');
       const transactionRef = push(transactionsRef);
@@ -169,10 +188,18 @@ export const createWalletDeposit = async (
         transactionId: transactionRef.key || ''
       };
     } else {
+      console.error('Réponse invalide de NOWPayments:', response.data);
       throw new Error('Erreur lors de la création du paiement');
     }
   } catch (error) {
-    console.error('Erreur lors de la création du dépôt:', error);
+    console.error('Erreur détaillée lors de la création du dépôt:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Détails de l\'erreur Axios:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+    }
     throw error;
   }
 };

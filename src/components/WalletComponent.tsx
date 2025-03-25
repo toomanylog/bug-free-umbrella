@@ -232,15 +232,29 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
 
   // Ajouter la fonction pour créer un dépôt
   const handleDeposit = async () => {
-    if (!user || !amount || !selectedCrypto) return;
+    if (!user || !amount || !selectedCrypto) {
+      setError('Veuillez remplir tous les champs requis');
+      return;
+    }
 
     try {
       setLoading(true);
+      setError(null);
+      setProcessingDeposit(true);
+
+      console.log('Début de la création du dépôt:', {
+        amount,
+        selectedCrypto,
+        userId: user.uid
+      });
+
       const deposit = await createWalletDeposit(user, amount, selectedCrypto);
       
       if (!deposit || !deposit.paymentUrl) {
         throw new Error('URL de paiement non disponible');
       }
+
+      console.log('Dépôt créé avec succès:', deposit);
 
       // Ouvrir l'URL de paiement dans un nouvel onglet
       window.open(deposit.paymentUrl, '_blank');
@@ -250,22 +264,29 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
         id: deposit.transactionId,
         userId: user.uid,
         amount: amount,
-        currency: selectedCrypto,
+        currency: 'EUR',
         status: TransactionStatus.WAITING,
+        type: TransactionType.DEPOSIT,
         createdAt: new Date().toISOString(),
-        paymentUrl: deposit.paymentUrl,
-        paymentId: deposit.transactionId,
-        type: TransactionType.DEPOSIT
+        paymentDetails: {
+          pay_address: '',
+          pay_amount: 0,
+          pay_currency: selectedCrypto,
+          paymentUrl: deposit.paymentUrl
+        }
       };
 
-      setTransactions(prev => [...prev, newTransaction]);
+      setTransactions(prev => [newTransaction, ...prev]);
+      setSuccessMessage('Dépôt créé avec succès ! Veuillez compléter le paiement dans la nouvelle fenêtre.');
+      setShowAdd(false);
       setAmount(0);
-      setSelectedCrypto('');
+      setSelectedAmount(null);
     } catch (error) {
       console.error('Erreur lors de la création du dépôt:', error);
-      alert('Une erreur est survenue lors de la création du dépôt. Veuillez réessayer.');
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la création du dépôt');
     } finally {
       setLoading(false);
+      setProcessingDeposit(false);
     }
   };
 
