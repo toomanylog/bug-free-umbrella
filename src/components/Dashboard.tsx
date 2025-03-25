@@ -148,7 +148,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     wallet: false,
     tools: false,
     profile: false,
-    overview: false
+    overview: false,
+    certifications: false
   });
 
   // Charger les données de l'utilisateur depuis Firestore
@@ -279,41 +280,43 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
     loadCatalogFormations();
   }, [activeSection, userFormations, currentUser]);
 
-  // Après les useEffects existants, corriger l'useEffect pour charger les certifications
+  // Dans le useEffect qui charge les certifications
   useEffect(() => {
     const loadUserCertifications = async () => {
-      if (activeSection === 'formations' && currentUser) {
-        try {
-          // Vérifier d'abord si le module existe
-          const certificationsModule = await import('../firebase/certifications').catch(err => {
-            console.error("Erreur lors de l'importation du module de certifications:", err);
-            return null;
-          });
-          
-          if (!certificationsModule) {
-            console.warn("Module de certifications non disponible");
-            return;
-          }
-          
-          // Utiliser une fonction catch pour éviter les erreurs non gérées
-          try {
-            // Ignorer les erreurs potentielles ici pour ne pas bloquer l'interface
-            await certificationsModule.getUserCertifications(currentUser.uid).catch(err => {
-              console.warn("Impossible de récupérer les certifications:", err);
-              return [];
+      if (!currentUser || !userData) return;
+      
+      try {
+        setLoading(prev => ({ ...prev, certifications: true }));
+        const userCertificationsRef = ref(database, `userCertifications/${currentUser.uid}`);
+        
+        onValue(userCertificationsRef, (snapshot) => {
+          const certifications: any[] = [];
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            Object.entries(data).forEach(([certId, certData]: [string, any]) => {
+              if (certData.status === 'completed') {
+                certifications.push({
+                  certification: {
+                    id: certId,
+                    ...certData.certificationDetails
+                  },
+                  earnedAt: certData.earnedAt,
+                  status: certData.status
+                });
+              }
             });
-          } catch (error) {
-            console.warn("Erreur lors de l'accès aux certifications:", error);
-            // Continuer sans les certifications
           }
-        } catch (error) {
-          console.warn("Erreur générique lors du chargement des certifications:", error);
-        }
+          setUserCertifications(certifications);
+          setLoading(prev => ({ ...prev, certifications: false }));
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement des certifications:', error);
+        setLoading(prev => ({ ...prev, certifications: false }));
       }
     };
     
     loadUserCertifications();
-  }, [activeSection, currentUser]);
+  }, [currentUser, userData]);
 
   // Charger les outils dynamiquement
   useEffect(() => {
@@ -781,6 +784,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
       setActiveSection('profile');
     }
   }, [activeSection]);
+
+  // Dans la fonction qui gère la fin d'un examen
+  const handleExamCompletion = (certificationId: string) => {
+    setActiveSection('certifications');
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
@@ -1849,23 +1857,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
             </div>
           )}
           
-          {/* Ajouter la section Certifications */}
+          {/* Section des certifications */}
           {activeSection === 'certifications' && (
             <div className="space-y-8">
               <h1 className="text-3xl font-bold">Mes Certifications</h1>
               
-              {userCertifications.length === 0 ? (
+              {loading.certifications ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : userCertifications.length === 0 ? (
                 <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
                   <Award size={48} className="mx-auto text-gray-400 mb-4" />
                   <h2 className="text-xl font-semibold mb-2">Vous n'avez pas encore de certification</h2>
                   <p className="text-gray-400 mb-4">Terminez une formation offrant une certification pour l'obtenir.</p>
-                      <button 
+                  <button 
                     onClick={() => setActiveSection('formations')}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
                   >
                     Voir les formations
-                      </button>
-                    </div>
+                  </button>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {userCertifications.map(cert => (
@@ -1883,16 +1895,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
                         <span className="text-sm text-gray-400">
                           Obtenue le {formatDate(cert.earnedAt || '')}
                         </span>
-                        <a 
-                          href={`/certification/${cert.certification.id}`} 
+                        <Link 
+                          to={`/certification/${cert.certification.id}`} 
                           className="text-blue-400 hover:underline text-sm"
                         >
                           Voir les détails
-                        </a>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}

@@ -48,7 +48,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   const [user] = useAuthState(auth);
   const [wallet, setWallet] = useState<UserWallet | null>(userWallet || null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState<number>(0);
   const [depositUrl, setDepositUrl] = useState<string | null>(null);
@@ -66,6 +66,10 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   // Charger les données du portefeuille et des transactions
   useEffect(() => {
     if (!user) return;
+    if (userWallet) {
+      setWallet(userWallet);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -110,7 +114,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
     });
 
     // Référence aux transactions de l'utilisateur
-    const transactionsRef = ref(database, 'transactions');
+    const transactionsRef = ref(database, `transactions`);
     
     // Écouter les changements des transactions
     const transactionsListener = onValue(transactionsRef, (snapshot) => {
@@ -119,8 +123,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
         const userTransactions: Transaction[] = [];
         
         // Filtrer les transactions de l'utilisateur actuel
-        Object.keys(transactionsData).forEach(key => {
-          const transaction = transactionsData[key];
+        Object.entries(transactionsData).forEach(([key, transaction]: [string, any]) => {
           if (transaction.userId === user.uid) {
             userTransactions.push({
               ...transaction,
@@ -138,9 +141,6 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
       } else {
         setTransactions([]);
       }
-    }, (error) => {
-      console.error("Erreur lors du chargement des transactions:", error);
-      setError("Impossible de charger l'historique des transactions.");
     });
 
     // Nettoyage des écouteurs lorsque le composant est démonté
@@ -148,7 +148,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
       off(walletRef);
       off(transactionsRef);
     };
-  }, [user, onWalletUpdate]);
+  }, [user, userWallet, onWalletUpdate]);
 
   // Vérifier l'état des transactions en attente toutes les 30 secondes
   useEffect(() => {
@@ -316,7 +316,20 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   };
 
   if (loading) {
-    return <div className="wallet-loading">Chargement du portefeuille...</div>;
+    return (
+      <div className="wallet-container">
+        <div className="wallet-card">
+          <div className="wallet-content">
+            <div className="wallet-header">
+              <h2>Mon Portefeuille</h2>
+              <div className="wallet-balance">
+                <div className="animate-pulse bg-gray-700 h-8 w-32 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -326,7 +339,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
           <div className="wallet-header">
             <h2>Mon Portefeuille</h2>
             <div className="wallet-balance">
-              <span className="balance-amount">{userWallet?.balance?.toFixed(2) || "0.00"} €</span>
+              <span className="balance-amount">{wallet?.balance?.toFixed(2) || "0.00"} €</span>
             </div>
           </div>
           
@@ -342,21 +355,19 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
         
         <div className="transactions-section">
           <h3>Dernières Transactions</h3>
-          {loading ? (
-            <div className="transactions-loading">Chargement des transactions...</div>
-          ) : transactions && transactions.length > 0 ? (
+          {transactions.length > 0 ? (
             <div className="transactions-list">
               {transactions.map((t, index) => (
                 <div key={index} className="transaction-item">
                   <div className="transaction-info">
                     <span className="transaction-type">
-                      {t.type === 'deposit' ? 'Dépôt' : 
-                       t.type === 'other_purchase' ? 'Retrait' : 'Achat'}
+                      {t.type === TransactionType.DEPOSIT ? 'Dépôt' : 
+                       t.type === TransactionType.OTHER_PURCHASE ? 'Retrait' : 'Achat'}
                     </span>
                     <span className="transaction-date">{formatDate(t.createdAt)}</span>
                   </div>
-                  <span className={`transaction-amount ${t.type === 'deposit' ? 'positive' : 'negative'}`}>
-                    {t.type === 'deposit' ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
+                  <span className={`transaction-amount ${t.type === TransactionType.DEPOSIT ? 'positive' : 'negative'}`}>
+                    {t.type === TransactionType.DEPOSIT ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
                   </span>
                 </div>
               ))}

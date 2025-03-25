@@ -15,36 +15,18 @@ export interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-// Créer une valeur par défaut pour le contexte
-const defaultContextValue: AuthContextType = {
-  currentUser: null,
-  userData: null,
-  isAdmin: false,
-  isLoading: true,
-  refreshUserData: async () => {
-    console.warn("refreshUserData appelé en dehors du contexte AuthProvider");
-  },
-  logout: async () => {
-    console.warn("logout appelé en dehors du contexte AuthProvider");
+// Créer le contexte
+const AuthContext = createContext<AuthContextType | null>(null);
+
+// Hook personnalisé pour utiliser le contexte
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth doit être utilisé dans un AuthProvider');
   }
+  return context;
 };
 
-// Créer le contexte avec la valeur par défaut (et non null)
-const AuthContext = createContext<AuthContextType>(defaultContextValue);
-
-// Hook personnalisé pour utiliser le contexte d'authentification
-export const useAuth = (): AuthContextType => {
-  try {
-    const context = useContext(AuthContext);
-    // Retourner toujours un contexte valide
-    return context || defaultContextValue;
-  } catch (error) {
-    console.error("Erreur lors de l'utilisation du hook useAuth:", error);
-    return defaultContextValue;
-  }
-};
-
-// Props du provider
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -55,6 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
 
   // Fonction pour rafraîchir les données utilisateur
   const refreshUserData = async () => {
@@ -66,6 +49,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Erreur lors du rafraîchissement des données utilisateur:', error);
       }
+    }
+  };
+
+  // Fonction de déconnexion
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+      setUserData(null);
+      setIsAdmin(false);
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      throw error;
     }
   };
 
@@ -83,32 +79,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               try {
                 const data = snapshot.val();
                 if (data) {
-                  console.log('Données utilisateur chargées:', data);
-                  console.log('Rôle utilisateur:', data.role);
                   setUserData(data);
                   setIsAdmin(data?.role === UserRole.ADMIN);
                 }
                 setIsLoading(false);
+                setIsInitializing(false);
               } catch (error) {
                 console.error('Erreur lors du traitement des données utilisateur:', error);
                 setIsLoading(false);
+                setIsInitializing(false);
               }
             }, (error) => {
               console.error('Erreur lors de la récupération des données utilisateur:', error);
               setIsLoading(false);
+              setIsInitializing(false);
             });
           } catch (error) {
             console.error('Erreur lors de la création de la référence utilisateur:', error);
             setIsLoading(false);
+            setIsInitializing(false);
           }
         } else {
           setUserData(null);
           setIsAdmin(false);
           setIsLoading(false);
+          setIsInitializing(false);
         }
       }, (error) => {
         console.error('Erreur lors de la surveillance de l\'état d\'authentification:', error);
         setIsLoading(false);
+        setIsInitializing(false);
       });
       
       return () => {
@@ -121,32 +121,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Erreur lors de l\'initialisation de l\'écouteur d\'authentification:', error);
       setIsLoading(false);
+      setIsInitializing(false);
     }
   }, []);
 
-  // Fonction de déconnexion
-  const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-      throw error;
-    }
-  };
-
-  // Valeur du contexte à fournir
-  const value: AuthContextType = {
-    currentUser,
-    userData,
-    isAdmin,
-    isLoading,
-    refreshUserData,
-    logout
-  };
+  // Ne pas rendre les enfants tant que l'initialisation n'est pas terminée
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      currentUser,
+      userData,
+      isAdmin,
+      isLoading,
+      refreshUserData,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );
-}; 
+};
+
+export default AuthContext; 
