@@ -1,7 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { DollarSign, Rocket, Dice5, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
-import CrashGame from './crash/CrashGame';
-import DiceGame from './dice/DiceGame';
+import { DollarSign, LayoutGrid, ChevronRight, ChevronLeft, AlertCircle } from 'lucide-react';
 import './CasinoManager.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from 'firebase/auth';
@@ -39,8 +37,7 @@ const CasinoManager: React.FC = () => {
       } else {
         // Initialiser la configuration par défaut si elle n'existe pas
         const defaultConfig = {
-          crash: { status: 'active', updatedAt: new Date().toISOString() },
-          dice: { status: 'active', updatedAt: new Date().toISOString() }
+          slots: { status: 'coming-soon', updatedAt: new Date().toISOString() }
         };
         set(casinoConfigRef, defaultConfig);
         setGameConfigs(defaultConfig);
@@ -53,24 +50,12 @@ const CasinoManager: React.FC = () => {
   // Liste des jeux disponibles avec statut dynamique
   const games: GameType[] = [
     {
-      id: 'crash',
-      name: 'Rocket Crash',
-      description: 'Regardez la fusée décoller et encaissez avant le crash pour gagner!',
-      icon: <Rocket size={32} />,
-      status: isAdmin 
-        ? 'active' // Les admins peuvent toujours accéder aux jeux
-        : (gameConfigs?.crash?.status || 'active'),
-      disabledReason: gameConfigs?.crash?.disabledReason || 'Ce jeu est temporairement désactivé pour maintenance.'
-    },
-    {
-      id: 'dice',
-      name: 'Lucky Dice',
-      description: 'Lancez les dés et pariez sur le résultat. Bonus pour les combinaisons!',
-      icon: <Dice5 size={32} />,
-      status: isAdmin 
-        ? 'active' // Les admins peuvent toujours accéder aux jeux
-        : (gameConfigs?.dice?.status || 'active'),
-      disabledReason: gameConfigs?.dice?.disabledReason || 'Ce jeu est temporairement désactivé pour maintenance.'
+      id: 'slots',
+      name: 'Machines à Sous',
+      description: 'Tentez votre chance aux machines à sous et remportez des jackpots!',
+      icon: <LayoutGrid size={32} />,
+      status: 'coming-soon',
+      disabledReason: 'Les machines à sous seront bientôt disponibles.'
     }
   ];
   
@@ -153,20 +138,19 @@ const CasinoManager: React.FC = () => {
         </div>
         
         <div className="casino-rules">
-          <h2>Règles du casino</h2>
+          <h2>Règles générales du casino</h2>
           <ul>
-            <li>Vous devez être connecté pour jouer.</li>
-            <li>Les gains sont automatiquement ajoutés à votre portefeuille.</li>
-            <li>La mise minimale varie selon les jeux.</li>
-            <li>Les administrateurs se réservent le droit de modifier ou annuler toute transaction en cas de détection de fraude.</li>
-            <li>Jouez de manière responsable. Ne misez que ce que vous pouvez vous permettre de perdre.</li>
+            <li>Vous devez être connecté pour jouer aux jeux du casino.</li>
+            <li>Tous les jeux ont une mise minimale et maximale qui varie selon le jeu.</li>
+            <li>Le casino prend un petit pourcentage sur chaque mise pour maintenir le service.</li>
+            <li>Les statistiques de vos parties sont enregistrées et peuvent être consultées à tout moment.</li>
+            <li>Jouez de manière responsable et pour le plaisir.</li>
           </ul>
         </div>
       </div>
     );
   };
   
-  // Afficher le jeu sélectionné
   const renderGame = () => {
     const selectedGame = games.find(game => game.id === activeGame);
     
@@ -277,11 +261,14 @@ const CasinoManager: React.FC = () => {
         </div>
         
         <div className="game-content">
-          {selectedGame.id === 'crash' && (
-            <CrashGame key={`crash-game-${Date.now()}`} />
-          )}
-          {selectedGame.id === 'dice' && (
-            <DiceGame key={`dice-game-${Date.now()}`} />
+          {selectedGame.id === 'slots' && (
+            <div className="flex justify-center items-center p-8">
+              <div className="text-center bg-gray-800 p-8 rounded-lg max-w-lg">
+                <h3 className="text-xl font-bold mb-4">Machines à Sous en développement</h3>
+                <p className="mb-4">Nos machines à sous sont actuellement en cours de développement et seront disponibles prochainement.</p>
+                <p className="text-sm opacity-75">Revenez bientôt pour une expérience de casino complète avec plusieurs machines à sous thématiques!</p>
+              </div>
+            </div>
           )}
         </div>
       </div>
