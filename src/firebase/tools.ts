@@ -110,18 +110,23 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
   missingConditions: string[];
 }> => {
   try {
+    console.log(`[checkToolAccess] Vérification d'accès pour l'utilisateur ${userId} à l'outil ${toolId}`);
+    
     // Récupérer l'outil
     const toolRef = ref(database, `tools/${toolId}`);
     const toolSnapshot = await get(toolRef);
     
     if (!toolSnapshot.exists()) {
+      console.error(`[checkToolAccess] L'outil ${toolId} n'existe pas`);
       throw new Error(`L'outil ${toolId} n'existe pas`);
     }
     
     const tool = toolSnapshot.val() as Tool;
+    console.log(`[checkToolAccess] Outil récupéré: ${tool.name} (${toolId})`, JSON.stringify(tool, null, 2));
     
     // Vérifier si l'outil est actif
     if (tool.status !== ToolStatus.ACTIVE) {
+      console.log(`[checkToolAccess] L'outil ${tool.name} n'est pas actif (statut: ${tool.status})`);
       return {
         hasAccess: false,
         missingConditions: ['Cet outil n\'est pas encore disponible']
@@ -130,6 +135,7 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
     
     // Si pas de conditions, accès autorisé
     if (!tool.conditions || tool.conditions.length === 0) {
+      console.log(`[checkToolAccess] Aucune condition requise pour l'outil ${tool.name}, accès autorisé`);
       return {
         hasAccess: true,
         missingConditions: []
@@ -137,8 +143,21 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
     }
     
     // Récupérer les données utilisateur
+    console.log(`[checkToolAccess] Récupération des données pour l'utilisateur ${userId}`);
     const userData = await getUserData(userId);
+    console.log(`[checkToolAccess] Données utilisateur récupérées:`, userData ? "OK" : "NULL");
+    
+    if (userData) {
+      console.log(`[checkToolAccess] Données détaillées de l'utilisateur:`, JSON.stringify({
+        formationsProgress: userData.formationsProgress || "non défini",
+        certifications: userData.certifications || "non défini",
+        toolPermissions: userData.toolPermissions || "non défini",
+        isAdmin: userData.isAdmin || false
+      }, null, 2));
+    }
+    
     if (!userData) {
+      console.error(`[checkToolAccess] Impossible de récupérer les données pour l'utilisateur ${userId}`);
       return {
         hasAccess: false,
         missingConditions: ['Impossible de récupérer vos données utilisateur']
@@ -148,28 +167,61 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
     const missingConditions: string[] = [];
     
     // Vérifier chaque condition
+    console.log(`[checkToolAccess] Vérification de ${tool.conditions.length} conditions pour l'outil ${tool.name}`);
+    
     for (const condition of tool.conditions) {
+      console.log(`[checkToolAccess] Vérification de la condition:`, JSON.stringify(condition, null, 2));
+      
       switch (condition.type) {
         case ConditionType.FORMATION_COMPLETED:
           const formationId = condition.value;
-          const formationProgress = userData.formationsProgress?.find(
-            (p: any) => p.formationId === formationId && p.completed
-          );
+          console.log(`[checkToolAccess] Recherche de la formation ${formationId} dans les formations de l'utilisateur`);
+          
+          console.log(`[checkToolAccess] Type de formationsProgress:`, userData.formationsProgress ? 
+            (Array.isArray(userData.formationsProgress) ? "tableau" : "objet") : "non défini");
+          
+          // Vérifier si formationsProgress est un objet ou un tableau
+          let formationProgress;
+          if (Array.isArray(userData.formationsProgress)) {
+            console.log(`[checkToolAccess] formationsProgress (tableau):`, JSON.stringify(userData.formationsProgress, null, 2));
+            formationProgress = userData.formationsProgress.find(
+              (p: any) => p.formationId === formationId && p.completed
+            );
+          } else if (userData.formationsProgress) {
+            // Si c'est un objet avec des clés
+            console.log(`[checkToolAccess] formationsProgress (objet):`, JSON.stringify(userData.formationsProgress, null, 2));
+            formationProgress = Object.values(userData.formationsProgress).find(
+              (p: any) => p.formationId === formationId && p.completed
+            );
+          } else {
+            console.log(`[checkToolAccess] Aucune donnée de progression de formation trouvée pour l'utilisateur`);
+          }
+          
+          console.log(`[checkToolAccess] Formation trouvée:`, formationProgress ? JSON.stringify(formationProgress, null, 2) : "non trouvée");
           
           if (!formationProgress) {
             // Récupérer le titre de la formation pour un message plus précis
             try {
+              console.log(`[checkToolAccess] Tentative de récupération des détails de la formation ${formationId}`);
               const formationRef = ref(database, `formations/${formationId}`);
               const formationSnapshot = await get(formationRef);
               
+              console.log(`[checkToolAccess] Données de la formation ${formationId}:`, 
+                formationSnapshot.exists() ? "trouvée" : "non trouvée");
+              
               let formationTitle = 'requise';
               if (formationSnapshot.exists()) {
-                formationTitle = formationSnapshot.val().title || 'requise';
+                const formationData = formationSnapshot.val();
+                console.log(`[checkToolAccess] Détails de la formation:`, JSON.stringify(formationData, null, 2));
+                formationTitle = formationData.title || 'requise';
+                console.log(`[checkToolAccess] Titre de la formation: "${formationTitle}"`);
+              } else {
+                console.log(`[checkToolAccess] Formation ${formationId} non trouvée dans la base de données`);
               }
               
               missingConditions.push(`Terminer la formation "${formationTitle}"`);
             } catch (error) {
-              console.error(`Erreur lors de la récupération de la formation ${formationId}:`, error);
+              console.error(`[checkToolAccess] Erreur lors de la récupération de la formation ${formationId}:`, error);
               missingConditions.push(`Terminer la formation requise`);
             }
           }
@@ -177,23 +229,76 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
           
         case ConditionType.CERTIFICATION_OBTAINED:
           const certificationId = condition.value;
-          const hasCertification = userData.certifications && 
-                                   userData.certifications[certificationId];
+          console.log(`[checkToolAccess] Recherche de la certification ${certificationId} pour l'utilisateur`);
+          
+          console.log(`[checkToolAccess] Type de certifications:`, userData.certifications ? 
+            (Array.isArray(userData.certifications) ? "tableau" : "objet") : "non défini");
+          
+          // Vérifier les différentes structures possibles de certifications
+          let hasCertification = false;
+          
+          if (userData.certifications) {
+            if (Array.isArray(userData.certifications)) {
+              console.log(`[checkToolAccess] certifications (tableau):`, JSON.stringify(userData.certifications, null, 2));
+              hasCertification = userData.certifications.some((c: any) => {
+                const result = (typeof c === 'string' && c === certificationId) || 
+                  (typeof c === 'object' && c.id === certificationId);
+                console.log(`[checkToolAccess] Vérification de la certification ${JSON.stringify(c)}: ${result}`);
+                return result;
+              });
+            } else {
+              // Si c'est un objet avec des clés
+              console.log(`[checkToolAccess] certifications (objet):`, JSON.stringify(userData.certifications, null, 2));
+              hasCertification = userData.certifications[certificationId] !== undefined;
+              console.log(`[checkToolAccess] Certification ${certificationId} dans l'objet: ${hasCertification}`);
+            }
+          } else {
+            console.log(`[checkToolAccess] Aucune donnée de certification trouvée pour l'utilisateur`);
+          }
+          
+          // Vérifier aussi dans formationsProgress si les certifications y sont stockées
+          if (!hasCertification && userData.formationsProgress) {
+            console.log(`[checkToolAccess] Recherche de la certification dans formationsProgress`);
+            if (Array.isArray(userData.formationsProgress)) {
+              hasCertification = userData.formationsProgress.some((p: any) => {
+                const result = p.certificateId === certificationId || p.certificationId === certificationId;
+                console.log(`[checkToolAccess] Vérification dans formationsProgress (certificateId/certificationId): ${result}`);
+                return result;
+              });
+            } else {
+              hasCertification = Object.values(userData.formationsProgress).some((p: any) => {
+                const result = p.certificateId === certificationId || p.certificationId === certificationId;
+                console.log(`[checkToolAccess] Vérification dans formationsProgress (certificateId/certificationId): ${result}`);
+                return result;
+              });
+            }
+          }
+          
+          console.log(`[checkToolAccess] Certification trouvée: ${hasCertification}`);
           
           if (!hasCertification) {
             // Récupérer le titre de la certification
             try {
+              console.log(`[checkToolAccess] Tentative de récupération des détails de la certification ${certificationId}`);
               const certificationRef = ref(database, `certifications/${certificationId}`);
               const certificationSnapshot = await get(certificationRef);
               
+              console.log(`[checkToolAccess] Données de la certification ${certificationId}:`, 
+                certificationSnapshot.exists() ? "trouvée" : "non trouvée");
+              
               let certificationTitle = 'requise';
               if (certificationSnapshot.exists()) {
-                certificationTitle = certificationSnapshot.val().title || 'requise';
+                const certificationData = certificationSnapshot.val();
+                console.log(`[checkToolAccess] Détails de la certification:`, JSON.stringify(certificationData, null, 2));
+                certificationTitle = certificationData.title || 'requise';
+                console.log(`[checkToolAccess] Titre de la certification: "${certificationTitle}"`);
+              } else {
+                console.log(`[checkToolAccess] Certification ${certificationId} non trouvée dans la base de données`);
               }
               
               missingConditions.push(`Obtenir la certification "${certificationTitle}"`);
             } catch (error) {
-              console.error(`Erreur lors de la récupération de la certification ${certificationId}:`, error);
+              console.error(`[checkToolAccess] Erreur lors de la récupération de la certification ${certificationId}:`, error);
               missingConditions.push(`Obtenir la certification requise`);
             }
           }
@@ -201,20 +306,34 @@ export const checkToolAccess = async (userId: string, toolId: string): Promise<{
           
         case ConditionType.ADMIN_ASSIGNED:
           // Vérifier si l'utilisateur a une autorisation spéciale
+          console.log(`[checkToolAccess] Vérification des permissions administrateur pour l'outil ${toolId}`);
+          
+          console.log(`[checkToolAccess] Type de toolPermissions:`, userData.toolPermissions ? 
+            (Array.isArray(userData.toolPermissions) ? "tableau" : "objet") : "non défini");
+          
+          if (userData.toolPermissions) {
+            console.log(`[checkToolAccess] toolPermissions:`, JSON.stringify(userData.toolPermissions, null, 2));
+          }
+          
           const toolPermissions = userData.toolPermissions || {};
           if (!toolPermissions[toolId]) {
+            console.log(`[checkToolAccess] Aucune permission trouvée pour l'outil ${toolId}`);
             missingConditions.push('Obtenir une autorisation d\'accès de l\'administrateur');
+          } else {
+            console.log(`[checkToolAccess] Permission trouvée pour l'outil ${toolId}:`, JSON.stringify(toolPermissions[toolId], null, 2));
           }
           break;
       }
     }
+    
+    console.log(`[checkToolAccess] Conditions manquantes (${missingConditions.length}):`, JSON.stringify(missingConditions, null, 2));
     
     return {
       hasAccess: missingConditions.length === 0,
       missingConditions
     };
   } catch (error) {
-    console.error(`Erreur lors de la vérification d'accès à l'outil ${toolId}:`, error);
+    console.error(`[checkToolAccess] Erreur lors de la vérification d'accès à l'outil ${toolId}:`, error);
     return {
       hasAccess: false,
       missingConditions: ['Une erreur est survenue lors de la vérification de l\'accès']
