@@ -149,16 +149,18 @@ export const createWalletDeposit = async (
     // Si la création du paiement a réussi
     if (response.data && response.data.payment_id) {
       // S'assurer que tous les champs nécessaires sont présents
-      const paymentUrl = response.data.invoice_url || '';
       const payAddress = response.data.pay_address || '';
       const payAmount = response.data.pay_amount || 0;
       const payCurrency = response.data.pay_currency || 'btc';
       
-      if (!paymentUrl) {
-        console.error('URL de paiement manquante dans la réponse:', response.data);
-        throw new Error('URL de paiement non disponible');
+      if (!payAddress) {
+        console.error('Adresse de paiement manquante dans la réponse:', response.data);
+        throw new Error('Adresse de paiement non disponible');
       }
 
+      // Construire l'URL de paiement
+      const paymentUrl = `https://nowpayments.io/payment/${response.data.payment_id}`;
+      
       // Créer une nouvelle transaction dans la base de données
       const transactionsRef = ref(database, 'transactions');
       const transactionRef = push(transactionsRef);
