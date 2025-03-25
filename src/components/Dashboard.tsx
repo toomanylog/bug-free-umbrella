@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart, DollarSign, ShieldOff } from 'lucide-react';
+import { Menu, ChevronDown, LogOut, User, Settings, BarChart2, Wrench, X, BookOpen, Award, Download, Wallet, ShoppingCart, DollarSign, ShieldOff, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile, changeUserPassword, getUserData, UserRole, deleteUserAccount, UserFormationProgress, logoutUser, assignFormationToUser } from '../firebase/auth';
 import { Link } from 'react-router-dom';
@@ -62,6 +62,11 @@ interface PasswordState {
 interface DashboardState {
   activeSection: string;
   transactions: Transaction[];
+}
+
+interface CertificationRequirement {
+  type: 'complete_formations' | 'pass_exam' | 'admin_approval' | string;
+  value?: string | number;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
@@ -1881,26 +1886,67 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose }) => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {userCertifications.map(cert => (
-                    <div key={cert.certification.id} className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-lg transition-all">
-                      {cert.certification.imageUrl && (
-                        <img 
-                          src={cert.certification.imageUrl} 
-                          alt={cert.certification.title} 
-                          className="w-full h-40 object-cover rounded-lg mb-4"
-                        />
-                      )}
-                      <h3 className="text-xl font-bold mb-2">{cert.certification.title}</h3>
-                      <p className="text-gray-400 mb-4 line-clamp-3">{cert.certification.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">
-                          Obtenue le {formatDate(cert.earnedAt || '')}
-                        </span>
-                        <Link 
-                          to={`/certification/${cert.certification.id}`} 
-                          className="text-blue-400 hover:underline text-sm"
-                        >
-                          Voir les détails
-                        </Link>
+                    <div key={cert.certification.id} 
+                         className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden hover:shadow-lg transition-all">
+                      <div className="relative">
+                        {cert.certification.imageUrl ? (
+                          <img 
+                            src={cert.certification.imageUrl} 
+                            alt={cert.certification.title} 
+                            className="w-full h-48 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-48 bg-gradient-to-br from-blue-600/20 to-purple-600/20 flex items-center justify-center">
+                            <Award size={64} className="text-blue-400/50" />
+                          </div>
+                        )}
+                        <div className="absolute top-4 right-4 bg-green-600/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
+                          Certifié
+                        </div>
+                      </div>
+                      
+                      <div className="p-6">
+                        <h3 className="text-xl font-bold mb-2 text-white">{cert.certification.title}</h3>
+                        <p className="text-gray-400 mb-4 line-clamp-2">{cert.certification.description}</p>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center text-sm text-gray-400">
+                            <Award size={16} className="mr-2" />
+                            <span>Obtenue le {formatDate(cert.earnedAt || '')}</span>
+                          </div>
+                          
+                          {cert.certification.requirements?.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {cert.certification.requirements.map((req: CertificationRequirement, idx: number) => (
+                                <span key={idx} className="text-xs bg-gray-700/50 text-gray-300 px-2 py-1 rounded-full">
+                                  {req.type === 'complete_formations' ? 'Formation requise' :
+                                   req.type === 'pass_exam' ? 'Examen réussi' :
+                                   req.type === 'admin_approval' ? 'Approuvé par admin' : 'Autre prérequis'}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="mt-6 flex justify-between items-center">
+                          <Link 
+                            to={`/certification/${cert.certification.id}`} 
+                            className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center"
+                          >
+                            Voir les détails
+                            <ChevronRight size={16} className="ml-1" />
+                          </Link>
+                          
+                          {cert.certification.formationId && (
+                            <Link 
+                              to={`/formation/${cert.certification.formationId}`}
+                              className="text-gray-400 hover:text-gray-300 text-sm font-medium flex items-center"
+                            >
+                              Voir la formation
+                              <BookOpen size={16} className="ml-1" />
+                            </Link>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

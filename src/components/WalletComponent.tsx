@@ -6,10 +6,7 @@ import {
   createWalletDeposit, 
   cancelTransaction,
   Transaction as BaseTransaction, 
-  TransactionStatus, 
-  UserWallet, 
-  SUPPORTED_CRYPTOCURRENCIES,
-  TransactionType
+  UserWallet
 } from '../firebase/services/nowpayments';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -37,6 +34,37 @@ interface WalletComponentProps {
   isDepositActive?: boolean;
   initialDepositAmount?: string;
 }
+
+// Constantes pour les cryptos supportées
+const CRYPTOCURRENCIES = [
+  { id: 'btc', name: 'Bitcoin', symbol: 'BTC' },
+  { id: 'eth', name: 'Ethereum', symbol: 'ETH' },
+  { id: 'usdt', name: 'Tether', symbol: 'USDT' },
+  { id: 'bnb', name: 'BNB', symbol: 'BNB' }
+];
+
+// Types de transaction
+const TRANSACTION_TYPES = {
+  DEPOSIT: 'deposit',
+  WITHDRAWAL: 'withdrawal',
+  FORMATION_PURCHASE: 'formation_purchase',
+  TOOL_PURCHASE: 'tool_purchase',
+  OTHER_PURCHASE: 'other_purchase'
+} as const;
+
+// Statuts de transaction
+const TRANSACTION_STATUS = {
+  WAITING: 'waiting',
+  CONFIRMING: 'confirming',
+  CONFIRMED: 'confirmed',
+  SENDING: 'sending',
+  PARTIALLY_PAID: 'partially_paid',
+  FINISHED: 'finished',
+  FAILED: 'failed',
+  REFUNDED: 'refunded',
+  EXPIRED: 'expired',
+  CANCELLED: 'cancelled'
+} as const;
 
 const WalletComponent: React.FC<WalletComponentProps> = ({ 
   isAdmin = false,
@@ -157,8 +185,8 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
     const intervalId = setInterval(() => {
       // Vérifier les transactions en attente
       const pendingTransactions = transactions.filter(
-        tx => tx.status === TransactionStatus.WAITING || 
-             tx.status === TransactionStatus.CONFIRMING
+        tx => tx.status === TRANSACTION_STATUS.WAITING || 
+             tx.status === TRANSACTION_STATUS.CONFIRMING
       );
 
       if (pendingTransactions.length > 0) {
@@ -190,7 +218,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
     }
   }, [isDepositActive]);
 
-  // Fonction pour gérer un dépôt
+  // Ajouter la fonction pour créer un dépôt
   const handleDeposit = async () => {
     if (!user) return;
     if (!amount || amount <= 0) {
@@ -203,16 +231,22 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
       setError(null);
 
       const result = await createWalletDeposit(user, amount, selectedCrypto);
-      setDepositUrl(result.paymentUrl);
-    } catch (err) {
+
+      if (result.paymentUrl) {
+        setDepositUrl(result.paymentUrl);
+        window.open(result.paymentUrl, '_blank');
+      } else {
+        throw new Error("URL de paiement non disponible");
+      }
+    } catch (err: any) {
       console.error("Erreur lors de la création du dépôt:", err);
-      setError("Une erreur est survenue lors de la création du dépôt.");
+      setError(err.message || "Une erreur est survenue lors de la création du dépôt.");
     } finally {
       setProcessingDeposit(false);
     }
   };
 
-  // Fonction pour annuler une transaction en attente
+  // Ajouter la fonction pour annuler une transaction
   const handleCancelTransaction = async (transactionId: string) => {
     if (!user) return;
     
@@ -221,7 +255,6 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
       await cancelTransaction(user, transactionId);
       setSuccessMessage("Transaction annulée avec succès.");
       
-      // Le changement sera automatiquement reflété dans l'interface grâce à l'écouteur onValue
       setTimeout(() => {
         setSuccessMessage(null);
       }, 3000);
@@ -247,27 +280,27 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   };
 
   // Fonction pour afficher l'état d'une transaction
-  const getStatusLabel = (status: TransactionStatus): string => {
+  const getStatusLabel = (status: string): string => {
     switch (status) {
-      case TransactionStatus.WAITING:
+      case TRANSACTION_STATUS.WAITING:
         return "En attente";
-      case TransactionStatus.CONFIRMING:
+      case TRANSACTION_STATUS.CONFIRMING:
         return "En cours de confirmation";
-      case TransactionStatus.CONFIRMED:
+      case TRANSACTION_STATUS.CONFIRMED:
         return "Confirmé";
-      case TransactionStatus.SENDING:
+      case TRANSACTION_STATUS.SENDING:
         return "En cours d'envoi";
-      case TransactionStatus.PARTIALLY_PAID:
+      case TRANSACTION_STATUS.PARTIALLY_PAID:
         return "Partiellement payé";
-      case TransactionStatus.FINISHED:
+      case TRANSACTION_STATUS.FINISHED:
         return "Terminé";
-      case TransactionStatus.FAILED:
+      case TRANSACTION_STATUS.FAILED:
         return "Échoué";
-      case TransactionStatus.REFUNDED:
+      case TRANSACTION_STATUS.REFUNDED:
         return "Remboursé";
-      case TransactionStatus.EXPIRED:
+      case TRANSACTION_STATUS.EXPIRED:
         return "Expiré";
-      case TransactionStatus.CANCELLED:
+      case TRANSACTION_STATUS.CANCELLED:
         return "Annulé";
       default:
         return status;
@@ -275,18 +308,18 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   };
 
   // Fonction pour obtenir l'icône d'état d'une transaction
-  const getStatusIcon = (status: TransactionStatus) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
-      case TransactionStatus.FINISHED:
+      case TRANSACTION_STATUS.FINISHED:
         return <CheckCircle className="status-icon success" />;
-      case TransactionStatus.FAILED:
-      case TransactionStatus.EXPIRED:
-      case TransactionStatus.CANCELLED:
+      case TRANSACTION_STATUS.FAILED:
+      case TRANSACTION_STATUS.EXPIRED:
+      case TRANSACTION_STATUS.CANCELLED:
         return <XCircle className="status-icon error" />;
-      case TransactionStatus.WAITING:
-      case TransactionStatus.CONFIRMING:
-      case TransactionStatus.SENDING:
-      case TransactionStatus.PARTIALLY_PAID:
+      case TRANSACTION_STATUS.WAITING:
+      case TRANSACTION_STATUS.CONFIRMING:
+      case TRANSACTION_STATUS.SENDING:
+      case TRANSACTION_STATUS.PARTIALLY_PAID:
         return <Clock className="status-icon pending" />;
       default:
         return null;
@@ -296,13 +329,13 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   // Fonction pour afficher le type de transaction
   const getTransactionTypeLabel = (transaction: Transaction): string => {
     switch (transaction.type) {
-      case 'deposit':
+      case TRANSACTION_TYPES.DEPOSIT:
         return "Dépôt";
-      case 'formation_purchase':
+      case TRANSACTION_TYPES.FORMATION_PURCHASE:
         return "Achat de formation";
-      case 'tool_purchase':
+      case TRANSACTION_TYPES.TOOL_PURCHASE:
         return "Achat d'outil";
-      case 'other_purchase':
+      case TRANSACTION_TYPES.OTHER_PURCHASE:
         return "Autre achat";
       default:
         return transaction.type || "Inconnu";
@@ -361,13 +394,13 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
                 <div key={index} className="transaction-item">
                   <div className="transaction-info">
                     <span className="transaction-type">
-                      {t.type === TransactionType.DEPOSIT ? 'Dépôt' : 
-                       t.type === TransactionType.OTHER_PURCHASE ? 'Retrait' : 'Achat'}
+                      {t.type === TRANSACTION_TYPES.DEPOSIT ? 'Dépôt' : 
+                       t.type === TRANSACTION_TYPES.OTHER_PURCHASE ? 'Retrait' : 'Achat'}
                     </span>
                     <span className="transaction-date">{formatDate(t.createdAt)}</span>
                   </div>
-                  <span className={`transaction-amount ${t.type === TransactionType.DEPOSIT ? 'positive' : 'negative'}`}>
-                    {t.type === TransactionType.DEPOSIT ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
+                  <span className={`transaction-amount ${t.type === TRANSACTION_TYPES.DEPOSIT ? 'positive' : 'negative'}`}>
+                    {t.type === TRANSACTION_TYPES.DEPOSIT ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
                   </span>
                 </div>
               ))}
@@ -455,18 +488,23 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
           <div className="crypto-selection">
             <label>Choisissez votre crypto-monnaie:</label>
             <div className="crypto-options">
-              {SUPPORTED_CRYPTOCURRENCIES.map(crypto => (
+              {CRYPTOCURRENCIES.map(crypto => (
                 <button
                   key={crypto.id}
                   className={`crypto-button ${selectedCrypto === crypto.id ? 'selected' : ''}`}
                   onClick={() => setSelectedCrypto(crypto.id)}
                 >
+                  <img 
+                    src={`/images/crypto/${crypto.id}.svg`} 
+                    alt={crypto.name} 
+                    className="w-6 h-6 mr-2"
+                  />
                   {crypto.symbol}
                 </button>
               ))}
             </div>
             <p className="crypto-note">
-              Vous paierez en équivalent {SUPPORTED_CRYPTOCURRENCIES.find(c => c.id === selectedCrypto)?.name || selectedCrypto.toUpperCase()}
+              Vous paierez en équivalent {CRYPTOCURRENCIES.find(c => c.id === selectedCrypto)?.name}
             </p>
           </div>
           
@@ -483,21 +521,27 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
           <h3>Paiement en attente</h3>
           <p>Vous allez être redirigé vers la page de paiement.</p>
           <p>Si la redirection ne fonctionne pas, cliquez sur le bouton ci-dessous:</p>
-          <button className="redirect-button" onClick={() => window.open(depositUrl, '_blank')}>
+          <button 
+            className="redirect-button" 
+            onClick={() => window.open(depositUrl, '_blank')}
+          >
             Aller à la page de paiement
           </button>
-          <button className="cancel-button" onClick={() => setDepositUrl(null)}>
+          <button 
+            className="cancel-button" 
+            onClick={() => setDepositUrl(null)}
+          >
             Annuler
           </button>
         </div>
       )}
 
       {/* Afficher les transactions en attente avec les détails de paiement */}
-      {transactions.filter(tx => tx.status === TransactionStatus.WAITING && tx.type === 'deposit').length > 0 && (
+      {transactions.filter(tx => tx.status === TRANSACTION_STATUS.WAITING && tx.type === TRANSACTION_TYPES.DEPOSIT).length > 0 && (
         <div className="pending-payments">
           <h3>Paiements en attente</h3>
           {transactions
-            .filter(tx => tx.status === TransactionStatus.WAITING && tx.type === 'deposit')
+            .filter(tx => tx.status === TRANSACTION_STATUS.WAITING && tx.type === TRANSACTION_TYPES.DEPOSIT)
             .map(tx => (
               <div key={tx.id} className="pending-payment-item">
                 <div className="payment-header">
@@ -580,7 +624,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
             {transactions.map(transaction => (
               <li key={transaction.id} className={`transaction-item ${transaction.status}`}>
                 <div className="transaction-icon">
-                  {transaction.type === 'deposit' ? <ArrowUp /> : <Trash />}
+                  {transaction.type === TRANSACTION_TYPES.DEPOSIT ? <ArrowUp /> : <Trash />}
                 </div>
                 <div className="transaction-details">
                   <div className="transaction-type">
@@ -591,7 +635,7 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
                   </div>
                 </div>
                 <div className="transaction-amount">
-                  {transaction.type === 'deposit' ? '+' : '-'}
+                  {transaction.type === TRANSACTION_TYPES.DEPOSIT ? '+' : '-'}
                   {transaction.amount} {transaction.currency}
                 </div>
                 <div className="transaction-status">
