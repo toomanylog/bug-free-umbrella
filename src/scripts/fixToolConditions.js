@@ -5,22 +5,12 @@
  * et corrige les conditions qui ont une description mais pas de valeur d'ID.
  * 
  * Pour exécuter ce script:
- * 1. Dans le terminal: node src/scripts/fixToolConditions.mjs
+ * 1. Dans le terminal: node src/scripts/fixToolConditions.js
  */
 
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, get, update } from "firebase/database";
-
-// Configuration Firebase
-const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
-};
+import firebaseConfig from "../firebase/config";
 
 // Initialisation de Firebase
 const app = initializeApp(firebaseConfig);
@@ -47,8 +37,6 @@ const fixToolConditions = async () => {
     const formationsSnapshot = await get(formationsRef);
     const formationsData = formationsSnapshot.exists() ? formationsSnapshot.val() : {};
     
-    console.log(`Nombre de formations trouvées: ${Object.keys(formationsData).length}`);
-    
     // Créer un index de formations par titre
     const formationsByTitle = {};
     Object.values(formationsData).forEach(formation => {
@@ -57,14 +45,10 @@ const fixToolConditions = async () => {
       }
     });
     
-    console.log("Index des formations par titre:", formationsByTitle);
-    
     // Récupérer toutes les certifications
     const certificationsRef = ref(database, 'certifications');
     const certificationsSnapshot = await get(certificationsRef);
     const certificationsData = certificationsSnapshot.exists() ? certificationsSnapshot.val() : {};
-    
-    console.log(`Nombre de certifications trouvées: ${Object.keys(certificationsData).length}`);
     
     // Créer un index de certifications par titre
     const certificationsByTitle = {};
@@ -74,8 +58,6 @@ const fixToolConditions = async () => {
       }
     });
     
-    console.log("Index des certifications par titre:", certificationsByTitle);
-    
     // Parcourir tous les outils et corriger les conditions
     let updatedCount = 0;
     const updates = {};
@@ -84,14 +66,9 @@ const fixToolConditions = async () => {
       let toolUpdated = false;
       
       if (tool.conditions && tool.conditions.length > 0) {
-        console.log(`Vérification de l'outil ${tool.name} (${toolId}) avec ${tool.conditions.length} conditions`);
-        
         const updatedConditions = tool.conditions.map(condition => {
-          console.log("Condition actuelle:", condition);
-          
           // Si la condition a déjà une valeur, ne rien faire
           if (condition.value) {
-            console.log(`La condition a déjà une valeur: ${condition.value}`);
             return condition;
           }
           
@@ -105,8 +82,6 @@ const fixToolConditions = async () => {
                 updatedCondition.value = formationId;
                 console.log(`Outil ${tool.name}: Formation "${condition.description}" -> ID ${formationId}`);
                 toolUpdated = true;
-              } else {
-                console.log(`Aucune formation trouvée avec le titre "${condition.description}"`);
               }
             } else if (condition.type === 'certification_obtained') {
               const certificationId = certificationsByTitle[condition.description];
@@ -114,8 +89,6 @@ const fixToolConditions = async () => {
                 updatedCondition.value = certificationId;
                 console.log(`Outil ${tool.name}: Certification "${condition.description}" -> ID ${certificationId}`);
                 toolUpdated = true;
-              } else {
-                console.log(`Aucune certification trouvée avec le titre "${condition.description}"`);
               }
             }
             
@@ -134,7 +107,6 @@ const fixToolConditions = async () => {
     
     // Si des mises à jour sont nécessaires, les appliquer
     if (Object.keys(updates).length > 0) {
-      console.log("Mises à jour à appliquer:", updates);
       await update(ref(database), updates);
       console.log(`${updatedCount} outils ont été mis à jour.`);
     } else {
@@ -149,11 +121,8 @@ const fixToolConditions = async () => {
 
 // Exécuter le script
 fixToolConditions()
-  .then(() => {
-    console.log("Script terminé avec succès");
-    setTimeout(() => process.exit(0), 1000);
-  })
+  .then(() => process.exit(0))
   .catch(error => {
-    console.error("Erreur dans le script:", error);
+    console.error(error);
     process.exit(1);
   }); 

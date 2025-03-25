@@ -8,11 +8,12 @@ import {
   Transaction as BaseTransaction, 
   TransactionStatus, 
   UserWallet, 
-  SUPPORTED_CRYPTOCURRENCIES 
+  SUPPORTED_CRYPTOCURRENCIES,
+  TransactionType
 } from '../firebase/services/nowpayments';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Trash, ArrowUp, CheckCircle, XCircle, Clock, X } from 'lucide-react';
+import { Trash, ArrowUp, CheckCircle, XCircle, Clock, X, Plus, Minus } from 'lucide-react';
 
 // Styles
 import './WalletComponent.css';
@@ -56,6 +57,8 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   const [selectedCrypto, setSelectedCrypto] = useState<string>('btc');
   const [cancellationLoading, setCancellationLoading] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState<boolean>(false);
+  const [showWithdraw, setShowWithdraw] = useState<boolean>(false);
 
   // Options de montants prédéfinis pour les dépôts
   const predefinedAmounts = [50, 100, 200, 500, 1000];
@@ -318,6 +321,52 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
 
   return (
     <div className="wallet-container">
+      <div className="wallet-card">
+        <div className="wallet-content">
+          <div className="wallet-header">
+            <h2>Mon Portefeuille</h2>
+            <div className="wallet-balance">
+              <span className="balance-amount">{userWallet?.balance?.toFixed(2) || "0.00"} €</span>
+            </div>
+          </div>
+          
+          <div className="wallet-actions">
+            <button className="wallet-button" onClick={() => setShowAdd(true)}>
+              <Plus size={18} /> Ajouter des fonds
+            </button>
+            <button className="wallet-button" onClick={() => setShowWithdraw(true)}>
+              <Minus size={18} /> Retirer des fonds
+            </button>
+          </div>
+        </div>
+        
+        <div className="transactions-section">
+          <h3>Dernières Transactions</h3>
+          {loading ? (
+            <div className="transactions-loading">Chargement des transactions...</div>
+          ) : transactions && transactions.length > 0 ? (
+            <div className="transactions-list">
+              {transactions.map((t, index) => (
+                <div key={index} className="transaction-item">
+                  <div className="transaction-info">
+                    <span className="transaction-type">
+                      {t.type === TransactionType.DEPOSIT ? 'Dépôt' : 
+                       t.type === TransactionType.OTHER_PURCHASE ? 'Retrait' : 'Achat'}
+                    </span>
+                    <span className="transaction-date">{formatDate(t.createdAt)}</span>
+                  </div>
+                  <span className={`transaction-amount ${t.type === TransactionType.DEPOSIT ? 'positive' : 'negative'}`}>
+                    {t.type === TransactionType.DEPOSIT ? '+' : '-'}{t.amount?.toFixed(2) || "0.00"} €
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="no-transactions">Aucune transaction récente</div>
+          )}
+        </div>
+      </div>
+      
       {error && (
         <div className="wallet-error">
           {error}

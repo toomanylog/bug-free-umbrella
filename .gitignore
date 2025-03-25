@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
+chezmisalinux-default-rtdb-export.json
 
 # testing
 /coverage

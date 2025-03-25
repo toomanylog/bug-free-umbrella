@@ -70,7 +70,9 @@ const FormationDetail: React.FC = () => {
 
   // Fonction pour marquer un module comme complété
   const markModuleAsCompleted = async (e: React.MouseEvent, moduleId: string) => {
-    e.preventDefault(); // Empêcher le comportement par défaut qui fait remonter la page
+    // Ne pas utiliser preventDefault car cela peut causer d'autres problèmes
+    // Mais conserver la position de scroll actuelle
+    const scrollPosition = window.scrollY;
     
     if (!formationId || !userData || completedModules.has(moduleId)) return;
     
@@ -84,6 +86,14 @@ const FormationDetail: React.FC = () => {
       
       // Sauvegarder dans la base de données
       await updateFormationProgress(userData.uid, formationId, moduleId);
+      
+      // Restaurer la position de scroll
+      setTimeout(() => {
+        window.scrollTo({
+          top: scrollPosition,
+          behavior: "auto"
+        });
+      }, 10);
       
     } catch (err) {
       console.error("Erreur lors de la mise à jour de la progression:", err);

@@ -6,7 +6,7 @@ import {
   updateFormation, 
   deleteFormation
 } from '../../firebase/formations';
-import { Edit, Trash2, Eye, X, Check } from 'lucide-react';
+import { Edit, Trash2, Eye, X, Check, Plus } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getAllUsers, assignFormationToUser } from '../../firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -41,6 +41,7 @@ const FormationManager: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [showForm, setShowForm] = useState<boolean>(false);
   const [currentFormation, setCurrentFormation] = useState<Omit<Formation, 'id'> & { id?: string }>({...EMPTY_FORMATION});
   const [feedback, setFeedback] = useState<{message: string, isError: boolean} | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
@@ -164,11 +165,13 @@ const FormationManager: React.FC = () => {
   const editFormation = (formation: Formation) => {
     setCurrentFormation({...formation});
     setIsEditing(true);
+    setShowForm(true);
   };
 
   const resetForm = () => {
     setCurrentFormation({...EMPTY_FORMATION});
     setIsEditing(false);
+    setShowForm(false);
   };
 
   const handlePreview = (formation: Formation) => {
@@ -288,14 +291,319 @@ const FormationManager: React.FC = () => {
   }
 
   return (
-    <div>
-      {/* Feedback */}
+    <div className="p-4">
       {feedback && (
-        <div className={`p-4 mb-4 rounded-lg ${feedback.isError ? 'bg-red-900/50 text-red-200' : 'bg-green-900/50 text-green-200'}`}>
+        <div 
+          className={`mb-4 p-3 rounded-lg text-white ${feedback.isError ? 'bg-red-600/80' : 'bg-green-600/80'}`}
+          role="alert"
+        >
           {feedback.message}
         </div>
       )}
+
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Gestion des Formations</h1>
+        <button
+          onClick={() => {
+            setIsEditing(false);
+            setCurrentFormation({...EMPTY_FORMATION});
+            setShowForm(true);
+          }}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
+        >
+          <Plus size={18} className="mr-2" />
+          Ajouter une formation
+        </button>
+      </div>
       
+      {/* Formulaire de création/édition */}
+      {showForm && (
+        <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">
+              {isEditing ? 'Modifier la formation' : 'Ajouter une formation'}
+            </h2>
+            <button 
+              onClick={resetForm}
+              className="text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Titre</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={currentFormation.title}
+                onChange={e => setCurrentFormation({...currentFormation, title: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Image URL</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={currentFormation.imageUrl}
+                onChange={e => setCurrentFormation({...currentFormation, imageUrl: e.target.value})}
+              />
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-400 mb-1">Prix (€)</label>
+            <div className="flex items-center">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-full md:w-1/4 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={currentFormation.price || 0}
+                onChange={e => setCurrentFormation({...currentFormation, price: parseFloat(e.target.value) || 0})}
+              />
+              <p className="ml-2 text-sm text-gray-400">Laissez à 0 pour une formation gratuite</p>
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-400 mb-1">Description</label>
+            <textarea
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+              value={currentFormation.description}
+              onChange={e => setCurrentFormation({...currentFormation, description: e.target.value})}
+            ></textarea>
+          </div>
+          
+          <div className="flex items-center mb-4">
+            <input
+              type="checkbox"
+              id="published"
+              className="mr-2 h-4 w-4"
+              checked={currentFormation.published}
+              onChange={e => setCurrentFormation({...currentFormation, published: e.target.checked})}
+            />
+            <label htmlFor="published" className="text-sm font-medium text-gray-400">Publier cette formation</label>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-400 mb-1">Certification associée (optionnel)</label>
+            <select
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={currentFormation.certificationId || ''}
+              onChange={e => setCurrentFormation({...currentFormation, certificationId: e.target.value || undefined})}
+            >
+              <option value="">Aucune certification</option>
+              {certifications.map(certification => (
+                <option key={certification.id} value={certification.id}>
+                  {certification.title}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              La certification sera proposée aux utilisateurs une fois la formation complétée
+            </p>
+          </div>
+
+          {/* Section des modules */}
+          <div className="mb-6 border-t border-gray-700 pt-4 mt-4">
+            <h3 className="text-lg font-medium mb-3">Modules</h3>
+            
+            {/* Liste des modules existants */}
+            {currentFormation.modules.length > 0 && (
+              <div className="mb-4 space-y-2">
+                {currentFormation.modules.map((module, index) => (
+                  <div key={module.id} className="flex items-center bg-gray-700/50 p-3 rounded-lg">
+                    <div className="font-medium flex-1">{module.title}</div>
+                    <div className="flex space-x-1">
+                      {index > 0 && (
+                        <button
+                          className="p-1 hover:text-blue-400"
+                          onClick={() => moveModule(index, 'up')}
+                          title="Déplacer vers le haut"
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {index < currentFormation.modules.length - 1 && (
+                        <button
+                          className="p-1 hover:text-blue-400"
+                          onClick={() => moveModule(index, 'down')}
+                          title="Déplacer vers le bas"
+                        >
+                          ↓
+                        </button>
+                      )}
+                      <button
+                        className="p-1 hover:text-blue-400"
+                        onClick={() => editModule(index)}
+                        title="Modifier"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        className="p-1 hover:text-red-400"
+                        onClick={() => removeModule(index)}
+                        title="Supprimer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Formulaire d'ajout/édition de module */}
+            <div className="bg-gray-700/30 p-4 rounded-lg">
+              <h4 className="font-medium mb-2 text-sm text-gray-300">
+                {editingModuleIndex !== null ? 'Modifier le module' : 'Ajouter un module'}
+              </h4>
+              
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-400 mb-1">Titre du module</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={currentModule.title}
+                  onChange={e => setCurrentModule({...currentModule, title: e.target.value})}
+                />
+              </div>
+              
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-400 mb-1">Contenu</label>
+                <textarea
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                  value={currentModule.content}
+                  onChange={e => setCurrentModule({...currentModule, content: e.target.value})}
+                ></textarea>
+              </div>
+              
+              <div className="flex justify-end">
+                {editingModuleIndex !== null && (
+                  <button
+                    className="px-3 py-1.5 mr-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm"
+                    onClick={() => {
+                      setCurrentModule({...EMPTY_MODULE});
+                      setEditingModuleIndex(null);
+                    }}
+                  >
+                    Annuler
+                  </button>
+                )}
+                <button
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm flex items-center"
+                  onClick={addModule}
+                >
+                  {editingModuleIndex !== null ? 'Mettre à jour' : 'Ajouter'}
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end mt-6 space-x-2">
+            <button
+              onClick={resetForm}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleCreateOrUpdate}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
+            >
+              <Check size={18} className="mr-1" />
+              {isEditing ? 'Mettre à jour' : 'Créer'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Liste des formations */}
+      <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-semibold mb-4">Liste des formations</h2>
+        
+        {loading ? (
+          <div className="text-center py-6">
+            <div className="inline-block animate-spin h-8 w-8 border-4 border-gray-500 border-t-blue-500 rounded-full"></div>
+            <p className="mt-2 text-gray-400">Chargement des formations...</p>
+          </div>
+        ) : error ? (
+          <div className="text-red-400 p-4 text-center">
+            {error}
+          </div>
+        ) : formations.length === 0 ? (
+          <div className="text-gray-400 p-4 text-center">
+            Aucune formation trouvée.
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-700">
+            {formations.map(formation => (
+              <div key={formation.id} className="py-4 flex flex-wrap items-center justify-between">
+                <div className="flex items-center mb-2 sm:mb-0">
+                  {formation.imageUrl && (
+                    <img 
+                      src={formation.imageUrl} 
+                      alt={formation.title} 
+                      className="w-12 h-12 rounded-md object-cover mr-4"
+                    />
+                  )}
+                  <div>
+                    <h3 className="font-medium">{formation.title}</h3>
+                    <div className="text-sm text-gray-400">
+                      {formation.modules.length} module(s) · {formation.price && formation.price > 0 ? `${formation.price}€` : 'Gratuit'}
+                    </div>
+                    <div className="flex items-center mt-1">
+                      <span 
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          formation.published ? 'bg-green-900/40 text-green-400' : 'bg-gray-700 text-gray-400'
+                        }`}
+                      >
+                        {formation.published ? 'Publiée' : 'Brouillon'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handlePreview(formation)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                    title="Prévisualiser"
+                  >
+                    <Eye size={18} />
+                  </button>
+                  <button
+                    onClick={() => editFormation(formation)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                    title="Modifier"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(formation.id)}
+                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg"
+                    title="Supprimer"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAssignOpen(true);
+                      setSelectedFormation(formation);
+                    }}
+                    className="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-400 rounded-lg text-xs"
+                  >
+                    Assigner
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Aperçu de la formation */}
       {isPreviewOpen && previewFormation && createPortal(
         <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50 p-4">
@@ -444,285 +752,6 @@ const FormationManager: React.FC = () => {
         </div>,
         document.body
       )}
-      
-      {/* Formulaire de création/édition */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
-        <h2 className="text-xl font-semibold mb-4">
-          {isEditing ? 'Modifier la formation' : 'Ajouter une formation'}
-        </h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Titre</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={currentFormation.title}
-              onChange={e => setCurrentFormation({...currentFormation, title: e.target.value})}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Image URL</label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={currentFormation.imageUrl}
-              onChange={e => setCurrentFormation({...currentFormation, imageUrl: e.target.value})}
-            />
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-400 mb-1">Prix (€)</label>
-          <div className="flex items-center">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="w-full md:w-1/4 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={currentFormation.price || 0}
-              onChange={e => setCurrentFormation({...currentFormation, price: parseFloat(e.target.value) || 0})}
-            />
-            <p className="ml-2 text-sm text-gray-400">Laissez à 0 pour une formation gratuite</p>
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-400 mb-1">Description</label>
-          <textarea
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
-            value={currentFormation.description}
-            onChange={e => setCurrentFormation({...currentFormation, description: e.target.value})}
-          ></textarea>
-        </div>
-        
-        <div className="flex items-center mb-4">
-          <input
-            type="checkbox"
-            id="published"
-            className="mr-2 h-4 w-4"
-            checked={currentFormation.published}
-            onChange={e => setCurrentFormation({...currentFormation, published: e.target.checked})}
-          />
-          <label htmlFor="published" className="text-sm font-medium text-gray-400">Publier cette formation</label>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-400 mb-1">Certification associée (optionnel)</label>
-          <select
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={currentFormation.certificationId || ''}
-            onChange={e => setCurrentFormation({...currentFormation, certificationId: e.target.value || undefined})}
-          >
-            <option value="">Aucune certification</option>
-            {certifications.map(certification => (
-              <option key={certification.id} value={certification.id}>
-                {certification.title}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-gray-500">
-            La certification sera proposée aux utilisateurs une fois la formation complétée
-          </p>
-        </div>
-
-        {/* Section des modules */}
-        <div className="mb-6 border-t border-gray-700 pt-4 mt-4">
-          <h3 className="text-lg font-medium mb-3">Modules</h3>
-          
-          {/* Liste des modules existants */}
-          {currentFormation.modules.length > 0 && (
-            <div className="mb-4 space-y-2">
-              {currentFormation.modules.map((module, index) => (
-                <div key={module.id} className="flex items-center bg-gray-700/50 p-3 rounded-lg">
-                  <div className="font-medium flex-1">{module.title}</div>
-                  <div className="flex space-x-1">
-                    {index > 0 && (
-                      <button
-                        className="p-1 hover:text-blue-400"
-                        onClick={() => moveModule(index, 'up')}
-                        title="Déplacer vers le haut"
-                      >
-                        ↑
-                      </button>
-                    )}
-                    {index < currentFormation.modules.length - 1 && (
-                      <button
-                        className="p-1 hover:text-blue-400"
-                        onClick={() => moveModule(index, 'down')}
-                        title="Déplacer vers le bas"
-                      >
-                        ↓
-                      </button>
-                    )}
-                    <button
-                      className="p-1 hover:text-blue-400"
-                      onClick={() => editModule(index)}
-                      title="Modifier"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      className="p-1 hover:text-red-400"
-                      onClick={() => removeModule(index)}
-                      title="Supprimer"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {/* Formulaire d'ajout/édition de module */}
-          <div className="bg-gray-700/30 p-4 rounded-lg">
-            <h4 className="font-medium mb-2 text-sm text-gray-300">
-              {editingModuleIndex !== null ? 'Modifier le module' : 'Ajouter un module'}
-            </h4>
-            
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-400 mb-1">Titre du module</label>
-              <input
-                type="text"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={currentModule.title}
-                onChange={e => setCurrentModule({...currentModule, title: e.target.value})}
-              />
-            </div>
-            
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-400 mb-1">Contenu</label>
-              <textarea
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
-                value={currentModule.content}
-                onChange={e => setCurrentModule({...currentModule, content: e.target.value})}
-              ></textarea>
-            </div>
-            
-            <div className="flex justify-end">
-              {editingModuleIndex !== null && (
-                <button
-                  className="px-3 py-1.5 mr-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm"
-                  onClick={() => {
-                    setCurrentModule({...EMPTY_MODULE});
-                    setEditingModuleIndex(null);
-                  }}
-                >
-                  Annuler
-                </button>
-              )}
-              <button
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm flex items-center"
-                onClick={addModule}
-              >
-                {editingModuleIndex !== null ? 'Mettre à jour' : 'Ajouter'}
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex space-x-2">
-          <button
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center"
-            onClick={handleCreateOrUpdate}
-          >
-            <Check size={18} className="mr-1" />
-            {isEditing ? 'Mettre à jour' : 'Créer'}
-          </button>
-          
-          {isEditing && (
-            <button
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center"
-              onClick={resetForm}
-            >
-              <X size={18} className="mr-1" />
-              Annuler
-            </button>
-          )}
-        </div>
-      </div>
-      
-      {/* Liste des formations */}
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Formations ({formations.length})</h2>
-        </div>
-        
-        {error && (
-          <div className="p-4 mb-4 rounded-lg bg-red-900/50 text-red-200">
-            {error}
-          </div>
-        )}
-        
-        {formations.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            Aucune formation n'a été créée pour le moment
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  <th className="px-4 py-3 text-left">Titre</th>
-                  <th className="px-4 py-3 text-left">Statut</th>
-                  <th className="px-4 py-3 text-left">Modules</th>
-                  <th className="px-4 py-3 text-left">Date de création</th>
-                  <th className="px-4 py-3 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {formations.map(formation => (
-                  <tr key={formation.id} className="border-b border-gray-700 hover:bg-gray-700/50">
-                    <td className="px-4 py-3">
-                      {formation.title}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                        formation.published ? 'bg-green-900/50 text-green-200' : 'bg-yellow-900/50 text-yellow-200'
-                      }`}>
-                        {formation.published ? 'Publié' : 'Brouillon'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {formation.modules?.length || 0}
-                    </td>
-                    <td className="px-4 py-3">
-                      {new Date(formation.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex space-x-2">
-                        <button 
-                          className="p-1 hover:text-blue-400 transition-colors"
-                          onClick={() => editFormation(formation)}
-                          title="Modifier"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          className="p-1 hover:text-red-400 transition-colors"
-                          onClick={() => handleDelete(formation.id)}
-                          title="Supprimer"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                        <button 
-                          className="p-1 hover:text-green-400 transition-colors"
-                          onClick={() => handlePreview(formation)}
-                          title="Prévisualiser"
-                        >
-                          <Eye size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 };
