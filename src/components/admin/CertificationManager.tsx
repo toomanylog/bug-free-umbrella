@@ -48,7 +48,9 @@ const EMPTY_QUESTION: Omit<ExamQuestion, 'id'> = {
   question: '',
   type: QuestionType.MULTIPLE_CHOICE,
   options: [''],
-  correctAnswer: ''
+  correctAnswer: '',
+  explanation: '',
+  feedback: ''
 };
 
 const CertificationManager: React.FC = () => {
@@ -774,14 +776,37 @@ const CertificationManager: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">
-                  Question
+                  Question (supporte le markdown)
                 </label>
-                <input
-                  type="text"
+                <textarea
                   value={currentQuestion.question}
                   onChange={(e) => setCurrentQuestion(prev => ({...prev, question: e.target.value}))}
-                  className="w-full bg-gray-800 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Saisissez votre question"
+                  className="w-full bg-gray-800 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                  placeholder="Entrez votre question en utilisant le markdown pour le formatage"
+                />
+              </div>
+              
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-400 mb-1">
+                  Explication (affichée après la réponse, supporte le markdown)
+                </label>
+                <textarea
+                  value={currentQuestion.explanation}
+                  onChange={(e) => setCurrentQuestion(prev => ({...prev, explanation: e.target.value}))}
+                  className="w-full bg-gray-800 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                  placeholder="Expliquez la réponse en détail en utilisant le markdown"
+                />
+              </div>
+              
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-400 mb-1">
+                  Feedback personnalisé (optionnel, supporte le markdown)
+                </label>
+                <textarea
+                  value={currentQuestion.feedback}
+                  onChange={(e) => setCurrentQuestion(prev => ({...prev, feedback: e.target.value}))}
+                  className="w-full bg-gray-800 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                  placeholder="Message personnalisé affiché à l'utilisateur après sa réponse"
                 />
               </div>
               

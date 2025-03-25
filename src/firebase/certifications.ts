@@ -37,6 +37,7 @@ export interface ExamQuestion {
   options?: string[];
   correctAnswer: string | string[];
   explanation?: string;
+  feedback?: string;
 }
 
 export enum QuestionType {

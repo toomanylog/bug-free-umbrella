@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, database } from '../firebase/config';
-import { ref, get, onValue, off } from 'firebase/database';
+import { ref, get, onValue, off, update, set } from 'firebase/database';
 import { 
   createWalletDeposit, 
   cancelTransaction,
   Transaction as BaseTransaction, 
-  UserWallet
+  UserWallet,
+  checkPaymentStatus,
+  checkTransactionExpiration
 } from '../firebase/services/nowpayments';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Trash, ArrowUp, CheckCircle, XCircle, Clock, X, Plus, Minus } from 'lucide-react';
+import 'cryptocurrency-icons/svg/color/btc.svg';
+import 'cryptocurrency-icons/svg/color/eth.svg';
+import 'cryptocurrency-icons/svg/color/ltc.svg';
+import 'cryptocurrency-icons/svg/color/bch.svg';
+import 'cryptocurrency-icons/svg/color/xrp.svg';
+import 'cryptocurrency-icons/svg/color/doge.svg';
+import 'cryptocurrency-icons/svg/color/trx.svg';
+import 'cryptocurrency-icons/svg/color/usdt.svg';
+import 'cryptocurrency-icons/svg/color/bnb.svg';
+import 'cryptocurrency-icons/svg/color/sol.svg';
 
 // Styles
 import './WalletComponent.css';
@@ -37,10 +49,16 @@ interface WalletComponentProps {
 
 // Constantes pour les cryptos supportées
 const CRYPTOCURRENCIES = [
-  { id: 'btc', name: 'Bitcoin', symbol: 'BTC' },
-  { id: 'eth', name: 'Ethereum', symbol: 'ETH' },
-  { id: 'usdt', name: 'Tether', symbol: 'USDT' },
-  { id: 'bnb', name: 'BNB', symbol: 'BNB' }
+  { id: 'btc', name: 'Bitcoin', symbol: 'BTC', icon: '/node_modules/cryptocurrency-icons/svg/color/btc.svg' },
+  { id: 'eth', name: 'Ethereum', symbol: 'ETH', icon: '/node_modules/cryptocurrency-icons/svg/color/eth.svg' },
+  { id: 'ltc', name: 'Litecoin', symbol: 'LTC', icon: '/node_modules/cryptocurrency-icons/svg/color/ltc.svg' },
+  { id: 'bch', name: 'Bitcoin Cash', symbol: 'BCH', icon: '/node_modules/cryptocurrency-icons/svg/color/bch.svg' },
+  { id: 'xrp', name: 'Ripple', symbol: 'XRP', icon: '/node_modules/cryptocurrency-icons/svg/color/xrp.svg' },
+  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', icon: '/node_modules/cryptocurrency-icons/svg/color/doge.svg' },
+  { id: 'trx', name: 'TRON', symbol: 'TRX', icon: '/node_modules/cryptocurrency-icons/svg/color/trx.svg' },
+  { id: 'usdt', name: 'Tether', symbol: 'USDT', icon: '/node_modules/cryptocurrency-icons/svg/color/usdt.svg' },
+  { id: 'bnb', name: 'Binance Coin', symbol: 'BNB', icon: '/node_modules/cryptocurrency-icons/svg/color/bnb.svg' },
+  { id: 'sol', name: 'Solana', symbol: 'SOL', icon: '/node_modules/cryptocurrency-icons/svg/color/sol.svg' }
 ];
 
 // Types de transaction
@@ -87,6 +105,8 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState<boolean>(false);
   const [showWithdraw, setShowWithdraw] = useState<boolean>(false);
+  const [autoCheckEnabled, setAutoCheckEnabled] = useState<boolean>(false);
+  const [checkingTransactions, setCheckingTransactions] = useState<Set<string>>(new Set());
 
   // Options de montants prédéfinis pour les dépôts
   const predefinedAmounts = [50, 100, 200, 500, 1000];
@@ -348,6 +368,105 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
     setAmount(selectedValue);
   };
 
+  // Ajouter la fonction de vérification de paiement
+  const handleCheckPayment = async (transaction: Transaction) => {
+    if (!transaction.paymentId || checkingTransactions.has(transaction.paymentId)) {
+      return;
+    }
+
+    try {
+      setCheckingTransactions(prev => new Set(prev).add(transaction.paymentId!));
+      const { status, actualAmount } = await checkPaymentStatus(transaction.paymentId);
+
+      // Mettre à jour le statut de la transaction
+      const transactionRef = ref(database, `transactions/${transaction.id}`);
+      await update(transactionRef, {
+        status,
+        updatedAt: new Date().toISOString(),
+        ...(status === TRANSACTION_STATUS.FINISHED ? { completedAt: new Date().toISOString() } : {}),
+        ...(actualAmount ? { actualAmount } : {})
+      });
+
+      // Si le paiement est terminé, mettre à jour le portefeuille
+      if (status === TRANSACTION_STATUS.FINISHED) {
+        const walletRef = ref(database, `wallets/${transaction.userId}`);
+        const walletSnap = await get(walletRef);
+        
+        if (walletSnap.exists()) {
+          const currentBalance = walletSnap.val().balance || 0;
+          await update(walletRef, {
+            balance: currentBalance + transaction.amount,
+            lastUpdated: new Date().toISOString()
+          });
+        } else {
+          await set(walletRef, {
+            userId: transaction.userId,
+            balance: transaction.amount,
+            currency: 'EUR',
+            lastUpdated: new Date().toISOString()
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du paiement:', error);
+    } finally {
+      setCheckingTransactions(prev => {
+        const newSet = new Set(prev);
+        if (transaction.paymentId) {
+          newSet.delete(transaction.paymentId);
+        }
+        return newSet;
+      });
+    }
+  };
+
+  // Ajouter l'effet pour la vérification automatique
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (autoCheckEnabled) {
+      intervalId = setInterval(() => {
+        transactions
+          .filter(tx => 
+            tx.status === TRANSACTION_STATUS.WAITING || 
+            tx.status === TRANSACTION_STATUS.CONFIRMING || 
+            tx.status === TRANSACTION_STATUS.SENDING || 
+            tx.status === TRANSACTION_STATUS.PARTIALLY_PAID
+          )
+          .forEach(tx => handleCheckPayment(tx));
+      }, 30000); // Vérifier toutes les 30 secondes
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [autoCheckEnabled, transactions]);
+
+  // Ajouter l'effet pour vérifier l'expiration des transactions
+  useEffect(() => {
+    if (!user) return;
+
+    const checkExpiredTransactions = async () => {
+      const pendingTransactions = transactions.filter(
+        tx => tx.status === TRANSACTION_STATUS.WAITING
+      );
+
+      for (const transaction of pendingTransactions) {
+        await checkTransactionExpiration(transaction.id);
+      }
+    };
+
+    // Vérifier toutes les 5 minutes
+    const intervalId = setInterval(checkExpiredTransactions, 5 * 60 * 1000);
+
+    // Vérifier immédiatement au chargement
+    checkExpiredTransactions();
+
+    return () => clearInterval(intervalId);
+  }, [transactions, user]);
+
   if (loading) {
     return (
       <div className="wallet-container">
@@ -495,11 +614,11 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
                   onClick={() => setSelectedCrypto(crypto.id)}
                 >
                   <img 
-                    src={`/images/crypto/${crypto.id}.svg`} 
+                    src={crypto.icon} 
                     alt={crypto.name} 
-                    className="w-6 h-6 mr-2"
+                    className="crypto-icon"
                   />
-                  {crypto.symbol}
+                  <span className="crypto-symbol">{crypto.symbol}</span>
                 </button>
               ))}
             </div>
@@ -540,6 +659,16 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
       {transactions.filter(tx => tx.status === TRANSACTION_STATUS.WAITING && tx.type === TRANSACTION_TYPES.DEPOSIT).length > 0 && (
         <div className="pending-payments">
           <h3>Paiements en attente</h3>
+          <div className="auto-check-toggle">
+            <label>
+              <input
+                type="checkbox"
+                checked={autoCheckEnabled}
+                onChange={(e) => setAutoCheckEnabled(e.target.checked)}
+              />
+              Vérification automatique (toutes les 30 secondes)
+            </label>
+          </div>
           {transactions
             .filter(tx => tx.status === TRANSACTION_STATUS.WAITING && tx.type === TRANSACTION_TYPES.DEPOSIT)
             .map(tx => (
@@ -548,6 +677,13 @@ const WalletComponent: React.FC<WalletComponentProps> = ({
                   <h4>Dépôt de {tx.amount} {tx.currency}</h4>
                   <div className="payment-actions">
                     <span className="status-tag">En attente</span>
+                    <button
+                      className="check-payment-button"
+                      onClick={() => handleCheckPayment(tx)}
+                      disabled={checkingTransactions.has(tx.paymentId || '')}
+                    >
+                      {checkingTransactions.has(tx.paymentId || '') ? 'Vérification...' : 'Vérifier l\'état du paiement'}
+                    </button>
                     <button
                       className="cancel-tx-button"
                       onClick={() => handleCancelTransaction(tx.id)}

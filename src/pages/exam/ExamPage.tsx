@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { ref, get } from 'firebase/database';
 import { database } from '../../firebase/config';
+import ReactMarkdown from 'react-markdown';
 
 interface UserAnswer {
   questionId: string;
@@ -31,6 +32,7 @@ const ExamPage: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [linkedTools, setLinkedTools] = useState<{id: string, name: string}[]>([]);
+  const [showExplanation, setShowExplanation] = useState<boolean>(false);
 
   // Soumission de l'examen
   const handleSubmitExam = useCallback(async () => {
@@ -211,6 +213,38 @@ const ExamPage: React.FC = () => {
   // Rediriger vers la page des outils
   const handleViewTools = () => {
     navigate('/dashboard/tools');
+  };
+  
+  // Gestion de la soumission d'une réponse
+  const handleAnswerSubmit = () => {
+    const currentQuestion = certification?.examQuestions?.[currentQuestionIndex];
+    if (!currentQuestion) return;
+
+    // Vérifier si la réponse est correcte
+    const userAnswer = userAnswers.find(a => a.questionId === currentQuestion.id);
+    let isCorrect = false;
+
+    if (currentQuestion.type === QuestionType.MULTIPLE_CHOICE || currentQuestion.type === QuestionType.TRUE_FALSE) {
+      isCorrect = userAnswer?.answer === currentQuestion.correctAnswer;
+    } else if (currentQuestion.type === QuestionType.MULTIPLE_ANSWER) {
+      const userAnswerArray = userAnswer?.answer as string[];
+      const correctAnswerArray = currentQuestion.correctAnswer as string[];
+      isCorrect = userAnswerArray.length === correctAnswerArray.length &&
+        userAnswerArray.every(a => correctAnswerArray.includes(a));
+    }
+
+    // Afficher l'explication
+    setShowExplanation(true);
+
+    // Passer à la question suivante après un délai
+    setTimeout(() => {
+      setShowExplanation(false);
+      if (currentQuestionIndex < (certification?.examQuestions?.length || 0) - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      } else {
+        handleSubmitExam();
+      }
+    }, 5000);
   };
   
   // Rendu conditionnel pour le chargement
@@ -416,152 +450,113 @@ const ExamPage: React.FC = () => {
           
           {/* Question */}
           <div className="p-6">
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">{currentQuestion.question}</h2>
-              
-              {/* Rendu des options selon le type de question */}
+            <div className="prose prose-invert mb-6">
+              <ReactMarkdown>
+                {certification.examQuestions![currentQuestionIndex].question}
+              </ReactMarkdown>
+            </div>
+            
+            {/* Options de réponse */}
+            <div className="space-y-3">
               {currentQuestion.type === QuestionType.MULTIPLE_CHOICE && (
-                <div className="space-y-3">
-                  {currentQuestion.options?.map((option, index) => (
-                    <label 
-                      key={index} 
-                      className={`block p-4 rounded-lg border ${
-                        currentAnswer?.answer === option 
-                          ? 'border-blue-500 bg-blue-900/20' 
-                          : 'border-gray-700 bg-gray-800/50 hover:bg-gray-700/50'
-                      } cursor-pointer transition-colors`}
-                    >
-                      <div className="flex items-center">
-                        <input 
-                          type="radio" 
-                          name={`question-${currentQuestion.id}`} 
-                          value={option}
-                          checked={currentAnswer?.answer === option}
-                          onChange={() => handleAnswerChange(currentQuestion.id, option)}
-                          className="mr-3 h-4 w-4 text-blue-600"
-                        />
-                        <span>{option}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                currentQuestion.options?.map((option, optionIndex) => (
+                  <label
+                    key={optionIndex}
+                    className={`block p-4 rounded-lg border cursor-pointer transition-colors ${
+                      userAnswers[currentQuestionIndex]?.answer === option
+                        ? 'bg-blue-600/20 border-blue-500'
+                        : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <input
+                        type="radio"
+                        name={`question-${currentQuestionIndex}`}
+                        value={option}
+                        checked={userAnswers[currentQuestionIndex]?.answer === option}
+                        onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                        className="h-4 w-4 text-blue-600 border-gray-600 focus:ring-blue-500"
+                      />
+                      <span className="ml-3">{option}</span>
+                    </div>
+                  </label>
+                ))
               )}
               
               {currentQuestion.type === QuestionType.MULTIPLE_ANSWER && (
-                <div className="space-y-3">
-                  {currentQuestion.options?.map((option, index) => (
-                    <label 
-                      key={index} 
-                      className={`block p-4 rounded-lg border ${
-                        Array.isArray(currentAnswer?.answer) && currentAnswer?.answer.includes(option)
-                          ? 'border-blue-500 bg-blue-900/20' 
-                          : 'border-gray-700 bg-gray-800/50 hover:bg-gray-700/50'
-                      } cursor-pointer transition-colors`}
-                    >
-                      <div className="flex items-center">
-                        <input 
-                          type="checkbox" 
-                          value={option}
-                          checked={Array.isArray(currentAnswer?.answer) && currentAnswer?.answer.includes(option)}
-                          onChange={(e) => handleMultipleAnswerChange(
-                            currentQuestion.id, 
-                            option, 
-                            e.target.checked
-                          )}
-                          className="mr-3 h-4 w-4 text-blue-600"
-                        />
-                        <span>{option}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-              
-              {currentQuestion.type === QuestionType.TRUE_FALSE && (
-                <div className="space-y-3">
-                  {['Vrai', 'Faux'].map((option) => (
-                    <label 
-                      key={option} 
-                      className={`block p-4 rounded-lg border ${
-                        currentAnswer?.answer === option 
-                          ? 'border-blue-500 bg-blue-900/20' 
-                          : 'border-gray-700 bg-gray-800/50 hover:bg-gray-700/50'
-                      } cursor-pointer transition-colors`}
-                    >
-                      <div className="flex items-center">
-                        <input 
-                          type="radio" 
-                          name={`question-${currentQuestion.id}`} 
-                          value={option}
-                          checked={currentAnswer?.answer === option}
-                          onChange={() => handleAnswerChange(currentQuestion.id, option)}
-                          className="mr-3 h-4 w-4 text-blue-600"
-                        />
-                        <span>{option}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-              
-              {currentQuestion.type === QuestionType.SHORT_ANSWER && (
-                <div>
-                  <textarea 
-                    value={currentAnswer?.answer as string || ''}
-                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-white"
-                    placeholder="Votre réponse..."
-                    rows={5}
-                  />
-                </div>
+                currentQuestion.options?.map((option, optionIndex) => (
+                  <label
+                    key={optionIndex}
+                    className={`block p-4 rounded-lg border cursor-pointer transition-colors ${
+                      (userAnswers[currentQuestionIndex]?.answer as string[])?.includes(option)
+                        ? 'bg-blue-600/20 border-blue-500'
+                        : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        value={option}
+                        checked={(userAnswers[currentQuestionIndex]?.answer as string[])?.includes(option)}
+                        onChange={(e) => handleMultipleAnswerChange(currentQuestion.id, e.target.value, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="ml-3">{option}</span>
+                    </div>
+                  </label>
+                ))
               )}
             </div>
             
-            {/* Navigation */}
-            <div className="flex justify-between mt-8">
+            {/* Bouton de soumission */}
+            <div className="mt-6 flex justify-end">
               <button
-                onClick={goToPreviousQuestion}
-                disabled={currentQuestionIndex === 0}
-                className={`px-4 py-2 rounded-lg ${
-                  currentQuestionIndex === 0 
-                    ? 'bg-gray-700 cursor-not-allowed opacity-50' 
-                    : 'bg-gray-700 hover:bg-gray-600'
+                onClick={handleAnswerSubmit}
+                disabled={showExplanation}
+                className={`px-6 py-2 rounded-lg font-medium flex items-center ${
+                  showExplanation
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                Question précédente
+                {showExplanation ? (
+                  <>
+                    <Clock size={18} className="mr-2" />
+                    Passage à la question suivante...
+                  </>
+                ) : (
+                  <>
+                    <Check size={18} className="mr-2" />
+                    Valider ma réponse
+                  </>
+                )}
               </button>
-              
-              {currentQuestionIndex < certification.examQuestions!.length - 1 ? (
-                <button
-                  onClick={goToNextQuestion}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
-                >
-                  Question suivante
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmitExam}
-                  disabled={isSubmitting}
-                  className={`px-6 py-2 rounded-lg font-medium flex items-center ${
-                    isSubmitting 
-                      ? 'bg-gray-600 cursor-not-allowed' 
-                      : 'bg-green-600 hover:bg-green-700'
-                  }`}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                      Soumission...
-                    </>
-                  ) : (
-                    <>
-                      <Award size={18} className="mr-2" />
-                      Terminer l'examen
-                    </>
-                  )}
-                </button>
-              )}
             </div>
+            
+            {/* Affichage de l'explication */}
+            {showExplanation && (
+              <div className="mt-6 p-4 rounded-lg bg-gray-700/50">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold mb-2">Explication :</h3>
+                  <div className="prose prose-invert">
+                    <ReactMarkdown>
+                      {currentQuestion.explanation || "Aucune explication disponible."}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+                
+                {currentQuestion.feedback && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Feedback :</h3>
+                    <div className="prose prose-invert">
+                      <ReactMarkdown>
+                        {currentQuestion.feedback}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

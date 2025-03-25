@@ -15,6 +15,7 @@ import { getAllTools } from '../../firebase/tools';
 import { ref, get, query, orderByChild, limitToLast } from 'firebase/database';
 import { database } from '../../firebase/config';
 import { TransactionStatus, TransactionType } from '../../firebase/services/nowpayments';
+import { useNavigate } from 'react-router-dom';
 
 // Sidebar Item Component
 const SidebarItem: React.FC<{
@@ -36,7 +37,30 @@ const SidebarItem: React.FC<{
 );
 
 const AdminDashboard: React.FC = () => {
-  const { userData, currentUser, isAdmin } = useAuth();
+  const { userData, currentUser, isAdmin, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Rediriger si l'utilisateur n'est pas connecté ou n'est pas admin
+  useEffect(() => {
+    if (!isLoading && (!currentUser || !isAdmin)) {
+      navigate('/');
+    }
+  }, [currentUser, isAdmin, isLoading, navigate]);
+
+  // Si en cours de chargement, afficher un spinner
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // Si l'utilisateur n'est pas connecté ou n'est pas admin, ne rien afficher
+  if (!currentUser || !isAdmin) {
+    return null;
+  }
+
   // Persister l'onglet actif en utilisant localStorage
   const [activeSection, setActiveSection] = useState(() => {
     const savedSection = localStorage.getItem('adminDashboardActiveSection');

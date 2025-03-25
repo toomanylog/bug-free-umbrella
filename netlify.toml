@@ -5,6 +5,8 @@
 [build.environment]
   CI = "false"
   SKIP_PREFLIGHT_CHECK = "true"
+  NODE_VERSION = "18"
+  NPM_VERSION = "9"
 
 # Redirection pour le routage SPA
 [[redirects]]

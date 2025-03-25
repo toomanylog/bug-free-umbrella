@@ -559,4 +559,72 @@ export const checkTransactionExpiration = async (transactionId: string): Promise
   } catch (error) {
     console.error('Erreur lors de la vérification de l\'expiration de la transaction:', error);
   }
+};
+
+/**
+ * Vérifie le statut d'un paiement auprès de NOWPayments
+ * @param paymentId ID du paiement à vérifier
+ * @returns Statut du paiement et montant payé
+ */
+export const checkPaymentStatus = async (paymentId: string): Promise<{
+  status: TransactionStatus;
+  actualAmount?: number;
+}> => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/payment/${paymentId}`,
+      {
+        headers: {
+          'x-api-key': API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (response.data && response.data.payment_status) {
+      // Mapper le statut NOWPayments vers notre enum TransactionStatus
+      let status: TransactionStatus;
+      switch (response.data.payment_status) {
+        case 'waiting':
+          status = TransactionStatus.WAITING;
+          break;
+        case 'confirming':
+          status = TransactionStatus.CONFIRMING;
+          break;
+        case 'confirmed':
+          status = TransactionStatus.CONFIRMED;
+          break;
+        case 'sending':
+          status = TransactionStatus.SENDING;
+          break;
+        case 'partially_paid':
+          status = TransactionStatus.PARTIALLY_PAID;
+          break;
+        case 'finished':
+          status = TransactionStatus.FINISHED;
+          break;
+        case 'failed':
+          status = TransactionStatus.FAILED;
+          break;
+        case 'refunded':
+          status = TransactionStatus.REFUNDED;
+          break;
+        case 'expired':
+          status = TransactionStatus.EXPIRED;
+          break;
+        default:
+          status = TransactionStatus.WAITING;
+      }
+
+      return {
+        status,
+        actualAmount: response.data.actually_paid
+      };
+    }
+
+    throw new Error('Statut de paiement non disponible');
+  } catch (error) {
+    console.error('Erreur lors de la vérification du statut du paiement:', error);
+    throw error;
+  }
 }; 

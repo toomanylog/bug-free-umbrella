@@ -215,23 +215,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 1rem;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
   background-color: rgba(55, 65, 81, 0.5);
   border-radius: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 150ms;
+  border: 1px solid transparent;
+}
+
+.crypto-button:hover {
+  background-color: rgba(75, 85, 99, 0.5);
+  transform: translateY(-1px);
 }
 
 .crypto-button.selected {
   background-color: rgba(37, 99, 235, 0.5);
-  border: 1px solid rgba(96, 165, 250, 0.5);
+  border-color: rgba(96, 165, 250, 0.5);
 }
 
-.crypto-button img {
+.crypto-icon {
   width: 1.5rem;
   height: 1.5rem;
-  margin-right: 0.5rem;
+  object-fit: contain;
+}
+
+.crypto-symbol {
+  font-weight: 600;
+  color: #e5e7eb;
 }
 
 .crypto-note {
@@ -572,4 +584,48 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.auto-check-toggle {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: rgba(55, 65, 81, 0.5);
+  border-radius: 0.5rem;
+}
+
+.auto-check-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.auto-check-toggle input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(75, 85, 99, 0.5);
+  background-color: rgba(55, 65, 81, 0.5);
+  cursor: pointer;
+}
+
+.check-payment-button {
+  padding: 0.5rem 1rem;
+  background-color: #2563eb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 150ms;
+  margin-right: 0.5rem;
+}
+
+.check-payment-button:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.check-payment-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 } 
