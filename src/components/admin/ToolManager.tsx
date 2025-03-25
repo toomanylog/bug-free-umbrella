@@ -56,10 +56,12 @@ const ToolManager: React.FC = () => {
         
         // Charger les formations pour les conditions
         const formationsData = await getAllFormations();
+        console.log("Formations chargées:", formationsData);
         setFormations(formationsData);
         
         // Charger les certifications pour les conditions
         const certificationsData = await getAllCertifications();
+        console.log("Certifications chargées:", certificationsData);
         setCertifications(certificationsData);
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
@@ -86,6 +88,19 @@ const ToolManager: React.FC = () => {
     setEditingTool(null);
     setFormError('');
     setFormSuccess('');
+  };
+
+  // Fonction d'aide pour afficher l'état actuel des conditions (debug)
+  const debugConditions = (conditions: ToolCondition[], message = "État des conditions") => {
+    console.log(message, conditions.map(c => ({
+      type: c.type, 
+      value: c.value, 
+      description: c.description,
+      formation: c.type === ConditionType.FORMATION_COMPLETED && c.value ? 
+        formations.find(f => f.id === c.value)?.title : undefined,
+      certification: c.type === ConditionType.CERTIFICATION_OBTAINED && c.value ?
+        certifications.find(cert => cert.id === c.value)?.title : undefined
+    })));
   };
 
   // Préparer l'édition d'un outil
@@ -233,14 +248,19 @@ const ToolManager: React.FC = () => {
 
   // Ajout d'une condition
   const addCondition = () => {
+    const newCondition = {
+      type: ConditionType.FORMATION_COMPLETED,
+      value: '',
+      description: ''
+    };
+    
+    const updatedConditions = [...form.conditions, newCondition];
     setForm({
       ...form,
-      conditions: [...form.conditions, {
-        type: ConditionType.FORMATION_COMPLETED,
-        value: '',
-        description: ''
-      }]
+      conditions: updatedConditions
     });
+    
+    debugConditions(updatedConditions, "Condition ajoutée");
   };
 
   // Mise à jour d'une condition
@@ -254,6 +274,8 @@ const ToolManager: React.FC = () => {
       ...form,
       conditions: updatedConditions
     });
+    
+    debugConditions(updatedConditions, `Condition mise à jour (${field})`);
   };
 
   // Suppression d'une condition
@@ -590,31 +612,58 @@ const ToolManager: React.FC = () => {
                         <div>
                           <label className="block text-sm font-medium text-gray-300 mb-1">Formation requise</label>
                           <select 
-                            value={condition.value}
+                            value={condition.value || ""}
+                            onClick={() => console.log("Clic sur le sélecteur de formation")}
                             onChange={(e) => {
+                              // Ne pas empêcher le comportement par défaut
                               const formationId = e.target.value;
-                              const formation = formations.find(f => f.id === formationId);
+                              console.log(`Sélection de formation - ID sélectionné: ${formationId}`);
+                              
+                              // Mettre à jour immédiatement la valeur
+                              const updatedConditions = [...form.conditions];
+                              updatedConditions[index] = {
+                                ...updatedConditions[index],
+                                value: formationId
+                              };
+                              
+                              // Si un ID valide a été sélectionné, mettre à jour la description
                               if (formationId) {
-                                // S'assurer que l'ID est correctement sauvegardé
-                                console.log(`Sélection de la formation: ${formationId}`);
-                                updateCondition(index, 'value', formationId);
-                                updateCondition(index, 'description', formation ? formation.title : '');
+                                const formation = formations.find(f => f.id === formationId);
+                                console.log(`Formation trouvée:`, formation);
+                                updatedConditions[index].description = formation ? formation.title : '';
                               }
+                              
+                              // Mettre à jour le formulaire avec les nouvelles conditions
+                              setForm({
+                                ...form,
+                                conditions: updatedConditions
+                              });
+                              
+                              // Forcer un re-rendu en mettant à jour un état temporaire
+                              setFormError('');
                             }}
                             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
                           >
                             <option value="">Sélectionnez une formation</option>
                             {formations.map(formation => (
-                              <option key={formation.id} value={formation.id}>
+                              <option key={formation.id} value={formation.id} data-title={formation.title}>
                                 {formation.title}
                               </option>
                             ))}
                           </select>
-                          {!condition.value && (
-                            <p className="text-xs text-yellow-500 mt-1">
-                              Aucune formation sélectionnée. L'ID est nécessaire pour la vérification d'accès.
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-400">
+                              Formation sélectionnée: {condition.value ? 
+                              formations.find(f => f.id === condition.value)?.title || condition.description || 'Aucune' 
+                              : 'Aucune'}
                             </p>
-                          )}
+                            {!condition.value && (
+                              <p className="text-xs text-yellow-500 mt-1">
+                                Aucune formation sélectionnée. L'ID est nécessaire pour la vérification d'accès.
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
                       
@@ -622,32 +671,59 @@ const ToolManager: React.FC = () => {
                         <div>
                           <label className="block text-sm font-medium text-gray-300 mb-1">Certification requise</label>
                           <select 
-                            value={condition.value}
+                            value={condition.value || ""}
+                            onClick={() => console.log("Clic sur le sélecteur de certification")}
                             onChange={(e) => {
+                              // Ne pas empêcher le comportement par défaut
                               const certificationId = e.target.value;
-                              const certification = certifications.find(c => c.id === certificationId);
+                              console.log(`Sélection de certification - ID sélectionné: ${certificationId}`);
+                              
+                              // Mettre à jour immédiatement la valeur
+                              const updatedConditions = [...form.conditions];
+                              updatedConditions[index] = {
+                                ...updatedConditions[index],
+                                value: certificationId
+                              };
+                              
+                              // Si un ID valide a été sélectionné, mettre à jour la description
                               if (certificationId) {
-                                // S'assurer que l'ID est correctement sauvegardé
-                                console.log(`Sélection de la certification: ${certificationId}`);
-                                updateCondition(index, 'value', certificationId);
+                                const certification = certifications.find(c => c.id === certificationId);
+                                console.log(`Certification trouvée:`, certification);
                                 const certificationTitle = certification && certification.title ? certification.title : 'Certification requise';
-                                updateCondition(index, 'description', certificationTitle);
+                                updatedConditions[index].description = certificationTitle;
                               }
+                              
+                              // Mettre à jour le formulaire avec les nouvelles conditions
+                              setForm({
+                                ...form,
+                                conditions: updatedConditions
+                              });
+                              
+                              // Forcer un re-rendu en mettant à jour un état temporaire
+                              setFormError('');
                             }}
                             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
                           >
                             <option value="">Sélectionnez une certification</option>
                             {certifications.map(certification => (
-                              <option key={certification.id} value={certification.id}>
+                              <option key={certification.id} value={certification.id} data-title={certification.title || 'Certification sans titre'}>
                                 {certification.title || 'Certification sans titre'}
                               </option>
                             ))}
                           </select>
-                          {!condition.value && (
-                            <p className="text-xs text-yellow-500 mt-1">
-                              Aucune certification sélectionnée. L'ID est nécessaire pour la vérification d'accès.
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-400">
+                              Certification sélectionnée: {condition.value ? 
+                              certifications.find(c => c.id === condition.value)?.title || condition.description || 'Aucune' 
+                              : 'Aucune'}
                             </p>
-                          )}
+                            {!condition.value && (
+                              <p className="text-xs text-yellow-500 mt-1">
+                                Aucune certification sélectionnée. L'ID est nécessaire pour la vérification d'accès.
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
                       
